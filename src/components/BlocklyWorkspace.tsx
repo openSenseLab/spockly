@@ -3,19 +3,83 @@ import * as Blockly from 'blockly'
 import { pythonGenerator } from 'blockly/python'
 import 'blockly/blocks'
 
-import { registerSpatialBlocks, spatialToolbox } from '../blocks/spatialBlocks'
 import { DEFAULT_PYTHON_CODE } from '../constants'
 import { useAppStore } from '../store/useAppStore'
 
 type BlocklyWorkspaceProps = {
-  starterXml: string
   workspaceVersion: number
 }
 
-const requiredImportsByBlockType: Record<string, string> = {
-  load_vector_data: 'import geopandas as gpd',
-  spatial_join_layers: 'import geopandas as gpd',
-  plot_layer: 'import matplotlib.pyplot as plt',
+const standardToolbox = {
+  kind: 'categoryToolbox',
+  contents: [
+    {
+      kind: 'category',
+      name: 'Logic',
+      categorystyle: 'logic_category',
+      contents: [
+        { kind: 'block', type: 'controls_if' },
+        { kind: 'block', type: 'logic_compare' },
+        { kind: 'block', type: 'logic_operation' },
+        { kind: 'block', type: 'logic_negate' },
+        { kind: 'block', type: 'logic_boolean' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Loops',
+      categorystyle: 'loop_category',
+      contents: [
+        { kind: 'block', type: 'controls_repeat_ext' },
+        { kind: 'block', type: 'controls_whileUntil' },
+        { kind: 'block', type: 'controls_for' },
+        { kind: 'block', type: 'controls_forEach' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Math',
+      categorystyle: 'math_category',
+      contents: [
+        { kind: 'block', type: 'math_number' },
+        { kind: 'block', type: 'math_arithmetic' },
+        { kind: 'block', type: 'math_single' },
+        { kind: 'block', type: 'math_round' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Text',
+      categorystyle: 'text_category',
+      contents: [
+        { kind: 'block', type: 'text' },
+        { kind: 'block', type: 'text_join' },
+        { kind: 'block', type: 'text_print' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Lists',
+      categorystyle: 'list_category',
+      contents: [
+        { kind: 'block', type: 'lists_create_with' },
+        { kind: 'block', type: 'lists_length' },
+        { kind: 'block', type: 'lists_getIndex' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Variables',
+      categorystyle: 'variable_category',
+      custom: Blockly.VARIABLE_CATEGORY_NAME,
+    },
+    {
+      kind: 'category',
+      name: 'Functions',
+      categorystyle: 'procedure_category',
+      custom: Blockly.PROCEDURE_CATEGORY_NAME,
+    },
+  ],
 }
 
 const buildPythonPreview = (workspace: Blockly.WorkspaceSvg) => {
@@ -25,16 +89,7 @@ const buildPythonPreview = (workspace: Blockly.WorkspaceSvg) => {
     return DEFAULT_PYTHON_CODE
   }
 
-  const imports = Array.from(
-    new Set(
-      workspace
-        .getAllBlocks(false)
-        .map((block) => requiredImportsByBlockType[block.type])
-        .filter((value): value is string => Boolean(value)),
-    ),
-  )
-
-  return imports.length > 0 ? `${imports.join('\n')}\n\n${rawCode}` : rawCode
+  return rawCode
 }
 
 const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
@@ -45,19 +100,14 @@ const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
   })
 }
 
-const loadStarterWorkspace = (workspace: Blockly.WorkspaceSvg, starterXml: string) => {
-  const xml = Blockly.utils.xml.textToDom(starterXml)
-  Blockly.Xml.clearWorkspaceAndLoadFromXml(xml, workspace)
+const resetWorkspaceState = (workspace: Blockly.WorkspaceSvg) => {
+  workspace.clear()
   updateDerivedState(workspace)
 }
 
-export function BlocklyWorkspace({ starterXml, workspaceVersion }: BlocklyWorkspaceProps) {
+export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
   const blocklyRef = useRef<HTMLDivElement | null>(null)
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
-
-  useEffect(() => {
-    registerSpatialBlocks()
-  }, [])
 
   useEffect(() => {
     if (!blocklyRef.current || workspaceRef.current) {
@@ -65,7 +115,7 @@ export function BlocklyWorkspace({ starterXml, workspaceVersion }: BlocklyWorksp
     }
 
     const workspace = Blockly.inject(blocklyRef.current, {
-      toolbox: spatialToolbox,
+      toolbox: standardToolbox,
       theme: Blockly.Themes.Zelos,
       trashcan: true,
       move: {
@@ -102,6 +152,7 @@ export function BlocklyWorkspace({ starterXml, workspaceVersion }: BlocklyWorksp
     workspace.addChangeListener(onWorkspaceChange)
     workspaceRef.current = workspace
     window.addEventListener('resize', onResize)
+    updateDerivedState(workspace)
     onResize()
 
     return () => {
@@ -117,8 +168,8 @@ export function BlocklyWorkspace({ starterXml, workspaceVersion }: BlocklyWorksp
       return
     }
 
-    loadStarterWorkspace(workspaceRef.current, starterXml)
-  }, [starterXml, workspaceVersion])
+    resetWorkspaceState(workspaceRef.current)
+  }, [workspaceVersion])
 
   return <div className="blockly-workspace" ref={blocklyRef} />
 }

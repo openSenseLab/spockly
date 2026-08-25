@@ -1,6 +1,7 @@
 # spockly
 
-A Blockly-based React + Vite starter for learning spatial data science with Python.
+A Blockly-based React + Vite starter with a standard Blockly workspace and live Python
+preview.
 
 ## Stack
 
