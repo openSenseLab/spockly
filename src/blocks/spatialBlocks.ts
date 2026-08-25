@@ -42,7 +42,7 @@ const blockDefinitions = [
   },
   {
     type: 'buffer_layer',
-    message0: 'buffer %1 by %2 meters and save as %3',
+    message0: 'buffer %1 by %2 CRS units and save as %3',
     args0: [
       { type: 'field_input', name: 'SOURCE', text: 'layer' },
       { type: 'field_number', name: 'DISTANCE', value: 250, min: 0, precision: 1 },
@@ -51,7 +51,7 @@ const blockDefinitions = [
     previousStatement: null,
     nextStatement: null,
     colour: 210,
-    tooltip: 'Build a metric buffer around the current geometry.',
+    tooltip: 'Build a buffer around the current geometry using the layer’s current CRS units.',
   },
   {
     type: 'spatial_join_layers',
@@ -80,19 +80,16 @@ const blockDefinitions = [
   },
 ]
 
-const generatorDefinitions = pythonGenerator as typeof pythonGenerator & {
-  definitions_: Record<string, string>
-}
-
 const sanitizeIdentifier = (value: string, fallback: string) => {
-  const cleaned = value.trim().replace(/[^a-zA-Z0-9_]/g, '_')
+  const cleaned = value
+    .trim()
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .replace(/^[0-9]/, '_$&')
   return cleaned.length > 0 ? cleaned : fallback
 }
 
 const registerGenerator = () => {
   pythonGenerator.forBlock.load_vector_data = (block, generator) => {
-    generatorDefinitions.definitions_.import_geopandas = 'import geopandas as gpd'
-
     const path = generator.quote_(block.getFieldValue('PATH'))
     const variable = sanitizeIdentifier(block.getFieldValue('VARIABLE'), 'layer')
     return `${variable} = gpd.read_file(${path})\n`
@@ -120,8 +117,6 @@ const registerGenerator = () => {
   }
 
   pythonGenerator.forBlock.spatial_join_layers = (block) => {
-    generatorDefinitions.definitions_.import_geopandas = 'import geopandas as gpd'
-
     const left = sanitizeIdentifier(block.getFieldValue('LEFT'), 'left_layer')
     const right = sanitizeIdentifier(block.getFieldValue('RIGHT'), 'right_layer')
     const output = sanitizeIdentifier(block.getFieldValue('OUTPUT'), 'joined_layer')
@@ -129,8 +124,6 @@ const registerGenerator = () => {
   }
 
   pythonGenerator.forBlock.plot_layer = (block, generator) => {
-    generatorDefinitions.definitions_.import_matplotlib = 'import matplotlib.pyplot as plt'
-
     const variable = sanitizeIdentifier(block.getFieldValue('VARIABLE'), 'layer')
     const title = generator.quote_(block.getFieldValue('TITLE'))
     return `ax = ${variable}.plot(figsize=(8, 6), alpha=0.8, edgecolor='black')\nax.set_title(${title})\nplt.show()\n`

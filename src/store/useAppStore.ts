@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_PYTHON_CODE } from '../constants'
 
 type WorkspaceMetrics = {
   totalBlocks: number
@@ -15,11 +16,9 @@ type AppState = WorkspaceMetrics & {
   setWorkspaceMetrics: (metrics: WorkspaceMetrics) => void
 }
 
-const defaultCode = `import geopandas as gpd\n\n# Assemble a spatial workflow with blocks to generate Python.`
-
 export const useAppStore = create<AppState>((set) => ({
   activeLessonId: 'neighbourhood-basics',
-  generatedCode: defaultCode,
+  generatedCode: DEFAULT_PYTHON_CODE,
   totalBlocks: 0,
   topLevelBlocks: 0,
   workspaceVersion: 0,

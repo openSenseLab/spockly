@@ -49,7 +49,8 @@ export const lessons: Lesson[] = [
     focusAreas: ['Buffer analysis', 'Attribute filters', 'Study areas'],
     prompts: [
       'Load parcels and river centerlines as separate layers.',
-      'Create a river buffer to represent a simple flood influence zone.',
+      'Reproject the rivers into a metric CRS before creating a buffer.',
+      'Create a river buffer to represent a simple flood influence zone after reprojecting.',
       'Filter the parcel table to inspect a single district or land use type.',
     ],
     starterXml: `<xml xmlns="https://developers.google.com/blockly/xml">
@@ -61,10 +62,16 @@ export const lessons: Lesson[] = [
             <field name="PATH">data/rivers.geojson</field>
             <field name="VARIABLE">rivers</field>
             <next>
-              <block type="buffer_layer">
-                <field name="SOURCE">rivers</field>
-                <field name="OUTPUT">river_buffer</field>
-                <field name="DISTANCE">250</field>
+              <block type="reproject_layer">
+                <field name="VARIABLE">rivers</field>
+                <field name="EPSG">3857</field>
+                <next>
+                  <block type="buffer_layer">
+                    <field name="SOURCE">rivers</field>
+                    <field name="OUTPUT">river_buffer</field>
+                    <field name="DISTANCE">250</field>
+                  </block>
+                </next>
               </block>
             </next>
           </block>

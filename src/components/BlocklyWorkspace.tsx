@@ -4,6 +4,7 @@ import { pythonGenerator } from 'blockly/python'
 import 'blockly/blocks'
 
 import { registerSpatialBlocks, spatialToolbox } from '../blocks/spatialBlocks'
+import { DEFAULT_PYTHON_CODE } from '../constants'
 import { useAppStore } from '../store/useAppStore'
 
 type BlocklyWorkspaceProps = {
@@ -11,11 +12,33 @@ type BlocklyWorkspaceProps = {
   workspaceVersion: number
 }
 
-const fallbackCode = `import geopandas as gpd\n\n# Assemble a spatial workflow with blocks to generate Python.`
+const requiredImportsByBlockType: Record<string, string> = {
+  load_vector_data: 'import geopandas as gpd',
+  spatial_join_layers: 'import geopandas as gpd',
+  plot_layer: 'import matplotlib.pyplot as plt',
+}
+
+const buildPythonPreview = (workspace: Blockly.WorkspaceSvg) => {
+  const rawCode = pythonGenerator.workspaceToCode(workspace).trim()
+
+  if (!rawCode) {
+    return DEFAULT_PYTHON_CODE
+  }
+
+  const imports = Array.from(
+    new Set(
+      workspace
+        .getAllBlocks(false)
+        .map((block) => requiredImportsByBlockType[block.type])
+        .filter((value): value is string => Boolean(value)),
+    ),
+  )
+
+  return imports.length > 0 ? `${imports.join('\n')}\n\n${rawCode}` : rawCode
+}
 
 const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
-  const generatedCode = pythonGenerator.workspaceToCode(workspace).trim()
-  useAppStore.getState().setGeneratedCode(generatedCode || fallbackCode)
+  useAppStore.getState().setGeneratedCode(buildPythonPreview(workspace))
   useAppStore.getState().setWorkspaceMetrics({
     totalBlocks: workspace.getAllBlocks(false).length,
     topLevelBlocks: workspace.getTopBlocks(false).length,
