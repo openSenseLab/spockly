@@ -152,7 +152,6 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     workspace.addChangeListener(onWorkspaceChange)
     workspaceRef.current = workspace
     window.addEventListener('resize', onResize)
-    updateDerivedState(workspace)
     onResize()
 
     return () => {

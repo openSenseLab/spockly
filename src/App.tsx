@@ -66,32 +66,36 @@ function App() {
       <main className="workspace-layout">
         <section className="workspace-column">
           <Card size="3" className="workspace-card">
-            <Flex align="center" justify="between" gap="3" wrap="wrap" mb="4">
-              <div>
-                <Heading size="5">Blockly lab</Heading>
-                <Text as="p" size="2" color="gray">
-                  Use the standard Blockly toolbox, then inspect the generated Python beside
-                  it.
-                </Text>
-              </div>
-              <Badge size="2" color="amber" variant="soft">
-                Live preview
-              </Badge>
-            </Flex>
-            <BlocklyWorkspace workspaceVersion={workspaceVersion} />
+            <div className="workspace-card-content">
+              <Flex align="center" justify="between" gap="3" wrap="wrap" mb="4">
+                <div>
+                  <Heading size="5">Blockly lab</Heading>
+                  <Text as="p" size="2" color="gray">
+                    Use the standard Blockly toolbox, then inspect the generated Python
+                    beside it.
+                  </Text>
+                </div>
+                <Badge size="2" color="amber" variant="soft">
+                  Live preview
+                </Badge>
+              </Flex>
+              <BlocklyWorkspace workspaceVersion={workspaceVersion} />
+            </div>
           </Card>
         </section>
 
         <section className="code-column">
           <Card size="3" className="code-card">
-            <Heading size="5">Generated Python</Heading>
-            <Text as="p" size="2" color="gray" mb="3">
-              The code preview updates from the Zustand-backed workspace state as you change
-              the blocks.
-            </Text>
-            <pre className="python-preview">
-              <code>{generatedCode}</code>
-            </pre>
+            <div className="code-card-content">
+              <Heading size="5">Generated Python</Heading>
+              <Text as="p" size="2" color="gray" mb="3">
+                The code preview updates from the Zustand-backed workspace state as you
+                change the blocks.
+              </Text>
+              <pre className="python-preview">
+                <code>{generatedCode}</code>
+              </pre>
+            </div>
           </Card>
         </section>
       </main>

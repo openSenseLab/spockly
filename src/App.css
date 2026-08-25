@@ -42,8 +42,15 @@
 .workspace-card,
 .code-card {
   height: 100%;
+  min-height: 0;
+}
+
+.workspace-card-content,
+.code-card-content {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  height: 100%;
   min-height: 0;
 }
 
