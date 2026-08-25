@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="spockly icon">
+  <rect width="64" height="64" rx="16" fill="#0f172a"/>
+  <path d="M18 18h28v8H18zm0 12h18v8H18zm0 12h28v8H18z" fill="#22d3ee"/>
+  <circle cx="46" cy="34" r="8" fill="#38bdf8"/>
+</svg>
