@@ -1,7 +1,7 @@
 import * as Blockly from "blockly";
-import { pythonGenerator } from "blockly/python";
+import { pythonGenerator, Order } from "blockly/python";
 
 pythonGenerator.forBlock["example_block"] = function (block) {
   const code = "example_code";
-  return [code, pythonGenerator.ORDER_ATOMIC];
+  return [code, Order.ATOMIC];
 };
