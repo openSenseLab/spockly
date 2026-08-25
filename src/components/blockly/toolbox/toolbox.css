@@ -1,0 +1,11 @@
+/**************/
+/* CATEGORIES */
+/**************/
+
+.example_category {
+  border-left: 8px solid #8b4513;
+}
+
+.example_category.blocklyToolboxSelected {
+  background-color: #5b67a5 !important;
+}
