@@ -39,20 +39,34 @@
   min-height: 0;
 }
 
-.workspace-card,
-.code-card {
+.code-column {
+  gap: 20px;
+}
+
+.workspace-card {
   height: 100%;
+}
+
+.workspace-card,
+.code-card,
+.output-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .workspace-card-content,
-.code-card-content {
+.code-card-content,
+.output-card-content {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+.code-card,
+.output-card {
+  flex: 1 1 0;
 }
 
 .blockly-workspace {
@@ -65,7 +79,8 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-.python-preview {
+.python-preview,
+.python-output {
   margin: 0;
   flex: 1;
   min-height: 0;
@@ -76,6 +91,17 @@
   color: #e2e8f0;
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+.python-output {
+  background: #111827;
+  color: #d1fae5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.python-output-error {
+  color: #fecaca;
 }
 
 @media (max-width: 1080px) {
@@ -91,9 +117,13 @@
 
   .workspace-column,
   .code-column,
-  .workspace-card,
-  .code-card {
+  .workspace-card {
     min-height: 420px;
+  }
+
+  .code-card,
+  .output-card {
+    min-height: 300px;
   }
 }
 
