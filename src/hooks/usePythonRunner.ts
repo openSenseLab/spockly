@@ -17,8 +17,24 @@ type WorkerResponse =
   | {
       type: "output";
       runId: number;
-      stream: "stdout" | "stderr";
+      stream: "stdout" | "stderr" | "system";
       value: string;
+    }
+  | {
+      type: "images";
+      runId: number;
+      images: { name: string; dataUrl: string }[];
+    }
+  | {
+      type: "files";
+      runId: number;
+      files: { name: string; dataUrl: string; mimeType: string }[];
+    }
+  | {
+      type: "data";
+      runId: number;
+      datasets: DataPreview[];
+      variables: DataPreview[];
     }
   | {
       type: "complete";
@@ -31,10 +47,38 @@ type WorkerResponse =
       message: string;
     };
 
+export type DataFile = {
+  path: string;
+  url: string;
+};
+
+export type RunOptions = {
+  dataFiles?: DataFile[];
+  uploadedCsv?: string | null;
+};
+
+export type OutputFile = {
+  name: string;
+  dataUrl: string;
+  mimeType: string;
+};
+
+export type DataPreview = {
+  name: string;
+  csvPreview: string;
+  rowCount: number;
+  columnCount: number;
+};
+
 export function usePythonRunner() {
   const workerRef = useRef<Worker | null>(null);
   const activeRunIdRef = useRef(0);
   const [output, setOutput] = useState("");
+  const [systemOutput, setSystemOutput] = useState("");
+  const [images, setImages] = useState<{ name: string; dataUrl: string }[]>([]);
+  const [dataFiles, setDataFiles] = useState<OutputFile[]>([]);
+  const [datasets, setDatasets] = useState<DataPreview[]>([]);
+  const [variables, setVariables] = useState<DataPreview[]>([]);
   const [status, setStatus] = useState<PythonRunStatus>("idle");
 
   const getWorker = useCallback(() => {
@@ -57,7 +101,27 @@ export function usePythonRunner() {
       }
 
       if (data.type === "output") {
-        setOutput((currentOutput) => currentOutput + data.value);
+        if (data.stream === "system") {
+          setSystemOutput((currentOutput) => currentOutput + data.value);
+        } else {
+          setOutput((currentOutput) => currentOutput + data.value);
+        }
+        return;
+      }
+
+      if (data.type === "images") {
+        setImages(data.images);
+        return;
+      }
+
+      if (data.type === "files") {
+        setDataFiles(data.files);
+        return;
+      }
+
+      if (data.type === "data") {
+        setDatasets(data.datasets);
+        setVariables(data.variables);
         return;
       }
 
@@ -89,18 +153,34 @@ export function usePythonRunner() {
   }, []);
 
   const run = useCallback(
-    (code: string) => {
+    (code: string, options?: RunOptions) => {
       const runId = activeRunIdRef.current + 1;
       activeRunIdRef.current = runId;
       setOutput("");
+      setSystemOutput("");
+      setImages([]);
+      setDataFiles([]);
+      setDatasets([]);
+      setVariables([]);
       setStatus("loading");
-      getWorker().postMessage({ type: "run", runId, code });
+      getWorker().postMessage({
+        type: "run",
+        runId,
+        code,
+        dataFiles: options?.dataFiles,
+        uploadedCsv: options?.uploadedCsv,
+      });
     },
     [getWorker],
   );
 
   const clearOutput = useCallback(() => {
     setOutput("");
+    setSystemOutput("");
+    setImages([]);
+    setDataFiles([]);
+    setDatasets([]);
+    setVariables([]);
     if (status !== "loading" && status !== "running") {
       setStatus("idle");
     }
@@ -126,10 +206,15 @@ export function usePythonRunner() {
 
   return {
     clearOutput,
+    dataFiles,
+    datasets,
+    images,
     isBusy: status === "loading" || status === "running",
     output,
     run,
     status,
     stop,
+    systemOutput,
+    variables,
   };
 }

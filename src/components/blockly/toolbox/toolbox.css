@@ -9,3 +9,23 @@
 .example_category.blocklyToolboxSelected {
   background-color: #5b67a5 !important;
 }
+
+.datascience_category {
+  border-left: 8px solid #0284c7;
+}
+
+.datascience_category.blocklyToolboxSelected {
+  background-color: #0284c7 !important;
+}
+
+.datascience_category.ds_modular {
+  border-left: 8px solid #0284c7;
+}
+
+.datascience_category.ds_template {
+  border-left: 8px solid #7c3aed;
+}
+
+.datascience_category.ds_steps {
+  border-left: 8px solid #0d9488;
+}

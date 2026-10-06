@@ -5,7 +5,7 @@ import "blockly/blocks";
 
 import { DEFAULT_PYTHON_CODE } from "../constants";
 import { useAppStore } from "../store/useAppStore";
-import { standardToolbox } from "./blockly/toolbox/toolbox";
+import { getToolboxForMode } from "./blockly/modes";
 import "./blockly/blocks/example";
 import "./blockly/blocks/generators/example";
 
@@ -29,6 +29,9 @@ const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
     totalBlocks: workspace.getAllBlocks(false).length,
     topLevelBlocks: workspace.getTopBlocks(false).length,
   });
+  // Any workspace change means the previously generated results no longer
+  // correspond to the current blocks.
+  useAppStore.getState().setResultsStale(true);
 };
 
 const resetWorkspaceState = (workspace: Blockly.WorkspaceSvg) => {
@@ -39,14 +42,24 @@ const resetWorkspaceState = (workspace: Blockly.WorkspaceSvg) => {
 export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
   const blocklyRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const dsMode = useAppStore((state) => state.dsMode);
 
+  // Inject (or re-inject) the workspace whenever the branch (dsMode) changes.
+  // Switching branches is a deliberate action, so losing workspace state is
+  // acceptable (like switching git branches).
   useEffect(() => {
-    if (!blocklyRef.current || workspaceRef.current) {
+    if (!blocklyRef.current) {
       return;
     }
 
+    // Dispose any existing workspace before re-injecting.
+    if (workspaceRef.current) {
+      workspaceRef.current.dispose();
+      workspaceRef.current = null;
+    }
+
     const workspace = Blockly.inject(blocklyRef.current, {
-      toolbox: standardToolbox,
+      toolbox: getToolboxForMode(dsMode),
       theme: Blockly.Themes.Zelos,
       trashcan: true,
       move: {
@@ -84,6 +97,9 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     workspaceRef.current = workspace;
     window.addEventListener("resize", onResize);
     onResize();
+    // Refresh the generated code and metrics immediately after injection so the
+    // preview reflects the current (possibly empty) workspace.
+    updateDerivedState(workspace);
 
     return () => {
       window.removeEventListener("resize", onResize);
@@ -91,7 +107,7 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
       workspace.dispose();
       workspaceRef.current = null;
     };
-  }, []);
+  }, [dsMode]);
 
   useEffect(() => {
     if (!workspaceRef.current) {

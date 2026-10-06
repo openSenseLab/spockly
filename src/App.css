@@ -1,27 +1,33 @@
 .app-shell {
-  width: min(2000px, 100% - 32px);
+  width: 100%;
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 12px 8px;
   height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .hero-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  gap: 12px;
+  margin-bottom: 12px;
   flex-shrink: 0;
-}
-
-.hero-copy {
-  max-width: 68ch;
-  line-height: 1.6;
 }
 
 .hero-metadata {
   align-self: stretch;
+}
+
+.hero-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-metadata .rt-CardInner {
+  padding: 8px 12px;
 }
 
 .workspace-layout {
@@ -30,6 +36,30 @@
   gap: 20px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+}
+
+/* Give the workspace a concrete minimum height so the Blockly canvas has room
+   to render even when the page grows beyond the viewport and scrolls. */
+.workspace-layout {
+  min-height: 560px;
+}
+
+/* --- Reflection prompts --- */
+.reflection-card {
+  margin-top: 20px;
+  flex-shrink: 0;
+}
+
+.reflection-list {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #334155;
 }
 
 .workspace-column,
@@ -37,36 +67,80 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .code-column {
   gap: 20px;
+  overflow: hidden;
 }
 
 .workspace-card {
   height: 100%;
-}
-
-.workspace-card,
-.code-card,
-.output-card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
 
-.workspace-card-content,
-.code-card-content,
-.output-card-content {
+.workspace-card-content {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
 }
 
-.code-card,
-.output-card {
-  flex: 1 1 0;
+/* --- Process guide (data-science workflow) --- */
+.process-guide {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.process-stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.process-stage {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.process-stage-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.process-stage-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.process-stage-cats,
+.process-stage-desc {
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .process-stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .blockly-workspace {
@@ -77,6 +151,171 @@
   overflow: hidden;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
   border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* --- Tabs --- */
+.tabs-card {
+  overflow: hidden;
+}
+
+.tabs-header {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  flex-shrink: 0;
+}
+
+.tabs-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs-tab:hover {
+  color: #334155;
+}
+
+.tabs-tab.is-active {
+  color: #0f172a;
+  border-bottom-color: #6366f1;
+}
+
+.tabs-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Data & Output combined panel --- */
+.data-output-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.data-output-panel > .output-view {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding-top: 16px;
+}
+
+/* --- Data view --- */
+.data-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.data-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.data-item-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.data-item-toggle {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+
+.data-item-toggle:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.data-preview-table-wrap {
+  margin-top: 8px;
+  overflow: auto;
+  max-height: 240px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.data-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.data-preview-table th,
+.data-preview-table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.data-preview-table th {
+  background: rgba(15, 23, 42, 0.04);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+/* --- Output view --- */
+.output-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.output-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.output-file {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.output-file-preview {
+  margin: 8px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .python-preview,
@@ -98,10 +337,66 @@
   color: #d1fae5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  flex: 1;
+  min-height: 0;
 }
 
 .python-output-error {
   color: #fecaca;
+}
+
+.system-output {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.system-output summary {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.02);
+  user-select: none;
+}
+
+.system-output-body {
+  border-radius: 0;
+  padding: 12px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: #0f172a;
+}
+
+.plot-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.plot-figure {
+  margin: 0;
+  background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.plot-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.plot-figure figcaption {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: #0f172a;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 @media (max-width: 1080px) {
@@ -121,10 +416,6 @@
     min-height: 420px;
   }
 
-  .code-card,
-  .output-card {
-    min-height: 300px;
-  }
 }
 
 @media (max-width: 720px) {
