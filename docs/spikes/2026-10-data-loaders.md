@@ -254,10 +254,10 @@ Quirks found (covered by tests with recorded responses):
 ## 5. Decisions taken
 
 - Configuration of API blocks happens in a **setup window**, results stay in
-  the side panel (as the brief says).
+  the side panel.
 - openSenseMap: **area presets instead of a map** for now, plus **group tags**;
   **max. 7 days**; ~20–50 quick requests per load are fine for the API.
-  Longer periods should come from a curated snapshot file (brief Phase 1).
+  Longer periods should come from a curated snapshot file.
 - A `save_as` block was tried and **removed** again for now; it only makes
   sense together with `combine_with`, whose semantics are still open.
 - Each data block gets **its own variable name** in the Python code, so
@@ -275,7 +275,7 @@ Quirks found (covered by tests with recorded responses):
 - No processing blocks yet; the plan has only load steps.
 - Any block can snap under a load block, including standard Blockly blocks
   (loops, …). Those appear in the Python code but are ignored by the plan, so
-  code and analysis can differ. Typed connections (brief §3.7) should prevent this.
+  code and analysis can differ. Typed connections should prevent this.
 - Standard toolbox and the starter header ("Blockly lab", "Run code", …) are
   still visible and English-only.
 - `tsconfig` is not `strict` yet.
@@ -309,7 +309,7 @@ Quirks found (covered by tests with recorded responses):
   ones) and doesn't page past 10 000 values per sensor.
 - In the whole-canvas view, helper variables (`url`, `zeilen`, `boxen`) are
   reused between blocks; they don't overwrite data, but may confuse readers.
-- First run downloads numpy, pandas, python-dateutil, pytz and six (the brief's
+- First run downloads numpy, pandas, python-dateutil, pytz and six (the suggested
   classroom cold-start concern).
 
 **Checked only partly**
@@ -341,9 +341,8 @@ There are no automated UI tests in the repo.
 - **Dates as ISO strings** in `DataTable` — confirm or change? It affects every
   loader.
 - **`combine_with`**: append rows, join on a column, or time-aligned join?
-  (Brief §9.) Needed before a `save_as` block makes sense.
 - **When to add typed connections** — now, or with the first processing blocks?
-- **Curated openSenseMap snapshot** for "a few weeks of Münster" (brief Phase 1):
+- **Curated openSenseMap snapshot** for "a few weeks of Münster" :
   who creates and approves it?
 - **Next loaders**: generic API block (meeting), NASA POWER, CSV upload.
 - Should the openSenseMap block also offer a fast **"current values"** mode
