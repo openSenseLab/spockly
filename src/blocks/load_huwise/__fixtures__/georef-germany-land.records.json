@@ -1,0 +1,293 @@
+{
+ "total_count": 16,
+ "results": [
+  {
+   "geo_point_2d": {
+    "lon": 12.534597106097866,
+    "lat": 53.75320600822798
+   },
+   "year": "2025",
+   "lan_code": [
+    "13"
+   ],
+   "lan_name": [
+    "Mecklenburg-Vorpommern"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Mecklenburg-Vorpommern"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 11.024867374655829,
+    "lat": 50.90387300022924
+   },
+   "year": "2025",
+   "lan_code": [
+    "16"
+   ],
+   "lan_name": [
+    "Thüringen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Freistaat",
+   "lan_name_long": [
+    "Freistaat Thüringen"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 9.031062468150475,
+    "lat": 50.603248227547176
+   },
+   "year": "2025",
+   "lan_code": [
+    "06"
+   ],
+   "lan_name": [
+    "Hessen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Hessen"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 11.419914035054274,
+    "lat": 48.94758053075392
+   },
+   "year": "2025",
+   "lan_code": [
+    "09"
+   ],
+   "lan_name": [
+    "Bayern"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Freistaat",
+   "lan_name_long": [
+    "Freistaat Bayern"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 8.743444624532783,
+    "lat": 53.19966774419495
+   },
+   "year": "2025",
+   "lan_code": [
+    "04"
+   ],
+   "lan_name": [
+    "Bremen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Freie Hansestadt",
+   "lan_name_long": [
+    "Freie Hansestadt Bremen"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 13.401859033897598,
+    "lat": 52.501536465880235
+   },
+   "year": "2025",
+   "lan_code": [
+    "11"
+   ],
+   "lan_name": [
+    "Berlin"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Berlin"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 9.817589270559635,
+    "lat": 54.184013891634
+   },
+   "year": "2025",
+   "lan_code": [
+    "01"
+   ],
+   "lan_name": [
+    "Schleswig-Holstein"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Schleswig-Holstein"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 7.5622765696901935,
+    "lat": 51.47984010164227
+   },
+   "year": "2025",
+   "lan_code": [
+    "05"
+   ],
+   "lan_name": [
+    "Nordrhein-Westfalen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Nordrhein-Westfalen"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 9.046410745844726,
+    "lat": 48.54547271371564
+   },
+   "year": "2025",
+   "lan_code": [
+    "08"
+   ],
+   "lan_name": [
+    "Baden-Württemberg"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Baden-Württemberg"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 13.397780036458363,
+    "lat": 52.47288449559011
+   },
+   "year": "2025",
+   "lan_code": [
+    "12"
+   ],
+   "lan_name": [
+    "Brandenburg"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Brandenburg"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 11.70068256080136,
+    "lat": 52.01317239966424
+   },
+   "year": "2025",
+   "lan_code": [
+    "15"
+   ],
+   "lan_name": [
+    "Sachsen-Anhalt"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Sachsen-Anhalt"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 13.348558596312476,
+    "lat": 51.05233297781486
+   },
+   "year": "2025",
+   "lan_code": [
+    "14"
+   ],
+   "lan_name": [
+    "Sachsen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Freistaat",
+   "lan_name_long": [
+    "Freistaat Sachsen"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 6.953123331420853,
+    "lat": 49.38437031966091
+   },
+   "year": "2025",
+   "lan_code": [
+    "10"
+   ],
+   "lan_name": [
+    "Saarland"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Saarland"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 7.449124680140155,
+    "lat": 49.9136891598734
+   },
+   "year": "2025",
+   "lan_code": [
+    "07"
+   ],
+   "lan_name": [
+    "Rheinland-Pfalz"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Rheinland-Pfalz"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 10.015884399389854,
+    "lat": 53.54741129229772
+   },
+   "year": "2025",
+   "lan_code": [
+    "02"
+   ],
+   "lan_name": [
+    "Hamburg"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Freie und Hansestadt",
+   "lan_name_long": [
+    "Freie und Hansestadt Hamburg"
+   ]
+  },
+  {
+   "geo_point_2d": {
+    "lon": 9.159700147768591,
+    "lat": 52.76593160583465
+   },
+   "year": "2025",
+   "lan_code": [
+    "03"
+   ],
+   "lan_name": [
+    "Niedersachsen"
+   ],
+   "lan_area_code": "DEU",
+   "lan_type": "Land",
+   "lan_name_long": [
+    "Land Niedersachsen"
+   ]
+  }
+ ]
+}

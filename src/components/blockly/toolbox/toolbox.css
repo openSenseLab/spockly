@@ -2,6 +2,15 @@
 /* CATEGORIES */
 /**************/
 
+/* Keep the first category's colour stripe off the top edge of the toolbox. */
+.blocklyToolboxCategoryGroup {
+  padding-top: 12px;
+}
+
+.blocklyToolboxCategory {
+  margin-bottom: 2px;
+}
+
 .example_category {
   border-left: 8px solid #8b4513;
 }

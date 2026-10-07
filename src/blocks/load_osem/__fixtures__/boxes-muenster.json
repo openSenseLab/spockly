@@ -1,0 +1,428 @@
+[
+ {
+  "_id": "591f578c51d34600116a8ea5",
+  "createdAt": "2022-03-30T11:25:43.288Z",
+  "updatedAt": "2026-10-07T09:24:44.473Z",
+  "name": "Wetterstation Erpho",
+  "exposure": "outdoor",
+  "model": "homeWifiFeinstaub",
+  "sensors": [
+   {
+    "title": "Temperatur",
+    "unit": "°C",
+    "sensorType": "HDC1008",
+    "icon": "osem-thermometer",
+    "_id": "591f578c51d34600116a8ea6",
+    "lastMeasurement": "6ac60fdc68f0f50007568165"
+   },
+   {
+    "title": "rel. Luftfeuchte",
+    "unit": "%",
+    "sensorType": "HDC1008",
+    "icon": "osem-humidity",
+    "_id": "591f578c51d34600116a8ea7",
+    "lastMeasurement": "6ac60fdc68f0f50007568166"
+   },
+   {
+    "title": "Luftdruck",
+    "unit": "hPa",
+    "sensorType": "BMP280",
+    "icon": "osem-barometer",
+    "_id": "591f578c51d34600116a8ea8",
+    "lastMeasurement": "6700b0db1ccdcf00078712fa"
+   },
+   {
+    "title": "Beleuchtungsstärke",
+    "unit": "lx",
+    "sensorType": "TSL45315",
+    "icon": "osem-brightness",
+    "_id": "591f578c51d34600116a8ea9",
+    "lastMeasurement": "6ac60fdc68f0f50007568167"
+   },
+   {
+    "title": "UV-Intensität",
+    "unit": "μW/cm²",
+    "sensorType": "VEML6070",
+    "icon": "osem-brightness",
+    "_id": "591f578c51d34600116a8eaa",
+    "lastMeasurement": "6ac60fdc68f0f50007568168"
+   },
+   {
+    "_id": "5923371251d3460011906244",
+    "icon": "osem-brightness",
+    "sensorType": "VEML6070",
+    "unit": "-",
+    "title": "UV-Index",
+    "lastMeasurement": "6ac60fdc68f0f50007568169"
+   },
+   {
+    "title": "PM10",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "59456e66a4ad590011177282",
+    "lastMeasurement": "6700b0db1ccdcf00078712fe"
+   },
+   {
+    "title": "PM2.5",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "59458624a4ad590011186665",
+    "lastMeasurement": "6700b0db1ccdcf00078712ff"
+   },
+   {
+    "_id": "594838afa4ad59001133dd62",
+    "icon": "osem-particulate-matter",
+    "sensorType": "WS",
+    "unit": "km/h",
+    "title": "Windgeschwindigkeit",
+    "lastMeasurement": "6ac60fdc68f0f5000756816a"
+   },
+   {
+    "_id": "594838afa4ad59001133dd63",
+    "icon": "osem-particulate-matter",
+    "sensorType": "WS",
+    "unit": "km/h",
+    "title": "Windböen",
+    "lastMeasurement": "6ac60fdc68f0f5000756816b"
+   },
+   {
+    "_id": "594838afa4ad59001133dd64",
+    "icon": "osem-particulate-matter",
+    "sensorType": "WS",
+    "unit": "°",
+    "title": "Windrichtung",
+    "lastMeasurement": "6ac60fdc68f0f5000756816c"
+   },
+   {
+    "_id": "594838afa4ad59001133dd65",
+    "icon": "osem-sprinkles",
+    "sensorType": "WS",
+    "unit": "mm/m²",
+    "title": "Niederschlag",
+    "lastMeasurement": "6ac60fdc68f0f5000756816d"
+   }
+  ],
+  "description": "- TESTBETRIEB -",
+  "currentLocation": {
+   "coordinates": [
+    7.645218,
+    51.96422
+   ],
+   "type": "Point",
+   "timestamp": "2017-05-19T20:37:32.000Z"
+  },
+  "lastMeasurementAt": "2026-10-07T09:24:44.464Z",
+  "grouptag": [
+   ""
+  ]
+ },
+ {
+  "_id": "5a0c347b9fd3c2001111b701",
+  "createdAt": "2022-03-30T11:25:43.427Z",
+  "updatedAt": "2026-10-07T09:24:53.107Z",
+  "name": "VennheideBox",
+  "currentLocation": {
+   "type": "Point",
+   "coordinates": [
+    7.620606,
+    51.921065
+   ],
+   "timestamp": "2024-07-17T13:00:28.527Z"
+  },
+  "grouptag": [
+   "ifgi"
+  ],
+  "exposure": "outdoor",
+  "sensors": [
+   {
+    "title": "Temperatur",
+    "unit": "°C",
+    "sensorType": "HDC1008",
+    "icon": "osem-thermometer",
+    "_id": "5a0c347b9fd3c2001111b708",
+    "lastMeasurement": "6ac60fe568f0f50007568e14"
+   },
+   {
+    "title": "rel. Luftfeuchte",
+    "unit": "%",
+    "sensorType": "HDC1008",
+    "icon": "osem-humidity",
+    "_id": "5a0c347b9fd3c2001111b707",
+    "lastMeasurement": "6ac60fe568f0f50007568e15"
+   },
+   {
+    "title": "Luftdruck",
+    "unit": "hPa",
+    "sensorType": "BMP280",
+    "icon": "osem-barometer",
+    "_id": "5a0c347b9fd3c2001111b706",
+    "lastMeasurement": "6ac60fe568f0f50007568e16"
+   },
+   {
+    "title": "Beleuchtungsstärke",
+    "unit": "lx",
+    "sensorType": "TSL45315",
+    "icon": "osem-brightness",
+    "_id": "5a0c347b9fd3c2001111b705",
+    "lastMeasurement": "6ac60fe568f0f50007568e17"
+   },
+   {
+    "title": "UV-Intensität",
+    "unit": "μW/cm²",
+    "sensorType": "VEML6070",
+    "icon": "osem-brightness",
+    "_id": "5a0c347b9fd3c2001111b704",
+    "lastMeasurement": "6ac60fe568f0f50007568e18"
+   },
+   {
+    "title": "PM10",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "5a0c347b9fd3c2001111b703",
+    "lastMeasurement": "6ac60fe568f0f50007568e19"
+   },
+   {
+    "title": "PM2.5",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "5a0c347b9fd3c2001111b702",
+    "lastMeasurement": "6ac60fe568f0f50007568e1a"
+   }
+  ],
+  "model": "homeEthernetFeinstaub",
+  "image": "5a0c347b9fd3c2001111b701_sgrqrp.jpg",
+  "lastMeasurementAt": "2026-10-07T09:24:53.092Z",
+  "description": "senseBox is mounted under the canopy roof"
+ },
+ {
+  "_id": "5abd221b850005001b1aff35",
+  "createdAt": "2022-03-30T11:25:43.516Z",
+  "updatedAt": "2026-10-07T09:23:30.085Z",
+  "name": "Feinstaub_MS_PIUSALLEE",
+  "currentLocation": {
+   "timestamp": "2018-03-29T17:27:55.199Z",
+   "coordinates": [
+    7.64153,
+    51.973023,
+    6
+   ],
+   "type": "Point"
+  },
+  "grouptag": [
+   "Feinstaub"
+  ],
+  "exposure": "outdoor",
+  "sensors": [
+   {
+    "title": "PM10",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "5abd221b850005001b1aff39",
+    "lastMeasurement": "6ac60f9268f0f50007561777"
+   },
+   {
+    "title": "PM2.5",
+    "unit": "µg/m³",
+    "sensorType": "SDS 011",
+    "icon": "osem-cloud",
+    "_id": "5abd221b850005001b1aff38",
+    "lastMeasurement": "6ac60f9268f0f50007561778"
+   },
+   {
+    "title": "Temperatur",
+    "unit": "°C",
+    "sensorType": "DHT22",
+    "icon": "osem-thermometer",
+    "_id": "5abd221b850005001b1aff37",
+    "lastMeasurement": "6ac60f9268f0f50007561779"
+   },
+   {
+    "title": "rel. Luftfeuchte",
+    "unit": "%",
+    "sensorType": "DHT22",
+    "icon": "osem-humidity",
+    "_id": "5abd221b850005001b1aff36",
+    "lastMeasurement": "6ac60f9268f0f5000756177a"
+   }
+  ],
+  "model": "luftdaten_sds011_dht22",
+  "lastMeasurementAt": "2026-10-07T09:23:30.079Z"
+ },
+ {
+  "_id": "5c4208271b7ca800198cbe90",
+  "createdAt": "2022-03-30T11:25:43.640Z",
+  "updatedAt": "2026-10-07T09:24:29.856Z",
+  "name": "Geigenbaumeister Kehnen #1",
+  "currentLocation": {
+   "type": "Point",
+   "coordinates": [
+    7.217819,
+    51.470113
+   ],
+   "timestamp": "2019-01-18T17:12:01.018Z"
+  },
+  "grouptag": [
+   "Geige"
+  ],
+  "exposure": "indoor",
+  "sensors": [
+   {
+    "title": "Temperatur",
+    "unit": "°C",
+    "sensorType": "HDC1080",
+    "icon": "osem-thermometer",
+    "_id": "5c4208271b7ca800198cbe92",
+    "lastMeasurement": "6ac60fcd68f0f5000756708a"
+   },
+   {
+    "title": "rel. Luftfeuchte",
+    "unit": "%",
+    "sensorType": "HDC1080",
+    "icon": "osem-humidity",
+    "_id": "5c4208271b7ca800198cbe91",
+    "lastMeasurement": "6ac60fcd68f0f5000756708b"
+   }
+  ],
+  "model": "homeV2Wifi",
+  "lastMeasurementAt": "2026-10-07T09:24:29.849Z",
+  "image": "5c4208271b7ca800198cbe90_pls3qe.jpg",
+  "weblink": "http://www.geigenbaumeisterkehnen.de/",
+  "description": "Zur Überwachung der Feuchtigkeit in der Werkstatt"
+ },
+ {
+  "_id": "54d79ea81b93e970075153f4",
+  "exposure": "indoor",
+  "name": "Aasee-Station",
+  "sensors": [
+   {
+    "_id": "54d79ea81b93e970075153f6",
+    "lastMeasurement": "54dda13cffc98424152a1c72",
+    "sensorType": "GUVA-S12D",
+    "title": "UV",
+    "unit": "UV-Index"
+   },
+   {
+    "_id": "54d79ea81b93e970075153f7",
+    "lastMeasurement": "54dda13affc98424152a1c70",
+    "sensorType": "TSL2561",
+    "title": "Beleuchtungsstärke",
+    "unit": "lx"
+   },
+   {
+    "_id": "54d79ea81b93e970075153f8",
+    "lastMeasurement": "54dda138ffc98424152a1c6f",
+    "sensorType": "BMP085",
+    "title": "Luftdruck",
+    "unit": "Pa"
+   },
+   {
+    "_id": "54d79ea81b93e970075153f9",
+    "lastMeasurement": "54dda148ffc98424152a1c7a",
+    "sensorType": "DHT11",
+    "title": "rel. Luftfeuchte",
+    "unit": "%"
+   },
+   {
+    "_id": "54d79ea81b93e970075153fa",
+    "lastMeasurement": "6a75a533d041b40008e9ecee",
+    "sensorType": "DHT11",
+    "title": "Temperatur",
+    "unit": "°C"
+   }
+  ],
+  "createdAt": "2022-03-30T11:25:43.204Z",
+  "model": "custom",
+  "currentLocation": {
+   "coordinates": [
+    7.6049853,
+    51.9464737
+   ],
+   "type": "Point",
+   "timestamp": "2015-02-08T17:36:40.000Z"
+  },
+  "lastMeasurementAt": "2026-08-07T09:28:19.181Z",
+  "grouptag": [
+   ""
+  ],
+  "updatedAt": "2026-08-07T09:28:19.194Z"
+ },
+ {
+  "_id": "562f9a8cb3de1fe005e32afb",
+  "exposure": "indoor",
+  "name": "SenseBox - Sternstraße 2",
+  "sensors": [
+   {
+    "_id": "562f9a8cb3de1fe005e32afd",
+    "lastMeasurement": "5636a41ab3de1fe005eb170f",
+    "sensorType": "HDC1008",
+    "title": "Luftfeuchtigkeit",
+    "unit": "%"
+   },
+   {
+    "_id": "562f9a8cb3de1fe005e32afe",
+    "lastMeasurement": "5636a3e6b3de1fe005eb16d6",
+    "sensorType": "HDC1008",
+    "title": "Temperatur",
+    "unit": "Celcius"
+   }
+  ],
+  "createdAt": "2022-03-30T11:25:43.209Z",
+  "model": "custom",
+  "currentLocation": {
+   "coordinates": [
+    7.644907236099243,
+    51.95875283112481
+   ],
+   "type": "Point",
+   "timestamp": "2015-10-27T15:38:52.000Z"
+  },
+  "grouptag": [
+   ""
+  ],
+  "updatedAt": "2022-03-30T11:25:43.209Z"
+ },
+ {
+  "_id": "682c7e1ceecb860007886939",
+  "grouptag": [
+   "CO2 Ampel"
+  ],
+  "model": "custom",
+  "name": "Geo1_Floor2_SeminarRoom242_Ceiling",
+  "currentLocation": {
+   "type": "Point",
+   "coordinates": [
+    7.59606,
+    51.969536
+   ],
+   "timestamp": "2026-06-22T03:15:25.877Z"
+  },
+  "exposure": "indoor",
+  "sensors": [
+   {
+    "_id": "682c7e1ceecb86000788693a",
+    "icon": "osem-co2",
+    "title": "CO₂",
+    "unit": "ppm",
+    "sensorType": "SCD30",
+    "lastMeasurement": "6ac60fdf68f0f50007568650"
+   },
+   {
+    "_id": "682c7e1ceecb86000788693b",
+    "icon": "osem-thermometer",
+    "title": "Temperature",
+    "unit": "°C",
+    "sensorType": "SCD30",
+    "lastMeasurement": "6ac60fdf68f0f50007568651"
+   }
+  ],
+  "updatedAt": "2026-10-07T09:24:47.998Z",
+  "createdAt": "2025-05-20T13:05:32.043Z",
+  "lastMeasurementAt": "2026-10-07T09:24:47.992Z",
+  "image": "682c7e1ceecb860007886939_szyd34.jpg"
+ }
+]

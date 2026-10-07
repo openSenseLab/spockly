@@ -1,0 +1,499 @@
+{
+ "visibility": "domain",
+ "fields": [
+  {
+   "name": "name",
+   "description": null,
+   "annotations": {},
+   "label": "Name",
+   "type": "text",
+   "label_en": "Name",
+   "label_fr": "Name",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "operator",
+   "description": null,
+   "annotations": {},
+   "label": "Operator",
+   "type": "text",
+   "label_en": "Operator",
+   "label_fr": "Operator",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "accepts_bottle",
+   "description": "Is it easy to fill a bottle (yes/no)?",
+   "annotations": {},
+   "label": "Bottle-friendly",
+   "type": "text",
+   "label_en": "Bottle-friendly",
+   "label_fr": "Bottle-friendly",
+   "description_en": "Is it easy to fill a bottle (yes/no)?",
+   "description_fr": "Is it easy to fill a bottle (yes/no)?"
+  },
+  {
+   "name": "fee",
+   "description": "Is access paid (yes/no)?",
+   "annotations": {},
+   "label": "Fee",
+   "type": "text",
+   "label_en": "Fee",
+   "label_fr": "Fee",
+   "description_en": "Is access paid (yes/no)?",
+   "description_fr": "Is access paid (yes/no)?"
+  },
+  {
+   "name": "indoor",
+   "description": "Is the fountain located indoors (yes/no)?",
+   "annotations": {},
+   "label": "Indoor",
+   "type": "text",
+   "label_en": "Indoor",
+   "label_fr": "Indoor",
+   "description_en": "Is the fountain located indoors (yes/no)?",
+   "description_fr": "Is the fountain located indoors (yes/no)?"
+  },
+  {
+   "name": "offers_cold_water",
+   "description": "Does the fountain provide cold water (yes/no)?",
+   "annotations": {},
+   "label": "Cold Water",
+   "type": "text",
+   "label_en": "Cold Water",
+   "label_fr": "Cold Water",
+   "description_en": "Does the fountain provide cold water (yes/no)?",
+   "description_fr": "Does the fountain provide cold water (yes/no)?"
+  },
+  {
+   "name": "offers_warm_water",
+   "description": "Does the fountain provide warm water (yes/no)?",
+   "annotations": {},
+   "label": "Warm Water",
+   "type": "text",
+   "label_en": "Warm Water",
+   "label_fr": "Warm Water",
+   "description_en": "Does the fountain provide warm water (yes/no)?",
+   "description_fr": "Does the fountain provide warm water (yes/no)?"
+  },
+  {
+   "name": "offers_hot_water",
+   "description": "Does the fountain provide hot water (yes/no)?",
+   "annotations": {},
+   "label": "Hot Water",
+   "type": "text",
+   "label_en": "Hot Water",
+   "label_fr": "Hot Water",
+   "description_en": "Does the fountain provide hot water (yes/no)?",
+   "description_fr": "Does the fountain provide hot water (yes/no)?"
+  },
+  {
+   "name": "description",
+   "description": "Additional descriptions",
+   "annotations": {},
+   "label": "Description",
+   "type": "text",
+   "label_en": "Description",
+   "label_fr": "Description",
+   "description_en": "Additional descriptions",
+   "description_fr": "Additional descriptions"
+  },
+  {
+   "name": "meta_geo_point",
+   "description": "OSM entity geolocation",
+   "annotations": {},
+   "label": "OSM Point",
+   "type": "geo_point_2d",
+   "label_en": "OSM Point",
+   "label_fr": "OSM Point",
+   "description_en": "OSM entity geolocation",
+   "description_fr": "OSM entity geolocation"
+  },
+  {
+   "name": "meta_osm_id",
+   "description": "OSM entity identifier",
+   "annotations": {
+    "sortable": true
+   },
+   "label": "OSM Id",
+   "type": "text",
+   "label_en": "OSM Id",
+   "label_fr": "OSM Id",
+   "description_en": "OSM entity identifier",
+   "description_fr": "OSM entity identifier"
+  },
+  {
+   "name": "meta_osm_url",
+   "description": "OSM entity URL",
+   "annotations": {},
+   "label": "OSM URL",
+   "type": "text",
+   "label_en": "OSM URL",
+   "label_fr": "OSM URL",
+   "description_en": "OSM entity URL",
+   "description_fr": "OSM entity URL"
+  },
+  {
+   "name": "meta_first_update",
+   "description": "OSM entity creation date",
+   "annotations": {},
+   "label": "OSM Creation date",
+   "type": "datetime",
+   "label_en": "OSM Creation date",
+   "label_fr": "OSM Creation date",
+   "description_en": "OSM entity creation date",
+   "description_fr": "OSM entity creation date"
+  },
+  {
+   "name": "meta_last_update",
+   "description": "OSM entity update date",
+   "annotations": {
+    "timeserie_precision": "day",
+    "sortable": true
+   },
+   "label": "OSM Last update",
+   "type": "date",
+   "label_en": "OSM Last update",
+   "label_fr": "OSM Last update",
+   "description_en": "OSM entity update date",
+   "description_fr": "OSM entity update date"
+  },
+  {
+   "name": "meta_versions_number",
+   "description": "Number of versions for the OSM entity",
+   "annotations": {},
+   "label": "OSM Versions",
+   "type": "int",
+   "label_en": "OSM Versions",
+   "label_fr": "OSM Versions",
+   "description_en": "Number of versions for the OSM entity",
+   "description_fr": "Number of versions for the OSM entity"
+  },
+  {
+   "name": "meta_users_number",
+   "description": "Number of OSM contributors",
+   "annotations": {},
+   "label": "OSM Contributors",
+   "type": "int",
+   "label_en": "OSM Contributors",
+   "label_fr": "OSM Contributors",
+   "description_en": "Number of OSM contributors",
+   "description_fr": "Number of OSM contributors"
+  },
+  {
+   "name": "meta_name_sub",
+   "description": null,
+   "annotations": {},
+   "label": "Suburb",
+   "type": "text",
+   "label_en": "Suburb",
+   "label_fr": "Suburb",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "meta_code_sub",
+   "description": null,
+   "annotations": {
+    "sortable": true
+   },
+   "label": "Suburb Code",
+   "type": "text",
+   "label_en": "Suburb Code",
+   "label_fr": "Suburb Code",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "meta_name_area",
+   "description": null,
+   "annotations": {},
+   "label": "Local Government Area",
+   "type": "text",
+   "label_en": "Local Government Area",
+   "label_fr": "Local Government Area",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "meta_code_area",
+   "description": null,
+   "annotations": {
+    "sortable": true
+   },
+   "label": "Local Government Area Code",
+   "type": "text",
+   "label_en": "Local Government Area Code",
+   "label_fr": "Local Government Area Code",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "meta_name_state",
+   "description": null,
+   "annotations": {},
+   "label": "State",
+   "type": "text",
+   "label_en": "State",
+   "label_fr": "State",
+   "description_en": null,
+   "description_fr": null
+  },
+  {
+   "name": "meta_code_state",
+   "description": null,
+   "annotations": {
+    "sortable": true
+   },
+   "label": "State Code",
+   "type": "text",
+   "label_en": "State Code",
+   "label_fr": "State Code",
+   "description_en": null,
+   "description_fr": null
+  }
+ ],
+ "dataset_id": "osm-australia-drinking-water",
+ "dataset_uid": "da_sheu4f",
+ "has_records": true,
+ "features": [
+  "analyze",
+  "geo",
+  "timeserie"
+ ],
+ "attachments": [],
+ "alternative_exports": [],
+ "data_visible": true,
+ "metas": {
+  "dcat": {
+   "created": null,
+   "issued": null,
+   "creator": "OpenStreetMap",
+   "contributor": "Huwise",
+   "contact_name": null,
+   "contact_email": null,
+   "accrualperiodicity": "Monthly",
+   "spatial": "Australia",
+   "temporal": null,
+   "granularity": null,
+   "dataquality": null,
+   "publisher_type": "Company",
+   "conforms_to": null,
+   "temporal_coverage_start": null,
+   "temporal_coverage_end": null,
+   "accessRights": null,
+   "relation": null
+  },
+  "semantic": {
+   "rml_mapping": null,
+   "classes": null,
+   "properties": null
+  },
+  "default": {
+   "title": "Drinking Water Points - Australia - OSM data",
+   "title_en": "Drinking Water Points - Australia - OSM data",
+   "title_fr": "Drinking Water Points - Australia - OSM data",
+   "description": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code",
+   "description_en": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code> with the value 'drinking_water' or 'water_point' or <code>drinking_water</code> with values 'yes' or 'treated'</li> <li><code>name</code> for the water point name</li> <li><code>cold_water</code>, <code>warm_water</code> and <code>hot_water</code> for water temperature</li> <li><code>fee</code> to know if access is paid or not</li> </ul> Please note that this list is not exhaustive. </p>",
+   "description_fr": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code> with the value 'drinking_water' or 'water_point' or <code>drinking_water</code> with values 'yes' or 'treated'</li> <li><code>name</code> for the water point name</li> <li><code>cold_water</code>, <code>warm_water</code> and <code>hot_water</code> for water temperature</li> <li><code>fee</code> to know if access is paid or not</li> </ul> Please note that this list is not exhaustive. </p>",
+   "theme": [
+    "Territory"
+   ],
+   "theme_en": [
+    "Territory"
+   ],
+   "theme_fr": [
+    "Territoire"
+   ],
+   "keyword": [
+    "openstreetmap",
+    "osm",
+    "fountain",
+    "drinking water",
+    "australia"
+   ],
+   "keyword_en": [
+    "openstreetmap",
+    "osm",
+    "fountain",
+    "drinking water",
+    "australia"
+   ],
+   "keyword_fr": [
+    "openstreetmap",
+    "osm",
+    "fountain",
+    "drinking water",
+    "australia"
+   ],
+   "license": "Open Database License (ODbL)",
+   "license_en": "Open Database License (ODbL)",
+   "license_fr": "Open Database License (ODbL)",
+   "license_url": "https://www.opendatacommons.org/licenses/odbl/1.0/",
+   "license_url_en": "https://www.opendatacommons.org/licenses/odbl/1.0/",
+   "license_url_fr": "https://www.opendatacommons.org/licenses/odbl/1.0/",
+   "language": "en",
+   "metadata_languages": [
+    "en"
+   ],
+   "timezone": "Australia/Brisbane",
+   "modified": "2026-09-30T22:24:20+00:00",
+   "modified_updates_on_metadata_change": false,
+   "modified_updates_on_data_change": true,
+   "data_processed": "2026-09-30T22:24:20+00:00",
+   "metadata_processed": "2026-09-30T22:24:20.691000+00:00",
+   "geographic_reference": [
+    "world_au"
+   ],
+   "geographic_reference_auto": false,
+   "territory": [
+    "Australia"
+   ],
+   "geometry_types": [
+    "Point"
+   ],
+   "bbox": {
+    "type": "Feature",
+    "geometry": {
+     "coordinates": [
+      [
+       [
+        167.95276684686542,
+        -10.57642925530672
+       ],
+       [
+        96.8861842341721,
+        -10.57642925530672
+       ],
+       [
+        96.8861842341721,
+        -43.61808216199279
+       ],
+       [
+        167.95276684686542,
+        -43.61808216199279
+       ],
+       [
+        167.95276684686542,
+        -10.57642925530672
+       ]
+      ]
+     ],
+     "type": "Polygon"
+    },
+    "properties": {}
+   },
+   "publisher": "Huwise",
+   "publisher_en": "Huwise",
+   "publisher_fr": "Huwise",
+   "references": "OpenStreetMap",
+   "records_count": 12500,
+   "attributions": [
+    "OpenStreetMap",
+    "Based on Australian Bureau of Statistics data"
+   ],
+   "source_domain": null,
+   "source_domain_title": null,
+   "source_domain_address": null,
+   "source_dataset": null,
+   "shared_catalog": null,
+   "federated": false,
+   "parent_domain": null,
+   "update_frequency": null
+  },
+  "custom": {
+   "referential": null,
+   "depreciated": null
+  },
+  "inspire": {
+   "theme": null,
+   "type": null,
+   "file_identifier": null,
+   "hierarchy_level": null,
+   "hierarchy_level_name": null,
+   "spatial_resolution": null,
+   "topologic_consistency": null,
+   "contact_individual_name": null,
+   "contact_position": null,
+   "contact_address": null,
+   "contact_email": null,
+   "identification_purpose": null,
+   "extend_description": null,
+   "extend_bounding_box_westbound_longitude": null,
+   "extend_bounding_box_eastbound_longitude": null,
+   "extend_bounding_box_southbound_latitude": null,
+   "extend_bounding_box_northbound_latitude": null
+  },
+  "dublin-core": {
+   "title": "Drinking Water Points - Australia - OSM data",
+   "title_en": "Drinking Water Points - Australia - OSM data",
+   "title_fr": "Drinking Water Points - Australia - OSM data",
+   "alternative": null,
+   "subject": null,
+   "description": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code> with the value 'drinking_water' or 'water_point' or <code>drinking_water</code> with values 'yes' or 'treated'</li> <li><code>name</code> for the water point name</li> <li><code>cold_water</code>, <code>warm_water</code> and <code>hot_water</code> for water temperature</li> <li><code>fee</code> to know if access is paid or not</li> </ul> Please note that this list is not exhaustive. </p>",
+   "description_en": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code> with the value 'drinking_water' or 'water_point' or <code>drinking_water</code> with values 'yes' or 'treated'</li> <li><code>name</code> for the water point name</li> <li><code>cold_water</code>, <code>warm_water</code> and <code>hot_water</code> for water temperature</li> <li><code>fee</code> to know if access is paid or not</li> </ul> Please note that this list is not exhaustive. </p>",
+   "description_fr": "<p>This dataset geolocates drinking water fountains and points in Australia.</p> <p>It is based on OpenStreetMap data, which is then compiled and processed by Opendatasoft. It is updated monthly to retrieve the most recent OpenStreetMap elements. Fields prefixed with 'meta_' are additional information produced by ODS. These include data about the history of elements as well as their administrative divisions. Other fields are based on the <a href=\"https://geodatamine.fr/\">Geodatamine</a> implementation.</p> <h2>Tags</h2><p>The OSM tags used to extract this data are: <ul> <li><code>amenity</code> with the value 'drinking_water' or 'water_point' or <code>drinking_water</code> with values 'yes' or 'treated'</li> <li><code>name</code> for the water point name</li> <li><code>cold_water</code>, <code>warm_water</code> and <code>hot_water</code> for water temperature</li> <li><code>fee</code> to know if access is paid or not</li> </ul> Please note that this list is not exhaustive. </p>",
+   "abstract": null,
+   "tableOfContent": null,
+   "type": null,
+   "language": null,
+   "coverage": null,
+   "spatial": null,
+   "temporal_start": null,
+   "temporal_end": null,
+   "relation": null,
+   "source": null,
+   "replaces": null,
+   "references": null,
+   "requires": null,
+   "conformsTo": null,
+   "hasFormat": null,
+   "hasPart": null,
+   "hasVersion": null,
+   "isFormatOf": null,
+   "isPartOf": null,
+   "isVersionOf": null,
+   "isReferencedBy": null,
+   "isReplacedBy": null,
+   "isRequiredBy": null,
+   "contributor": null,
+   "creator": null,
+   "publisher": "Huwise",
+   "publisher_en": "Huwise",
+   "publisher_fr": "Huwise",
+   "rights": null,
+   "accessRights": null,
+   "license": "Open Database License (ODbL)",
+   "license_en": "Open Database License (ODbL)",
+   "license_fr": "Open Database License (ODbL)",
+   "date_start": null,
+   "date_end": null,
+   "available_start": null,
+   "available_end": null,
+   "created": null,
+   "dateAccepted": null,
+   "dateCopyrighted": null,
+   "dateSubmitted": null,
+   "issued": null,
+   "modified": "2026-09-30T22:24:20+00:00",
+   "valid_start": null,
+   "valid_end": null,
+   "format": null,
+   "extent": null,
+   "medium": null,
+   "identifier": null,
+   "bibliographicCitation": null,
+   "rightsHolder": null,
+   "accrualMethod": null,
+   "accrualPeriodicity": null,
+   "accrualPolicy": null,
+   "audience": null,
+   "educationLevel": null,
+   "instructionalMethod": null,
+   "mediator": null,
+   "provenance": null
+  }
+ }
+}

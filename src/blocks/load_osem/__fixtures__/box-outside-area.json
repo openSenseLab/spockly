@@ -1,0 +1,81 @@
+{
+ "_id": "5d6e465a953683001a2b62c5",
+ "createdAt": "2022-03-30T11:25:43.760Z",
+ "updatedAt": "2026-10-07T10:27:07.411Z",
+ "name": "Bundeskanzleramt",
+ "currentLocation": {
+  "type": "Point",
+  "coordinates": [
+   13.369128,
+   52.520151
+  ],
+  "timestamp": "2019-09-03T11:34:51.524Z"
+ },
+ "exposure": "outdoor",
+ "sensors": [
+  {
+   "title": "Temperatur",
+   "unit": "°C",
+   "sensorType": "HDC1080",
+   "icon": "osem-thermometer",
+   "_id": "5d6e465a953683001a2b62cc",
+   "lastMeasurement": "6ac61e7b1134720019d8dc6d"
+  },
+  {
+   "title": "rel. Luftfeuchte",
+   "unit": "%",
+   "sensorType": "HDC1080",
+   "icon": "osem-humidity",
+   "_id": "5d6e465a953683001a2b62cb",
+   "lastMeasurement": "6ac61e7b1134720019d8dc6e"
+  },
+  {
+   "title": "Luftdruck",
+   "unit": "hPa",
+   "sensorType": "BMP280",
+   "icon": "osem-barometer",
+   "_id": "5d6e465a953683001a2b62ca",
+   "lastMeasurement": "6ac61e7b1134720019d8dc6f"
+  },
+  {
+   "title": "Beleuchtungsstärke",
+   "unit": "lx",
+   "sensorType": "TSL45315",
+   "icon": "osem-brightness",
+   "_id": "5d6e465a953683001a2b62c9",
+   "lastMeasurement": "6ac61e7b1134720019d8dc70"
+  },
+  {
+   "title": "UV-Intensität",
+   "unit": "μW/cm²",
+   "sensorType": "VEML6070",
+   "icon": "osem-brightness",
+   "_id": "5d6e465a953683001a2b62c8",
+   "lastMeasurement": "6ac61e7b1134720019d8dc71"
+  },
+  {
+   "title": "PM10",
+   "unit": "µg/m³",
+   "sensorType": "SDS 011",
+   "icon": "osem-cloud",
+   "_id": "5d6e465a953683001a2b62c7",
+   "lastMeasurement": "6ac61e7b1134720019d8dc72"
+  },
+  {
+   "title": "PM2.5",
+   "unit": "µg/m³",
+   "sensorType": "SDS 011",
+   "icon": "osem-cloud",
+   "_id": "5d6e465a953683001a2b62c6",
+   "lastMeasurement": "6ac61e7b1134720019d8dc73"
+  }
+ ],
+ "model": "homeV2Lora",
+ "grouptag": [
+  "Futurium"
+ ],
+ "lastMeasurementAt": "2026-10-07T10:27:07.000Z",
+ "image": "5d6e465a953683001a2b62c5_qeu9mi.jpg",
+ "description": "Diese senseBox wurde Herrn Braun bei der Eröffnung des Zukunftsmuseums Futurium in Berlin überreicht. Die senseBox ist Teil des Berliner Futurium-Messnetz und überträgt ihre Daten über LoRaWAN (TTN). Ein interaktiver Tisch mit einer Projektion der Karte von Berlin stellt die Live-Umweltdaten dar.",
+ "weblink": "https://futurium.de/de/sense-box"
+}

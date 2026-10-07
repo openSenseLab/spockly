@@ -1,0 +1,364 @@
+{
+ "visibility": "domain",
+ "fields": [
+  {
+   "name": "geo_point_2d",
+   "label": "Geo Point",
+   "type": "geo_point_2d",
+   "annotations": {},
+   "label_en": "Geo Point",
+   "label_fr": "Geo Point",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "geo_shape",
+   "label": "Geo Shape",
+   "type": "geo_shape",
+   "annotations": {},
+   "label_en": "Geo Shape",
+   "label_fr": "Geo Shape",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "year",
+   "annotations": {
+    "timeserie_precision": "year",
+    "facet": true,
+    "facetsort": "-alphanum"
+   },
+   "label": "Year",
+   "type": "date",
+   "label_en": "Year",
+   "label_fr": "Year",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "lan_code",
+   "annotations": {
+    "sortable": true,
+    "multivalued": ",",
+    "facet": true,
+    "facetsort": "alphanum",
+    "disjunctive": true
+   },
+   "label": "Land code",
+   "type": "text",
+   "label_en": "Land code",
+   "label_fr": "Land code",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "lan_name",
+   "annotations": {
+    "sortable": true,
+    "multivalued": ",",
+    "facet": true,
+    "facetsort": "alphanum",
+    "disjunctive": true
+   },
+   "label": "Land name",
+   "type": "text",
+   "label_en": "Land name",
+   "label_fr": "Land name",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "lan_area_code",
+   "label": "ISO 3166-3 Area code",
+   "type": "text",
+   "annotations": {},
+   "label_en": "ISO 3166-3 Area code",
+   "label_fr": "ISO 3166-3 Area code",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "lan_type",
+   "annotations": {
+    "facet": true
+   },
+   "label": "Type",
+   "type": "text",
+   "label_en": "Type",
+   "label_fr": "Type",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  },
+  {
+   "name": "lan_name_long",
+   "annotations": {
+    "sortable": true,
+    "multivalued": ",",
+    "facet": true,
+    "facetsort": "alphanum",
+    "disjunctive": true
+   },
+   "label": "Land name (long)",
+   "type": "text",
+   "label_en": "Land name (long)",
+   "label_fr": "Land name (long)",
+   "description_en": null,
+   "description": null,
+   "description_fr": null
+  }
+ ],
+ "dataset_id": "georef-germany-land",
+ "dataset_uid": "da_x4c6b7",
+ "has_records": true,
+ "features": [
+  "analyze",
+  "geo",
+  "timeserie"
+ ],
+ "attachments": [],
+ "alternative_exports": [],
+ "data_visible": true,
+ "metas": {
+  "dcat": {
+   "created": null,
+   "issued": null,
+   "creator": "Huwise",
+   "contributor": "BKG",
+   "contact_name": "Data Network Team",
+   "contact_email": "data@opendatasoft.com",
+   "accrualperiodicity": "Annual",
+   "spatial": "Germany",
+   "temporal": "2025",
+   "granularity": null,
+   "dataquality": null,
+   "publisher_type": "NationalAuthority",
+   "conforms_to": null,
+   "temporal_coverage_start": null,
+   "temporal_coverage_end": null,
+   "accessRights": null,
+   "relation": null
+  },
+  "semantic": {
+   "rml_mapping": null,
+   "classes": null,
+   "properties": null
+  },
+  "default": {
+   "title": "Federal States (Länder) - Germany",
+   "title_en": "Federal States (Länder) - Germany",
+   "title_fr": "Federal States (Länder) - Germany",
+   "description": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they bel",
+   "description_en": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they belong to.</li><li><span style=\"font-weight: bolder;\">High-Level Data Enrichment:</span> Contains official names and unique identifiers (such as <code>lan_code</code>) to clean up, group, or aggregate national macroeconomic and sales data at the state level.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Enhancements &amp; Data Quality</h3><p>Unlike raw geographic data, this dataset has been specifically optimized for web performance and data consistency:</p><ul><li><span style=\"font-weight: bolder;\">Enriched Identifiers:</span> Added ISO 3166-3 Area codes to guarantee seamless international data compliance.</li><li><span style=\"font-weight: bolder;\">Performance Optimized:</span> Geometries have been intelligently simplified to ensure fast loading times and high performance across all web services and API calls, without losing geographical relevance.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Data Source</h3><p>Source data extracted from the yearly <i>Verwaltungsgebiete 1:250 000 (VG250)</i> series published by the <a href=\"https://www.bkg.bund.de/\" rel=\"noopener\" style=\"color: rgb(51, 85, 255);\" target=\"_blank\">Bundesamt für Kartographie und Geodäsie (BKG)</a> and enhanced by Huwise.</p><ul> </ul>",
+   "description_fr": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they belong to.</li><li><span style=\"font-weight: bolder;\">High-Level Data Enrichment:</span> Contains official names and unique identifiers (such as <code>lan_code</code>) to clean up, group, or aggregate national macroeconomic and sales data at the state level.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Enhancements &amp; Data Quality</h3><p>Unlike raw geographic data, this dataset has been specifically optimized for web performance and data consistency:</p><ul><li><span style=\"font-weight: bolder;\">Enriched Identifiers:</span> Added ISO 3166-3 Area codes to guarantee seamless international data compliance.</li><li><span style=\"font-weight: bolder;\">Performance Optimized:</span> Geometries have been intelligently simplified to ensure fast loading times and high performance across all web services and API calls, without losing geographical relevance.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Data Source</h3><p>Source data extracted from the yearly <i>Verwaltungsgebiete 1:250 000 (VG250)</i> series published by the <a href=\"https://www.bkg.bund.de/\" rel=\"noopener\" style=\"color: rgb(51, 85, 255);\" target=\"_blank\">Bundesamt für Kartographie und Geodäsie (BKG)</a> and enhanced by Huwise.</p><ul> </ul>",
+   "theme": [
+    "Geography"
+   ],
+   "theme_en": [
+    "Geography"
+   ],
+   "theme_fr": [
+    "Géographie"
+   ],
+   "keyword": [
+    "territory",
+    "geography",
+    "boundary",
+    "georef",
+    "germany",
+    "land",
+    "bkg"
+   ],
+   "keyword_en": [
+    "territory",
+    "geography",
+    "boundary",
+    "georef",
+    "germany",
+    "land",
+    "bkg"
+   ],
+   "keyword_fr": [
+    "territory",
+    "geography",
+    "boundary",
+    "georef",
+    "germany",
+    "land",
+    "bkg"
+   ],
+   "license": "Data licence Germany – attribution – version 2.0",
+   "license_en": "Data licence Germany – attribution – version 2.0",
+   "license_fr": "Licence Allemagne - Attribution v2.0",
+   "license_url": "https://www.govdata.de/dl-de/by-2-0",
+   "license_url_en": "https://www.govdata.de/dl-de/by-2-0",
+   "license_url_fr": "https://www.govdata.de/dl-de/by-2-0",
+   "language": "de",
+   "metadata_languages": [
+    "de"
+   ],
+   "timezone": "Europe/Berlin",
+   "modified": "2026-07-31T07:28:34+00:00",
+   "modified_updates_on_metadata_change": false,
+   "modified_updates_on_data_change": true,
+   "data_processed": "2026-07-31T07:28:34+00:00",
+   "metadata_processed": "2026-10-06T01:15:12.513000+00:00",
+   "geographic_reference": [
+    "world_de"
+   ],
+   "geographic_reference_auto": true,
+   "territory": [
+    "Germany"
+   ],
+   "geometry_types": [
+    "MultiPolygon",
+    "Polygon"
+   ],
+   "bbox": {
+    "type": "Feature",
+    "geometry": {
+     "coordinates": [
+      [
+       [
+        15.041814493015409,
+        55.05869464483112
+       ],
+       [
+        5.866250284016132,
+        55.05869464483112
+       ],
+       [
+        5.866250284016132,
+        47.270123600028455
+       ],
+       [
+        15.041814493015409,
+        47.270123600028455
+       ],
+       [
+        15.041814493015409,
+        55.05869464483112
+       ]
+      ]
+     ],
+     "type": "Polygon"
+    },
+    "properties": {}
+   },
+   "publisher": "Huwise",
+   "publisher_en": "Huwise",
+   "publisher_fr": "Huwise",
+   "references": null,
+   "records_count": 16,
+   "attributions": [
+    "© GeoBasis-DE / BKG"
+   ],
+   "source_domain": null,
+   "source_domain_title": null,
+   "source_domain_address": null,
+   "source_dataset": null,
+   "shared_catalog": null,
+   "federated": true,
+   "parent_domain": null,
+   "update_frequency": null
+  },
+  "custom": {
+   "referential": true,
+   "depreciated": null
+  },
+  "inspire": {
+   "theme": null,
+   "type": null,
+   "file_identifier": null,
+   "hierarchy_level": null,
+   "hierarchy_level_name": null,
+   "spatial_resolution": null,
+   "topologic_consistency": null,
+   "contact_individual_name": null,
+   "contact_position": null,
+   "contact_address": null,
+   "contact_email": null,
+   "identification_purpose": null,
+   "extend_description": null,
+   "extend_bounding_box_westbound_longitude": null,
+   "extend_bounding_box_eastbound_longitude": null,
+   "extend_bounding_box_southbound_latitude": null,
+   "extend_bounding_box_northbound_latitude": null
+  },
+  "dublin-core": {
+   "title": "Federal States (Länder) - Germany",
+   "title_en": "Federal States (Länder) - Germany",
+   "title_fr": "Federal States (Länder) - Germany",
+   "alternative": null,
+   "subject": null,
+   "description": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they belong to.</li><li><span style=\"font-weight: bolder;\">High-Level Data Enrichment:</span> Contains official names and unique identifiers (such as <code>lan_code</code>) to clean up, group, or aggregate national macroeconomic and sales data at the state level.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Enhancements &amp; Data Quality</h3><p>Unlike raw geographic data, this dataset has been specifically optimized for web performance and data consistency:</p><ul><li><span style=\"font-weight: bolder;\">Enriched Identifiers:</span> Added ISO 3166-3 Area codes to guarantee seamless international data compliance.</li><li><span style=\"font-weight: bolder;\">Performance Optimized:</span> Geometries have been intelligently simplified to ensure fast loading times and high performance across all web services and API calls, without losing geographical relevance.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Data Source</h3><p>Source data extracted from the yearly <i>Verwaltungsgebiete 1:250 000 (VG250)</i> series published by the <a href=\"https://www.bkg.bund.de/\" rel=\"noopener\" style=\"color: rgb(51, 85, 255);\" target=\"_blank\">Bundesamt für Kartographie und Geodäsie (BKG)</a> and enhanced by Huwise.</p><ul> </ul>",
+   "description_en": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they belong to.</li><li><span style=\"font-weight: bolder;\">High-Level Data Enrichment:</span> Contains official names and unique identifiers (such as <code>lan_code</code>) to clean up, group, or aggregate national macroeconomic and sales data at the state level.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Enhancements &amp; Data Quality</h3><p>Unlike raw geographic data, this dataset has been specifically optimized for web performance and data consistency:</p><ul><li><span style=\"font-weight: bolder;\">Enriched Identifiers:</span> Added ISO 3166-3 Area codes to guarantee seamless international data compliance.</li><li><span style=\"font-weight: bolder;\">Performance Optimized:</span> Geometries have been intelligently simplified to ensure fast loading times and high performance across all web services and API calls, without losing geographical relevance.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Data Source</h3><p>Source data extracted from the yearly <i>Verwaltungsgebiete 1:250 000 (VG250)</i> series published by the <a href=\"https://www.bkg.bund.de/\" rel=\"noopener\" style=\"color: rgb(51, 85, 255);\" target=\"_blank\">Bundesamt für Kartographie und Geodäsie (BKG)</a> and enhanced by Huwise.</p><ul> </ul>",
+   "description_fr": "<p>This dataset provides official, curated German federal state boundaries (Länder / Bundesländer) for the latest year, maintained as part of the Huwise Geographical Reference Repository (Georef).</p><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Key Use Cases</h3><ul><li><span style=\"font-weight: bolder;\">Spatial Joins &amp; Regional Geocoding:</span> Easily cross-reference your geographic data points (latitude/longitude) to determine which of the 16 federal states (Länder) they belong to.</li><li><span style=\"font-weight: bolder;\">High-Level Data Enrichment:</span> Contains official names and unique identifiers (such as <code>lan_code</code>) to clean up, group, or aggregate national macroeconomic and sales data at the state level.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Enhancements &amp; Data Quality</h3><p>Unlike raw geographic data, this dataset has been specifically optimized for web performance and data consistency:</p><ul><li><span style=\"font-weight: bolder;\">Enriched Identifiers:</span> Added ISO 3166-3 Area codes to guarantee seamless international data compliance.</li><li><span style=\"font-weight: bolder;\">Performance Optimized:</span> Geometries have been intelligently simplified to ensure fast loading times and high performance across all web services and API calls, without losing geographical relevance.</li></ul><h3 style='font-family: -apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: rgb(0, 0, 0); font-size: 18px; font-weight: 400;'>Data Source</h3><p>Source data extracted from the yearly <i>Verwaltungsgebiete 1:250 000 (VG250)</i> series published by the <a href=\"https://www.bkg.bund.de/\" rel=\"noopener\" style=\"color: rgb(51, 85, 255);\" target=\"_blank\">Bundesamt für Kartographie und Geodäsie (BKG)</a> and enhanced by Huwise.</p><ul> </ul>",
+   "abstract": null,
+   "tableOfContent": null,
+   "type": null,
+   "language": null,
+   "coverage": null,
+   "spatial": null,
+   "temporal_start": null,
+   "temporal_end": null,
+   "relation": null,
+   "source": null,
+   "replaces": null,
+   "references": null,
+   "requires": null,
+   "conformsTo": null,
+   "hasFormat": null,
+   "hasPart": null,
+   "hasVersion": null,
+   "isFormatOf": null,
+   "isPartOf": null,
+   "isVersionOf": null,
+   "isReferencedBy": null,
+   "isReplacedBy": null,
+   "isRequiredBy": null,
+   "contributor": null,
+   "creator": null,
+   "publisher": "Huwise",
+   "publisher_en": "Huwise",
+   "publisher_fr": "Huwise",
+   "rights": null,
+   "accessRights": null,
+   "license": "Data licence Germany – attribution – version 2.0",
+   "license_en": "Data licence Germany – attribution – version 2.0",
+   "license_fr": "Data licence Germany – attribution – version 2.0",
+   "date_start": null,
+   "date_end": null,
+   "available_start": null,
+   "available_end": null,
+   "created": null,
+   "dateAccepted": null,
+   "dateCopyrighted": null,
+   "dateSubmitted": null,
+   "issued": null,
+   "modified": "2026-07-31T07:28:34+00:00",
+   "valid_start": null,
+   "valid_end": null,
+   "format": null,
+   "extent": null,
+   "medium": null,
+   "identifier": null,
+   "bibliographicCitation": null,
+   "rightsHolder": null,
+   "accrualMethod": null,
+   "accrualPeriodicity": null,
+   "accrualPolicy": null,
+   "audience": null,
+   "educationLevel": null,
+   "instructionalMethod": null,
+   "mediator": null,
+   "provenance": null
+  }
+ }
+}
