@@ -78,6 +78,10 @@ export function usePythonRunner() {
         return;
       }
 
+      // A crashed worker can't run anything; drop it so the next run starts a fresh one.
+      worker.terminate();
+      workerRef.current = null;
+      activeRunIdRef.current += 1;
       setOutput((currentOutput) =>
         `${currentOutput}${event.message || "The Python worker stopped unexpectedly."}\n`,
       );
