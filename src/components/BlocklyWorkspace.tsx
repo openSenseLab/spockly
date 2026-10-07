@@ -75,7 +75,9 @@ const hoistImports = (code: string) => {
 };
 
 const buildPythonPreview = (workspace: Blockly.WorkspaceSvg) => {
-  const rawCode = hoistImports(pythonGenerator.workspaceToCode(workspace).trim());
+  const rawCode = hoistImports(
+    pythonGenerator.workspaceToCode(workspace).trim(),
+  );
 
   if (!rawCode) {
     return DEFAULT_PYTHON_CODE;
@@ -113,8 +115,12 @@ const compile = (workspace: Blockly.WorkspaceSvg) => {
  * doesn't swap names.
  */
 const assignPythonNames = (workspace: Blockly.WorkspaceSvg) => {
-  const blocks = workspace.getTopBlocks(false).filter((block) => pythonBaseNames[block.type]);
-  const names = uniqueNames(blocks.map((block) => toPythonName(pythonBaseNames[block.type](block))));
+  const blocks = workspace
+    .getTopBlocks(false)
+    .filter((block) => pythonBaseNames[block.type]);
+  const names = uniqueNames(
+    blocks.map((block) => toPythonName(pythonBaseNames[block.type](block))),
+  );
   const byId = new Map(blocks.map((block, i) => [block.id, names[i]]));
   setPythonNames(byId);
   return Object.fromEntries(byId);
@@ -127,7 +133,9 @@ const buildStrandCode = (workspace: Blockly.WorkspaceSvg) => {
     if (!hatTypes.has(top.type)) continue;
     pythonGenerator.init(workspace);
     const body = pythonGenerator.blockToCode(top);
-    code[top.id] = hoistImports(pythonGenerator.finish(typeof body === "string" ? body : body[0]).trim());
+    code[top.id] = hoistImports(
+      pythonGenerator.finish(typeof body === "string" ? body : body[0]).trim(),
+    );
   }
   return code;
 };
@@ -201,7 +209,9 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
       // (not on create: blocks from the toolbox are created when the drag starts).
       if (event.type === Blockly.Events.BLOCK_DRAG) {
         const drag = event as Blockly.Events.BlockDrag;
-        const block = drag.blockId ? workspace.getBlockById(drag.blockId) : null;
+        const block = drag.blockId
+          ? workspace.getBlockById(drag.blockId)
+          : null;
         if (!drag.isStart && needsOsemSetup(block)) {
           requestOsemSetup(block.id);
         }
@@ -209,8 +219,12 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
 
       if (event.type === Blockly.Events.SELECTED) {
         const { newElementId } = event as Blockly.Events.Selected;
-        const block = newElementId ? workspace.getBlockById(newElementId) : null;
-        useAppStore.getState().setSelectedBlockId(block?.getRootBlock().id ?? null);
+        const block = newElementId
+          ? workspace.getBlockById(newElementId)
+          : null;
+        useAppStore
+          .getState()
+          .setSelectedBlockId(block?.getRootBlock().id ?? null);
         return;
       }
 
