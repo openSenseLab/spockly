@@ -20,12 +20,12 @@ import { pick, t } from './i18n'
 import { selectShownStrandId, useAppStore } from './store/useAppStore'
 
 const statusLabels: Record<PythonRunStatus, string> = {
-  idle: 'Ready',
-  loading: 'Loading Python',
-  running: 'Running',
-  success: 'Finished',
-  error: 'Error',
-  stopped: 'Stopped',
+  idle: t('run.status.idle'),
+  loading: t('run.status.loading'),
+  running: t('run.status.running'),
+  success: t('run.status.success'),
+  error: t('run.status.error'),
+  stopped: t('run.status.stopped'),
 }
 
 function App() {
@@ -57,7 +57,7 @@ function App() {
   const shownName = strandShown && shownId ? strandNames[shownId] : undefined
 
   const runButtonLabel =
-    status === 'loading' ? 'Stop loading' : status === 'running' ? 'Stop execution' : 'Run code'
+    status === 'loading' ? t('run.stopLoading') : status === 'running' ? t('run.stop') : t('run.start')
 
   return (
     <Box className="app-shell">
@@ -79,8 +79,7 @@ function App() {
             spockly
           </Heading>
           <Text as="p" size="4" className="hero-copy">
-            A lightweight Blockly workspace for assembling Python logic and inspecting the
-            generated code live.
+            {t('app.tagline')}
           </Text>
         </div>
         <Card size="2" className="hero-metadata">
@@ -90,19 +89,19 @@ function App() {
           <Flex align="center" justify="between" gap="3" wrap="wrap">
             <div>
               <Text as="div" size="2" color="gray">
-                Total blocks
+                {t('app.totalBlocks')}
               </Text>
               <Heading size="7">{totalBlocks}</Heading>
             </div>
             <div>
               <Text as="div" size="2" color="gray">
-                Top-level steps
+                {t('app.topLevelBlocks')}
               </Text>
               <Heading size="7">{topLevelBlocks}</Heading>
             </div>
           </Flex>
           <Button type="button" variant="soft" mt="4" onClick={resetWorkspace}>
-            Reset workspace
+            {t('app.resetWorkspace')}
           </Button>
         </Card>
       </header>
@@ -113,14 +112,13 @@ function App() {
             <div className="workspace-card-content">
               <Flex align="center" justify="between" gap="3" wrap="wrap" mb="4">
                 <div>
-                  <Heading size="5">Blockly lab</Heading>
+                  <Heading size="5">{t('app.workspaceTitle')}</Heading>
                   <Text as="p" size="2" color="gray">
-                    Use the standard Blockly toolbox, then inspect the generated Python
-                    beside it.
+                    {t('app.workspaceHint')}
                   </Text>
                 </div>
                 <Badge size="2" color="amber" variant="soft">
-                  Live preview
+                  {t('app.livePreview')}
                 </Badge>
               </Flex>
               <BlocklyWorkspace workspaceVersion={workspaceVersion} />
@@ -136,7 +134,9 @@ function App() {
 
           <Tabs.Content value="data" className="tab-content">
             <Card size="3" className="dataset-card">
-              <DatasetPanel />
+              <div className="dataset-scroll">
+                <DatasetPanel />
+              </div>
             </Card>
           </Tabs.Content>
 
@@ -144,7 +144,7 @@ function App() {
             <Card size="3" className="code-card">
               <div className="code-card-content">
                 <Flex align="center" justify="between" gap="3" wrap="wrap">
-                  <Heading size="5">Generated Python</Heading>
+                  <Heading size="5">{t('python.title')}</Heading>
                   <Button
                     type="button"
                     color={isBusy ? 'red' : 'grass'}
@@ -168,7 +168,7 @@ function App() {
               <div className="output-card-content">
                 <Flex align="center" justify="between" gap="3" wrap="wrap">
                   <Flex align="center" gap="2">
-                    <Heading size="5">Output</Heading>
+                    <Heading size="5">{t('run.output')}</Heading>
                     <Badge
                       size="2"
                       color={
@@ -192,11 +192,11 @@ function App() {
                     disabled={!output || isBusy}
                     onClick={clearOutput}
                   >
-                    Clear
+                    {t('run.clear')}
                   </Button>
                 </Flex>
                 <Text as="p" size="2" color="gray" mb="3">
-                  Standard output, return values, and Python errors appear here.
+                  {t('run.outputHint')}
                 </Text>
                 <pre
                   className={`python-output${status === 'error' ? ' python-output-error' : ''}`}
@@ -206,12 +206,12 @@ function App() {
                 >
                   {output ||
                     (status === 'loading'
-                      ? 'Preparing the Python runtime…'
+                      ? t('run.preparing')
                       : status === 'running'
-                        ? 'Running Python…'
+                        ? t('run.running')
                         : status === 'success'
-                          ? 'Code finished without producing output.'
-                          : 'Run the generated Python to see its output.')}
+                          ? t('run.noOutput')
+                          : t('run.empty'))}
                 </pre>
               </div>
             </Card>

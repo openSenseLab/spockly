@@ -3,8 +3,27 @@ import type { de } from './de'
 export const en: Record<keyof typeof de, string> = {
   'language.label': 'Language',
 
+  // App frame
+  'app.tagline': 'Explore real data with blocks: load a dataset and see right away what it contains.',
+  'app.totalBlocks': 'Total blocks',
+  'app.topLevelBlocks': 'Block stacks',
+  'app.resetWorkspace': 'Clear workspace',
+  'app.workspaceTitle': 'Workspace',
+  'app.workspaceHint':
+    'Drag blocks from the toolbox on the left onto the workspace. On the right you see the data and the code.',
+  'app.livePreview': 'Live preview',
+
   // Toolbox
   'toolbox.loadData': 'Load data',
+  'toolbox.logic': 'Logic',
+  'toolbox.loops': 'Loops',
+  'toolbox.math': 'Math',
+  'toolbox.text': 'Text',
+  'toolbox.lists': 'Lists',
+  'toolbox.variables': 'Variables',
+  'toolbox.functions': 'Functions',
+  'toolbox.examples': 'Examples',
+  'block.example': 'Example block %1',
 
   // load_huwise block
   'block.loadHuwise.dataset': 'load dataset %1',
@@ -56,6 +75,26 @@ export const en: Record<keyof typeof de, string> = {
   'panel.python': 'Python',
 
   // Python tab
+  'python.title': 'Python code',
+  'python.placeholder': '# Drag blocks onto the workspace to see their Python code here.',
+  'run.start': 'Run code',
+  'run.stopLoading': 'Stop loading',
+  'run.stop': 'Stop execution',
+  'run.output': 'Output',
+  'run.clear': 'Clear',
+  'run.outputHint': 'Output from print(), results and Python error messages appear here.',
+  'run.status.idle': 'Ready',
+  'run.status.loading': 'Loading Python',
+  'run.status.running': 'Running',
+  'run.status.success': 'Finished',
+  'run.status.error': 'Error',
+  'run.status.stopped': 'Stopped',
+  'run.preparing': 'Preparing the Python runtime …',
+  'run.running': 'Running Python …',
+  'run.noOutput': 'The code finished without producing output.',
+  'run.empty': 'Run the code to see its output here.',
+  'run.stopped': 'Execution stopped.',
+  'run.crashed': 'The Python worker stopped unexpectedly.',
   'python.forDataset': 'Code for “{title}”.',
   'python.forSelected': 'Code for the selected data block.',
   'python.forWorkspace': 'Code for all blocks on the workspace.',

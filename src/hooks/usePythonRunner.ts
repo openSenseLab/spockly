@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { t } from "../i18n";
+
 export type PythonRunStatus =
   | "idle"
   | "loading"
@@ -83,7 +85,7 @@ export function usePythonRunner() {
       workerRef.current = null;
       activeRunIdRef.current += 1;
       setOutput((currentOutput) =>
-        `${currentOutput}${event.message || "The Python worker stopped unexpectedly."}\n`,
+        `${currentOutput}${event.message || t("run.crashed")}\n`,
       );
       setStatus("error");
     };
@@ -115,7 +117,7 @@ export function usePythonRunner() {
     workerRef.current = null;
     activeRunIdRef.current += 1;
     setOutput((currentOutput) =>
-      `${currentOutput}${currentOutput ? "\n" : ""}Execution stopped.\n`,
+      `${currentOutput}${currentOutput ? "\n" : ""}${t("run.stopped")}\n`,
     );
     setStatus("stopped");
   }, []);

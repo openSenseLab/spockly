@@ -55,7 +55,16 @@
   display: none;
 }
 
+/* The card must not scroll itself: Radix draws its border as an absolutely
+   positioned layer, which would scroll away with the content. */
 .dataset-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dataset-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;

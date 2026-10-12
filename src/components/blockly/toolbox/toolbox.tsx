@@ -1,4 +1,5 @@
 import * as Blockly from "blockly";
+import { t } from "../../../i18n";
 import "./toolbox.css";
 
 export const standardToolbox = {
@@ -6,7 +7,7 @@ export const standardToolbox = {
   contents: [
     {
       kind: "category",
-      name: "Logic",
+      name: t("toolbox.logic"),
       categorystyle: "logic_category",
       contents: [
         { kind: "block", type: "controls_if" },
@@ -18,7 +19,7 @@ export const standardToolbox = {
     },
     {
       kind: "category",
-      name: "Loops",
+      name: t("toolbox.loops"),
       categorystyle: "loop_category",
       contents: [
         { kind: "block", type: "controls_repeat_ext" },
@@ -29,7 +30,7 @@ export const standardToolbox = {
     },
     {
       kind: "category",
-      name: "Math",
+      name: t("toolbox.math"),
       categorystyle: "math_category",
       contents: [
         { kind: "block", type: "math_number" },
@@ -40,7 +41,7 @@ export const standardToolbox = {
     },
     {
       kind: "category",
-      name: "Text",
+      name: t("toolbox.text"),
       categorystyle: "text_category",
       contents: [
         { kind: "block", type: "text" },
@@ -50,7 +51,7 @@ export const standardToolbox = {
     },
     {
       kind: "category",
-      name: "Lists",
+      name: t("toolbox.lists"),
       categorystyle: "list_category",
       contents: [
         { kind: "block", type: "lists_create_with" },
@@ -60,19 +61,19 @@ export const standardToolbox = {
     },
     {
       kind: "category",
-      name: "Variables",
+      name: t("toolbox.variables"),
       categorystyle: "variable_category",
       custom: Blockly.VARIABLE_CATEGORY_NAME,
     },
     {
       kind: "category",
-      name: "Functions",
+      name: t("toolbox.functions"),
       categorystyle: "procedure_category",
       custom: Blockly.PROCEDURE_CATEGORY_NAME,
     },
     {
       kind: "category",
-      name: "Examples",
+      name: t("toolbox.examples"),
       cssConfig: {
         row: "blocklyToolboxCategory example_category",
       },

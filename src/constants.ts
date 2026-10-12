@@ -1,1 +1,3 @@
-export const DEFAULT_PYTHON_CODE = `# Assemble a Blockly workflow to generate Python.`
+import { t } from './i18n'
+
+export const DEFAULT_PYTHON_CODE = t('python.placeholder')

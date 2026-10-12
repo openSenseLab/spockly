@@ -1,11 +1,13 @@
 import * as Blockly from "blockly";
 
+import { t } from "../../../i18n";
+
 const examples = [
   {
     type: "example_block",
     tooltip: "",
     helpUrl: "",
-    message0: "Example Block %1",
+    message0: t("block.example"),
     colour: 225,
     output: "String",
 

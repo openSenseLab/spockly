@@ -1,8 +1,28 @@
 export const de = {
   'language.label': 'Sprache',
 
+  // App frame
+  'app.tagline':
+    'Erkunde echte Daten mit Blöcken: Lade einen Datensatz und sieh sofort, was drinsteckt.',
+  'app.totalBlocks': 'Blöcke insgesamt',
+  'app.topLevelBlocks': 'Blockstapel',
+  'app.resetWorkspace': 'Arbeitsfläche leeren',
+  'app.workspaceTitle': 'Arbeitsfläche',
+  'app.workspaceHint':
+    'Zieh Blöcke aus der Werkzeugleiste links auf die Arbeitsfläche. Rechts siehst du die Daten und den Code.',
+  'app.livePreview': 'Live-Vorschau',
+
   // Toolbox
   'toolbox.loadData': 'Daten laden',
+  'toolbox.logic': 'Logik',
+  'toolbox.loops': 'Schleifen',
+  'toolbox.math': 'Mathematik',
+  'toolbox.text': 'Text',
+  'toolbox.lists': 'Listen',
+  'toolbox.variables': 'Variablen',
+  'toolbox.functions': 'Funktionen',
+  'toolbox.examples': 'Beispiele',
+  'block.example': 'Beispielblock %1',
 
   // load_huwise block
   'block.loadHuwise.dataset': 'lade Datensatz %1',
@@ -55,6 +75,26 @@ export const de = {
   'panel.python': 'Python',
 
   // Python tab
+  'python.title': 'Python-Code',
+  'python.placeholder': '# Zieh Blöcke auf die Arbeitsfläche, dann erscheint hier der Python-Code.',
+  'run.start': 'Code ausführen',
+  'run.stopLoading': 'Laden abbrechen',
+  'run.stop': 'Ausführung stoppen',
+  'run.output': 'Ausgabe',
+  'run.clear': 'Leeren',
+  'run.outputHint': 'Hier erscheinen Ausgaben von print(), Ergebnisse und Fehlermeldungen von Python.',
+  'run.status.idle': 'Bereit',
+  'run.status.loading': 'Python wird geladen',
+  'run.status.running': 'Läuft',
+  'run.status.success': 'Fertig',
+  'run.status.error': 'Fehler',
+  'run.status.stopped': 'Gestoppt',
+  'run.preparing': 'Python wird vorbereitet …',
+  'run.running': 'Python läuft …',
+  'run.noOutput': 'Der Code ist fertig, hat aber nichts ausgegeben.',
+  'run.empty': 'Führe den Code aus, um hier das Ergebnis zu sehen.',
+  'run.stopped': 'Ausführung gestoppt.',
+  'run.crashed': 'Python wurde unerwartet beendet.',
   'python.forDataset': 'Code für „{title}“.',
   'python.forSelected': 'Code für den ausgewählten Datenblock.',
   'python.forWorkspace': 'Code für alle Blöcke auf der Arbeitsfläche.',
