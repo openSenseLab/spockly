@@ -6,14 +6,16 @@ import "blockly/blocks";
 
 import {
   LOAD_HUWISE,
+  LOAD_NASA_POWER,
+  loadNasaPowerToStep,
   LOAD_OSEM,
   loadHuwiseToStep,
   loadOperations,
   loadOsemToStep,
   pythonBaseNames,
   setPythonNames,
-  needsOsemSetup,
-  requestOsemSetup,
+  needsSetup,
+  requestBlockSetup,
   spocklyTheme,
 } from "../blocks";
 import { DEFAULT_PYTHON_CODE } from "../constants";
@@ -43,6 +45,7 @@ const toolbox = {
       contents: [
         { kind: "block", type: LOAD_HUWISE },
         { kind: "block", type: LOAD_OSEM },
+        { kind: "block", type: LOAD_NASA_POWER },
       ],
     },
     ...standardToolbox.contents,
@@ -53,8 +56,9 @@ const toolbox = {
 const generators: Record<string, StepGenerator> = {
   [LOAD_HUWISE]: (block) => loadHuwiseToStep(block as Blockly.Block),
   [LOAD_OSEM]: (block) => loadOsemToStep(block as Blockly.Block),
+  [LOAD_NASA_POWER]: (block) => loadNasaPowerToStep(block as Blockly.Block),
 };
-const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM]);
+const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER]);
 
 type BlocklyWorkspaceProps = {
   workspaceVersion: number;
@@ -205,15 +209,15 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     });
 
     const onWorkspaceChange = (event: Blockly.Events.Abstract) => {
-      // A fresh openSenseMap block opens its setup window once it is dropped
+      // A fresh block with a setup window (API loaders) opens it once it is dropped
       // (not on create: blocks from the toolbox are created when the drag starts).
       if (event.type === Blockly.Events.BLOCK_DRAG) {
         const drag = event as Blockly.Events.BlockDrag;
         const block = drag.blockId
           ? workspace.getBlockById(drag.blockId)
           : null;
-        if (!drag.isStart && needsOsemSetup(block)) {
-          requestOsemSetup(block.id);
+        if (!drag.isStart && needsSetup(block)) {
+          requestBlockSetup(block.id);
         }
       }
 

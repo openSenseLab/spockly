@@ -14,7 +14,7 @@ import {
   TextField,
 } from '@radix-ui/themes'
 
-import { markOsemConfigured, setOsemParams, setOsemSetupOpener, type OsemBlock } from '../blocks'
+import { setOsemParams, type OsemBlock } from '../blocks'
 import {
   phenomenaIn,
   timeWindow,
@@ -26,8 +26,6 @@ import { fetchBoxes, fetchTags } from '../blocks/load_osem/operation'
 import { AREA_PRESETS, PERIODS, type PeriodId } from '../blocks/load_osem/presets'
 import { LoadError } from '../core/http'
 import { formatNumber, pick, t } from '../i18n'
-import { useAppStore } from '../store/useAppStore'
-import { getActiveWorkspace } from './blockly/carryWorkspace'
 
 /** Phenomena shown before "show all". */
 const SHORT_LIST = 9
@@ -42,33 +40,8 @@ type Search =
 const stationCount = (count: number) =>
   count === 1 ? t('osem.dialog.stationCountOne') : t('osem.dialog.stationCount', { count: formatNumber(count) })
 
-export function OsemSetupDialog() {
-  const blockId = useAppStore((state) => state.osemSetupBlockId)
-  const setBlockId = useAppStore((state) => state.setOsemSetupBlockId)
-
-  useEffect(() => {
-    setOsemSetupOpener(setBlockId)
-    return () => setOsemSetupOpener(null)
-  }, [setBlockId])
-
-  const block = blockId ? (getActiveWorkspace()?.getBlockById(blockId) as OsemBlock | null) : null
-
-  const close = () => {
-    // Shown once is enough: don't pop up again for this block.
-    if (block) markOsemConfigured(block)
-    setBlockId(null)
-  }
-
-  return (
-    <Dialog.Root open={!!block} onOpenChange={(open) => !open && close()}>
-      <Dialog.Content maxWidth="640px">
-        {block && <SetupForm key={block.id} block={block} onDone={close} />}
-      </Dialog.Content>
-    </Dialog.Root>
-  )
-}
-
-function SetupForm({ block, onDone }: { block: OsemBlock; onDone: () => void }) {
+/** Settings of an openSenseMap block; shown inside BlockSetupDialog. */
+export function OsemSetupForm({ block, onDone }: { block: OsemBlock; onDone: () => void }) {
   const [draft, setDraft] = useState<LoadOsemParams>(block.osemParams)
   const [result, setResult] = useState<Search | null>(null)
   const [tags, setTags] = useState<string[]>([])
@@ -294,11 +267,11 @@ function SetupForm({ block, onDone }: { block: OsemBlock; onDone: () => void }) 
       <Flex gap="3" justify="end">
         <Dialog.Close>
           <Button variant="soft" color="gray">
-            {t('osem.dialog.cancel')}
+            {t('dialog.cancel')}
           </Button>
         </Dialog.Close>
         <Button disabled={!canApply} onClick={apply}>
-          {t('osem.dialog.apply')}
+          {t('dialog.apply')}
         </Button>
       </Flex>
     </Flex>

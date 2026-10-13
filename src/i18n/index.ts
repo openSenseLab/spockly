@@ -54,9 +54,17 @@ export const pick = (text: LocalizedText | undefined): string | undefined =>
 const numberFormat = new Intl.NumberFormat(lang, { maximumFractionDigits: 2 })
 export const formatNumber = (n: number) => numberFormat.format(n)
 
+const dayFormat = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeZone: 'UTC' })
+const monthFormat = new Intl.DateTimeFormat(lang, { month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+/** Formats an ISO value at its own precision: year, month, day, or date with time. */
 export function formatDate(iso: string): string {
-  // Year-only and date-only values stay as they are; they carry their precision.
-  if (/^\d{4}(-\d{2})?(-\d{2})?$/.test(iso)) return iso
+  if (/^\d{4}$/.test(iso)) return iso
+  if (/^\d{4}-\d{2}$/.test(iso)) return monthFormat.format(Date.parse(`${iso}-01T00:00:00Z`))
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const ms = Date.parse(`${iso}T00:00:00Z`)
+    return Number.isNaN(ms) ? iso : dayFormat.format(ms)
+  }
   const ms = Date.parse(iso)
   return Number.isNaN(ms)
     ? iso

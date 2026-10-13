@@ -13,7 +13,7 @@ import './App.css'
 import { BlocklyWorkspace } from './components/BlocklyWorkspace'
 import { DatasetPanel } from './components/DatasetPanel'
 import { LanguageSwitch } from './components/LanguageSwitch'
-import { OsemSetupDialog } from './components/OsemSetupDialog'
+import { BlockSetupDialog } from './components/BlockSetupDialog'
 import { useLoadRunner } from './hooks/useLoadRunner'
 import { usePythonRunner, type PythonRunStatus } from './hooks/usePythonRunner'
 import { pick, t } from './i18n'
@@ -61,7 +61,7 @@ function App() {
 
   return (
     <Box className="app-shell">
-      <OsemSetupDialog />
+      <BlockSetupDialog />
       <header className="hero-panel">
         <div>
           <Flex align="center" gap="3" wrap="wrap">

@@ -1,13 +1,13 @@
-# Spike: loading data from APIs (Huwise, openSenseMap)
+# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER)
 
-Branch `spike/huwise-loader`, October 2026. Not merged and not reviewed yet.
+Branch `spike/data-loaders`, October 2026. Not merged and not reviewed yet.
 
-This spike tried out the "load data" part of SPOCKLY before Phase 0/1 of the
-prototype brief: two load blocks for real APIs, a panel that shows what was
-loaded, and a Python view of the blocks. It also lays down the first pieces of
-the brief's architecture (data contract, plan, registry). This document
-records what was built, how it works, what we learned about the APIs, and what
-is still missing.
+This spike tries out the "load data" part of SPOCKLY: three load blocks for
+real APIs, a side panel that shows what was loaded, and a Python view of the
+blocks. Along the way it lays down a first version of the shared data format,
+the plan that blocks are compiled into, and a registry of load operations.
+This document records what was built, how it works, what we learned about the
+APIs, and what is still missing.
 
 ## Contents
 
@@ -25,22 +25,24 @@ is still missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 56 unit tests (Vitest)
+npm test         # 77 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
 
-- Open the toolbox category **Daten laden** and drag a block onto the canvas.
-- **lade Datensatz** loads a Huwise dataset (default: German federal states).
-- **lade openSenseMap-Daten** opens a setup window when dropped; the gear (⚙)
-  on the block opens it again.
+- Open the toolbox category **Daten laden** and drag a block onto the canvas:
+  - **lade Datensatz** loads a Huwise dataset (default: German federal states).
+  - **lade openSenseMap-Daten** loads sensor measurements.
+  - **lade NASA-Wetterdaten** loads weather and solar data for a place.
+- The openSenseMap and NASA blocks open a **setup window** when dropped; the
+  gear (⚙) on the block opens it again.
 - Click a block to see its data in the **Daten** tab and its code in the
-  **Python** tab. **Run code** runs that code in Pyodide (first run downloads
-  pandas, ~10–20 s).
+  **Python** tab. **Code ausführen** runs that code in the browser with
+  Pyodide (the first run downloads pandas, ~10–40 s).
 - **Deutsch | English** switch at the top right; `?lang=en` also works.
 
-The standard Blockly toolbox (Logic, Loops, …) is still visible; moving it
-behind `?dev=1` is Phase 0 work.
+The standard Blockly toolbox (Logik, Schleifen, …) is still visible. It should
+move behind a developer switch, since students won't need it.
 
 ## 2. What was built
 
@@ -53,11 +55,11 @@ behind `?dev=1` is Phase 0 work.
 - Pasting the link of a dataset page (or an API URL) into either field fills
   in both fields.
 - Wrong IDs, unreachable portals, private datasets and rate limits become a
-  friendly warning on the block (details go to the console).
+  friendly warning on the block (details go to the browser console).
 - Polygons (`geo_shape`) are left out; `geo_point_2d` becomes a latitude and a
   longitude column; multi-value fields are joined into text.
 
-### openSenseMap load block with setup window
+### openSenseMap load block
 
 The block shows its settings as three lines (measurement, place, period) and a
 gear. The setup window lets students choose:
@@ -70,20 +72,47 @@ gear. The setup window lets students choose:
 - **What is measured:** cards listing what the *active* stations in that area
   or group actually measure, with unit and station count. Nothing hard-coded.
 
-The window opens on its own when the block is dropped (not when the drag
-starts), and only once per block.
-
 Result: one row per measurement — time, value (number, with unit), station
 name, station id, latitude, longitude, placement (outdoor/indoor/mobile),
 sensor type. If stations use different units, a unit column is added.
 
+### NASA POWER load block
+
+The block shows place, values and period. The setup window lets students
+choose:
+
+- **Place:** Münster, Steinfurt, Coesfeld, Warendorf, Sylt (Westerland) or
+  Zugspitze — the last two for comparing coast, inland and mountains — or own
+  coordinates.
+- **Values:** mean, maximum and minimum temperature, precipitation, relative
+  humidity, wind at 10 m and at 50 m, solar radiation, air pressure.
+- **Daily or monthly values**, with a from–to date (daily) or from–to year
+  (monthly), from 1981 on. Unlike the openSenseMap block, the period is
+  fixed, so a saved workspace always loads the same data.
+
+The window checks the settings before anything is sent (start after end,
+before 1981, in the future, no value chosen, current year for monthly values)
+and explains the problem; "Übernehmen" stays disabled until it is fixed.
+
+Result: one row per day or month — date, one column per value (with unit),
+latitude, longitude. Days that NASA hasn't published yet are missing values.
+The dataset card says that the values are model and satellite data for a grid
+cell, not station measurements, and includes NASA's requested credit line.
+
+### Setup window (shared)
+
+Both API blocks with many settings use the same mechanism: the window opens
+by itself once, when the block is dropped from the toolbox (not when the drag
+starts), and later through the gear. Changing settings is a normal Blockly
+change, so it can be undone with Ctrl+Z.
+
 ### Daten tab (side panel)
 
-For the selected strand, or the one edited last:
+Shows the selected strand, or the one edited last:
 
-- dataset card: title, source, licence, last update, description, keywords,
-  "16 Zeilen geladen" or "100 von 12 500 Zeilen geladen" with a hint when only
-  part was loaded;
+- dataset card: title, source, credit/licence, last update, description,
+  keywords, "16 Zeilen geladen" or "100 von 12 500 Zeilen geladen" with a hint
+  when only part was loaded;
 - one row per column: kind of data (Messwert, Kategorie, Zeit, Breitengrad,
   Kennung …), how much is filled in (missing values highlighted), and an
   overview (range and mean, time span, or most frequent values);
@@ -96,8 +125,8 @@ For the selected strand, or the one edited last:
   last). Selecting a block outside any strand shows the code of the whole
   canvas.
 - Every data block has **its own variable name**, the same in every view:
-  `georef_germany_land`, `temperatur_muenster_mitte`, a second identical block
-  gets `temperatur_muenster_mitte_2`. Numbers follow the order blocks were
+  `georef_germany_land`, `temperatur_muenster_mitte`, `wetter_muenster`; a
+  second identical block gets `…_2`. Numbers follow the order blocks were
   added, so moving blocks doesn't swap names.
 - The caption says which dataset the code belongs to and what it is called.
 - The generated code runs in Pyodide (downloads go through the browser with
@@ -105,16 +134,21 @@ For the selected strand, or the one edited last:
 
 ### Other changes
 
-- **Language switch** (DE/EN). The choice is remembered; the page reloads and
-  the blocks are restored, because Blockly fixes block text when a block is
-  created.
+- **German and English** for all visible text, including the standard toolbox
+  categories. The language choice is remembered; switching reloads the page and
+  restores the blocks, because Blockly fixes block text when a block is created.
+- **Dates are shown at their own precision**: "01.01.2025", "Jan. 2025",
+  "2025".
 - **Pyodide fixes** (existing bugs): Vite pre-bundled `pyodide` on the first run
   and reloaded the page, killing the worker ("The Python worker stopped
   unexpectedly"); and after a crash, every later run hung on "Preparing the
   Python runtime…" because the dead worker was reused.
+- **Daten tab on small screens:** the card's border scrolled away with the
+  content (Radix draws it as a separate layer); a scroll area inside the card
+  fixes it.
 - Load blocks are drawn as hat blocks (Zelos renderer, theme with
   `hat: 'cap'`); the toolbox got some top spacing.
-- `tsconfig` was **not** switched to `strict` yet (Phase 0).
+- Vitest added (`npm test`).
 
 ## 3. How it works
 
@@ -132,28 +166,33 @@ Blockly change (non-UI event)
 useLoadRunner (hooks/)        for each load step whose params changed:
   └─ waits 600 ms, cancels outdated requests, caches by (op, params)
   └─ loadOperations[op](params, ctx)   blocks/index.ts
-        ├─ load_huwise → DataTable
-        └─ load_osem   → DataTable
+        ├─ load_huwise     → DataTable
+        ├─ load_osem       → DataTable
+        └─ load_nasa_power → DataTable
   └─ store.loads[blockId] = loading | ready | error
 
 DatasetPanel / Python tab     show the strand from selectShownStrandId()
 ```
 
-Execution runs on the main thread for now (fetch is async; mapping is cheap).
-The brief's cached executor in a Web Worker replaces `useLoadRunner` in Phase 1.
+Loading runs on the main thread for now (fetch is async; mapping is cheap). A
+cached executor in a Web Worker is the planned replacement for `useLoadRunner`.
 
-### Shared data contract
+### Shared data format
 
-`src/core/types.ts` holds the brief's types: `DataTable`, `ColumnMeta`,
-`DatasetMeta`, `Plan`/`Strand`/`PlanStep`, `OperationDef`, `Warning`,
-`ExecContext`. Additions made here:
+`src/core/types.ts` defines what every loader returns and every later step
+will consume: `DataTable` (`meta`, `columns`, `rows`), `ColumnMeta` (data type,
+semantic type such as measurement/category/timestamp/latitude, unit),
+`DatasetMeta` (title, source, licence, extent …), plus `Plan`/`Strand`/
+`PlanStep`, `OperationDef`, `Warning` and `ExecContext`. Points to know:
 
-- `DatasetMeta.totalRecords` (records at the source; can exceed loaded rows),
-  `keywords`, `updated`, `attribution`, `source.licenseUrl`;
-- values of `date` columns are **ISO 8601 strings** (keeps tables plain JSON) —
-  see open questions;
-- `Warning.code` is an i18n key, so core logic stays language-free;
-- `toCode(params, { output })` takes the variable name for generated code;
+- `DatasetMeta.totalRecords` is the number of records at the source; it can
+  exceed the rows actually loaded.
+- Values of `date` columns are **ISO 8601 strings** at their natural precision
+  (`2025-01-01`, `2025-01`, or a full timestamp), so tables stay plain JSON —
+  see open questions.
+- `Warning.code` and `LoadError.code` are i18n keys, so the core stays
+  language-free; the UI translates them.
+- `toCode(params, { output })` takes the variable name for generated code.
 - `ExecContext.onProgress(done, total, unit)` says whether rows or stations are
   being counted.
 
@@ -161,19 +200,22 @@ The brief's cached executor in a Web Worker replaces `useLoadRunner` in Phase 1.
 
 | Path | What |
 |---|---|
-| `src/core/types.ts` | data contract, plan and operation types |
+| `src/core/types.ts` | data format, plan and operation types |
 | `src/core/plan.ts` | workspace → plan (framework-free, tested with fake blocks) |
 | `src/core/summary.ts` | column summary for the Daten tab (any `DataTable`) |
 | `src/core/names.ts` | text → valid, unique Python variable names |
 | `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code), `mapLimit` |
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
+| `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
+| `src/blocks/setup.ts` | shared parts of blocks with a setup window (gear, open once, undoable changes) |
 | `src/blocks/index.ts` | registers blocks; `loadOperations`, `pythonBaseNames` |
 | `src/blocks/pythonNames.ts` | variable name per block, shared by all code views |
 | `src/blocks/theme.ts` | Zelos theme with hat-shaped load blocks |
 | `src/hooks/useLoadRunner.ts` | runs load steps (debounce, cancel, cache) |
 | `src/components/DatasetPanel.tsx` | Daten tab |
-| `src/components/OsemSetupDialog.tsx` | openSenseMap setup window |
+| `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
+| `src/components/OsemSetupForm.tsx`, `NasaSetupForm.tsx` | the two setup forms |
 | `src/components/LanguageSwitch.tsx`, `blockly/carryWorkspace.ts` | language switch, keeping blocks across the reload |
 | `src/i18n/` | DE/EN dictionaries (`en` must have the same keys as `de`), `t()`, number/date formatting |
 
@@ -181,12 +223,16 @@ The brief's cached executor in a Web Worker replaces `useLoadRunner` in Phase 1.
 
 1. New folder `src/blocks/<name>/` with `definition.ts` (Blockly JSON, `style:
    'load_blocks'`, no `previousStatement`), `generator.ts` (block → `PlanStep`),
-   `operation.ts` (fetch + map to `DataTable`), `python.ts`, tests.
+   `operation.ts` (fetch + map to `DataTable`), `python.ts`, tests and recorded
+   fixtures.
 2. In `src/blocks/index.ts`: import the definition, add the operation to
    `loadOperations` and a name rule to `pythonBaseNames`.
 3. In `BlocklyWorkspace.tsx`: add the block to the toolbox, `generators` and
    `hatTypes`.
 4. Add DE and EN strings.
+5. If it needs a setup window: use `gearField`, `attachGear` and
+   `fireStateChange` from `src/blocks/setup.ts`, give the block a
+   `setupConfigured` flag, and add a form to `BlockSetupDialog.tsx`.
 
 ### openSenseMap: how a load runs
 
@@ -200,10 +246,18 @@ The brief's cached executor in a Web Worker replaces `useLoadRunner` in Phase 1.
    just before its oldest value.
 4. Map everything into one `DataTable`.
 
+### NASA POWER: how a load runs
+
+1. Check the settings locally (place, values, dates); stop with a friendly
+   message if something is off.
+2. One request: `GET /api/temporal/{daily|monthly}/point?parameters=…&community=RE&longitude&latitude&start&end&format=JSON`.
+3. Turn the date keys (`20250101`, `202501`) into ISO dates, drop the annual
+   "month 13", and turn the fill value (`-999`) into missing values.
+
 ## 4. What we learned about the APIs
 
-All APIs below allow direct browser requests (`Access-Control-Allow-Origin: *`),
-so **no proxy is needed** for them.
+All three APIs allow direct browser requests (`Access-Control-Allow-Origin: *`),
+so **no proxy is needed**.
 
 ### Huwise (Explore API v2.1)
 
@@ -244,20 +298,41 @@ Quirks found (covered by tests with recorded responses):
 - Most group tags we tried had no station active recently (e.g.
   `codeformuenster`, `TTN MS`, school tags); `Smart City MS` had one.
 
+### NASA POWER (API v2.10.0)
+
+- Fast: one year of 8 daily values in ~1.4 s (49 KB); 45 years of monthly
+  values in under 1 s. One request per load.
+- At most 20 values per request (the block offers 9).
+- Daily data starts on 1981-01-01 and lags behind: in our test, temperature and
+  precipitation ended 4 days ago, solar radiation 6 days ago. Missing days come
+  back as the fill value `-999`.
+- Monthly data contains a **13th month per year** (e.g. `202513`), which is
+  the annual value.
+- Settings the API rejects come back as **HTTP 422** with a readable reason
+  ("The data starts at 1981/01/01", "end date is greater then start date", …).
+- Values are model and satellite data on a grid of about ½° × ⅝° (weather) and
+  1° × 1° (solar radiation), not station measurements.
+- Units are written in ASCII (`C`, `kW-hr/m^2/day`); the block shows `°C`,
+  `kWh/m²/d`. Air pressure comes in kPa and is kept as delivered.
+- The documentation warns that clients repeatedly requesting **the same
+  location may be blocked**. No numeric rate limit is given.
+- NASA asks for a credit line naming the POWER project, the service version and
+  the date accessed; no licence is stated. The dataset card includes it.
+
 ### Checked, not built
 
-- **NASA POWER**: browser requests work; values come as an object keyed by
-  date per parameter, missing values are `-999`.
 - **Open-Meteo**: browser requests allowed, but returned 503 (overloaded)
   during the test.
 
 ## 5. Decisions taken
 
-- Configuration of API blocks happens in a **setup window**, results stay in
+- Configuration of API blocks happens in a **setup window**; results stay in
   the side panel.
 - openSenseMap: **area presets instead of a map** for now, plus **group tags**;
   **max. 7 days**; ~20–50 quick requests per load are fine for the API.
   Longer periods should come from a curated snapshot file.
+- NASA POWER: **place presets plus own coordinates**, a curated list of 9
+  values, **fixed dates** instead of "last N days".
 - A `save_as` block was tried and **removed** again for now; it only makes
   sense together with `combine_with`, whose semantics are still open.
 - Each data block gets **its own variable name** in the Python code, so
@@ -265,19 +340,22 @@ Quirks found (covered by tests with recorded responses):
 
 ## 6. Limitations and known issues
 
-**Architecture (planned for Phase 0/1)**
+**Architecture**
 
-- Loads run on the main thread, not in a worker; no per-step cache key yet.
+- Loads run on the main thread, not in a worker; results are cached per block
+  settings only for the current page.
 - No autosave or export/import of the workspace yet; blocks only survive a
   language switch.
-- `inferSchema` can't work for load blocks: columns are only known after asking
-  the API. Phase 1 needs a decision (e.g. cache the dataset description).
-- No processing blocks yet; the plan has only load steps.
+- A load block can't tell later blocks its columns before the data has
+  arrived (columns are only known after asking the API). This needs a decision
+  before processing blocks are added (e.g. cache the dataset description).
+- No processing blocks yet (filter, group by time, charts, maps); the plan has
+  only load steps.
 - Any block can snap under a load block, including standard Blockly blocks
   (loops, …). Those appear in the Python code but are ignored by the plan, so
   code and analysis can differ. Typed connections should prevent this.
-- Standard toolbox and the starter header ("Blockly lab", "Run code", …) are
-  still visible and English-only.
+- The standard toolbox and the starter header (badges, block counters) are
+  still visible.
 - `tsconfig` is not `strict` yet.
 
 **Huwise block**
@@ -301,37 +379,56 @@ Quirks found (covered by tests with recorded responses):
 - Stations are matched by exact sensor title; `Temperatur` and `Temperature`
   are separate choices.
 
+**NASA POWER block**
+
+- **Possible blocking in class:** many students loading the same place at the
+  same time could trigger NASA's blocking of repeated requests. Results are
+  cached per browser, not across students; a small caching proxy or a curated
+  file would help if this happens.
+- Values describe a grid cell of ~50 km; nearby presets (Münster, Coesfeld,
+  Warendorf, Steinfurt) can fall into the same or neighbouring cells and give
+  very similar values.
+- The dataset description shows dates in ISO form ("2025-01-01"), because it is
+  built in the language-free core.
+- Only one place per block; comparing places means one block per place.
+
 **Python view**
 
 - The code is Pyodide-specific (`open_url`) and won't run unchanged in a normal
   Python setup.
 - The openSenseMap code fetches every box in the area (including inactive
   ones) and doesn't page past 10 000 values per sensor.
-- In the whole-canvas view, helper variables (`url`, `zeilen`, `boxen`) are
-  reused between blocks; they don't overwrite data, but may confuse readers.
-- First run downloads numpy, pandas, python-dateutil, pytz and six (the suggested
-  classroom cold-start concern).
+- In the whole-canvas view, helper variables (`url`, `zeilen`, `boxen`,
+  `antwort`) are reused between blocks; they don't overwrite data, but may
+  confuse readers.
+- The first run downloads numpy, pandas, python-dateutil, pytz and six, which
+  is slow on a shared school network.
 
 **Checked only partly**
 
-- The English setup window was not looked at in the browser (texts exist).
+- The English setup windows were not looked at in the browser (texts exist).
 - Touch devices (iPads, Chromebooks) were not tested.
+- On narrow screens, the column table in the Daten tab is wider than the panel
+  and has to be scrolled sideways.
 
 ## 7. Tests
 
-`npm test` runs 56 unit tests:
+`npm test` runs 77 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - Huwise mapping and loading (paging, error codes, input validation);
 - openSenseMap station selection, phenomena, area filter, paging past the
   10 000-value cap, table mapping, parameter validation, loading with mocked
-  `fetch`, tag list.
+  `fetch`, tag list;
+- NASA POWER settings checks, request URL, date keys, fill values, monthly
+  values without the annual value, dataset description, error handling.
 
-The fixtures (`__fixtures__/`) are **real API responses** recorded on 2026-10-06
-and 2026-10-07, trimmed; each folder has a README saying exactly what was
-requested. They contain public data: German federal states (Data licence
-Germany – attribution 2.0), OpenStreetMap drinking water points (ODbL), and a
-few openSenseMap boxes and values.
+The fixtures (`__fixtures__/`) are **real API responses** recorded on
+2026-10-06, 2026-10-07 and 2026-10-13, some trimmed; each folder has a README
+saying exactly what was requested. They contain public data: German federal
+states (Data licence Germany – attribution 2.0), OpenStreetMap drinking water
+points (ODbL), a few openSenseMap boxes and values, and NASA POWER values for
+Münster.
 
 The UI was checked by hand and with scripted browser runs against the live APIs.
 There are no automated UI tests in the repo.
@@ -342,8 +439,10 @@ There are no automated UI tests in the repo.
   loader.
 - **`combine_with`**: append rows, join on a column, or time-aligned join?
 - **When to add typed connections** — now, or with the first processing blocks?
-- **Curated openSenseMap snapshot** for "a few weeks of Münster" :
-  who creates and approves it?
-- **Next loaders**: generic API block (meeting), NASA POWER, CSV upload.
+- **Curated openSenseMap snapshot** for "a few weeks of Münster": who creates
+  and approves it?
+- **Next loaders**: generic API block, CSV upload.
 - Should the openSenseMap block also offer a fast **"current values"** mode
   (`/boxes/:box/sensors`)?
+- **NASA POWER in class:** test with a whole class whether repeated requests get
+  blocked, before relying on it in a workshop.

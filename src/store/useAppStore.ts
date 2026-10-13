@@ -25,8 +25,8 @@ type AppState = WorkspaceMetrics & {
   /** Result per load block id. */
   loads: Record<string, LoadState>
   selectedBlockId: string | null
-  /** openSenseMap block whose setup window is open. */
-  osemSetupBlockId: string | null
+  /** Block whose setup window is open (API loaders). */
+  setupBlockId: string | null
   /** Load block whose fields changed most recently; shown when nothing is selected. */
   lastEditedLoadId: string | null
   resetWorkspace: () => void
@@ -36,7 +36,7 @@ type AppState = WorkspaceMetrics & {
   setLoadSteps: (steps: PlanStep[]) => void
   setLoadState: (blockId: string, state: LoadState | null) => void
   setSelectedBlockId: (blockId: string | null) => void
-  setOsemSetupBlockId: (blockId: string | null) => void
+  setSetupBlockId: (blockId: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -49,7 +49,7 @@ export const useAppStore = create<AppState>((set) => ({
   loadSteps: [],
   loads: {},
   selectedBlockId: null,
-  osemSetupBlockId: null,
+  setupBlockId: null,
   lastEditedLoadId: null,
   resetWorkspace: () =>
     set((state) => ({
@@ -81,7 +81,7 @@ export const useAppStore = create<AppState>((set) => ({
       return { loads }
     }),
   setSelectedBlockId: (selectedBlockId) => set({ selectedBlockId }),
-  setOsemSetupBlockId: (osemSetupBlockId) => set({ osemSetupBlockId }),
+  setSetupBlockId: (setupBlockId) => set({ setupBlockId }),
 }))
 
 /**
