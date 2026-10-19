@@ -25,6 +25,8 @@ type AppState = WorkspaceMetrics & {
   /** Result per load block id. */
   loads: Record<string, LoadState>
   selectedBlockId: string | null
+  /** Columns kept hidden in the Daten tab until a prediction is revealed, by strand id. */
+  hiddenColumns: Record<string, string[]>
   /** Block whose setup window is open (API loaders). */
   setupBlockId: string | null
   /** Load block whose fields changed most recently; shown when nothing is selected. */
@@ -37,6 +39,7 @@ type AppState = WorkspaceMetrics & {
   setLoadState: (blockId: string, state: LoadState | null) => void
   setSelectedBlockId: (blockId: string | null) => void
   setSetupBlockId: (blockId: string | null) => void
+  setHiddenColumns: (hidden: Record<string, string[]>) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -50,6 +53,7 @@ export const useAppStore = create<AppState>((set) => ({
   loads: {},
   selectedBlockId: null,
   setupBlockId: null,
+  hiddenColumns: {},
   lastEditedLoadId: null,
   resetWorkspace: () =>
     set((state) => ({
@@ -82,6 +86,7 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   setSelectedBlockId: (selectedBlockId) => set({ selectedBlockId }),
   setSetupBlockId: (setupBlockId) => set({ setupBlockId }),
+  setHiddenColumns: (hiddenColumns) => set({ hiddenColumns }),
 }))
 
 /**

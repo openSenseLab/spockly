@@ -82,7 +82,14 @@ function ColumnOverview({ summary }: { summary: ColumnSummary }) {
   return <Text color="gray">{distinctText(summary)}</Text>
 }
 
-function ColumnsTable({ table }: { table: DataTable }) {
+/** Columns whose values stay hidden until a prediction is revealed. */
+type Hidden = ReadonlySet<string>
+
+function HiddenValue() {
+  return <Text color="violet">🔒 {t('dataset.hiddenForPrediction')}</Text>
+}
+
+function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const summaries = useMemo(() => summarizeTable(table), [table])
   const rowCount = table.rows.length
 
@@ -133,7 +140,7 @@ function ColumnsTable({ table }: { table: DataTable }) {
                 )}
               </Table.Cell>
               <Table.Cell>
-                <ColumnOverview summary={summary} />
+                {hidden.has(column.name) ? <HiddenValue /> : <ColumnOverview summary={summary} />}
               </Table.Cell>
             </Table.Row>
           )
@@ -143,7 +150,7 @@ function ColumnsTable({ table }: { table: DataTable }) {
   )
 }
 
-function RowsPreview({ table }: { table: DataTable }) {
+function RowsPreview({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const rows = table.rows.slice(0, PREVIEW_ROWS)
   return (
     <Box className="preview-scroll">
@@ -165,7 +172,7 @@ function RowsPreview({ table }: { table: DataTable }) {
                 const missing = value === null || value === undefined || value === ''
                 return (
                   <Table.Cell key={column.name} className={missing ? 'cell-missing' : undefined}>
-                    {missing ? '–' : formatValue(value, column)}
+                    {hidden.has(column.name) ? '?' : missing ? '–' : formatValue(value, column)}
                   </Table.Cell>
                 )
               })}
@@ -177,7 +184,7 @@ function RowsPreview({ table }: { table: DataTable }) {
   )
 }
 
-function DatasetCard({ table }: { table: DataTable }) {
+function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const [expanded, setExpanded] = useState(false)
   const { meta } = table
   const loaded = table.rows.length
@@ -270,7 +277,7 @@ function DatasetCard({ table }: { table: DataTable }) {
       <Heading size="3" mt="2">
         {t('dataset.columns')}
       </Heading>
-      <ColumnsTable table={table} />
+      <ColumnsTable table={table} hidden={hidden} />
 
       <Flex align="baseline" gap="2" mt="2">
         <Heading size="3">{t('dataset.preview')}</Heading>
@@ -281,7 +288,7 @@ function DatasetCard({ table }: { table: DataTable }) {
           })}
         </Text>
       </Flex>
-      <RowsPreview table={table} />
+      <RowsPreview table={table} hidden={hidden} />
     </Flex>
   )
 }
@@ -289,6 +296,7 @@ function DatasetCard({ table }: { table: DataTable }) {
 export function DatasetPanel() {
   const loads = useAppStore((state) => state.loads)
   const shownId = useAppStore(selectShownStrandId)
+  const hiddenColumns = useAppStore((state) => state.hiddenColumns)
 
   const load = shownId ? loads[shownId] : undefined
 
@@ -326,5 +334,5 @@ export function DatasetPanel() {
     )
   }
 
-  return <DatasetCard table={load.table} />
+  return <DatasetCard table={load.table} hidden={new Set(shownId ? hiddenColumns[shownId] : [])} />
 }

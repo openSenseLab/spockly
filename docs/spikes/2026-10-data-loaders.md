@@ -1,13 +1,16 @@
-# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER)
+# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER) and "predict first"
 
 Branch `spike/data-loaders`, October 2026. Not merged and not reviewed yet.
 
 This spike tries out the "load data" part of SPOCKLY: three load blocks for
 real APIs, a side panel that shows what was loaded, and a Python view of the
-blocks. Along the way it lays down a first version of the shared data format,
-the plan that blocks are compiled into, and a registry of load operations.
-This document records what was built, how it works, what we learned about the
-APIs, and what is still missing.
+blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
+where students guess a value before they see it, then compare and explain.
+Along the way it lays down a first version of the shared data format, the plan
+that blocks are compiled into, a registry of load operations, and a column
+dropdown that later processing blocks can reuse. This document records what
+was built, how it works, what we learned about the APIs, and what is still
+missing.
 
 ## Contents
 
@@ -25,7 +28,7 @@ APIs, and what is still missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 77 unit tests (Vitest)
+npm test         # 81 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -36,6 +39,8 @@ npm run lint
   - **lade NASA-Wetterdaten** loads weather and solar data for a place.
 - The openSenseMap and NASA blocks open a **setup window** when dropped; the
   gear (⚙) on the block opens it again.
+- From **Schätzen & Prüfen**, snap **schätze …** under a load block, pick a
+  column, type a guess and click **Auflösen**.
 - Click a block to see its data in the **Daten** tab and its code in the
   **Python** tab. **Code ausführen** runs that code in the browser with
   Pyodide (the first run downloads pandas, ~10–40 s).
@@ -99,6 +104,51 @@ latitude, longitude. Days that NASA hasn't published yet are missing values.
 The dataset card says that the values are model and satellite data for a grid
 cell, not station measurements, and includes NASA's requested credit line.
 
+### Predict-first block ("Schätzen & Prüfen")
+
+```
+schätze den [höchsten Wert ▾] von [Temperatur (Mittel) ▾]
+ist ungefähr [ 30 ] °C
+( Auflösen )
+→ after revealing:
+( Verbergen )  Tatsächlich: 25,96 °C · 4,04 °C zu hoch
+Warum? [ Das sind Tagesmittel für ein großes Gitterfeld … ]
+```
+
+The idea: students commit to an expectation before they see the data, then
+compare it with the real value and explain the difference. A "wrong" guess is
+often the more useful one, because it shows a gap between intuition and data
+or reveals how the data was made (daily mean vs. hottest hour, model vs.
+station).
+
+- Snaps anywhere below a load block (later also below filter or group blocks)
+  and doesn't change the data.
+- Guesses the **highest value, lowest value or mean** of a **measurement**
+  column. Coordinates, identifiers and codes are numbers too, but are not
+  offered — their maximum or mean isn't a meaningful question. Data without
+  measurements (e.g. the German federal states) shows "(keine Messwerte)" and a
+  friendly warning on the block.
+- While the guess is open, that column shows **"🔒 Erst schätzen!"** in the
+  Daten tab (overview and preview rows). Other columns stay visible.
+- **Auflösen** shows the real value and the gap ("4,04 °C zu hoch"); within
+  5 % it says "fast genau getroffen!". **Verbergen** hides it again for another
+  try. Choosing a different measure or column hides it automatically, because
+  it is a new question. All of this can be undone with Ctrl+Z.
+- After revealing, a **"Warum?"** line appears for a one-sentence explanation.
+  It is optional, saved with the workspace, kept when hiding again, and stored
+  in the plan step (`reason`) so a later data-story feature can reuse it.
+- Python shows the guess, the real value and the explanation as a comment:
+  `print("Vermutung:", vermutung, "| tatsächlich:", wetter_muenster["T2M"].max())`.
+
+### Column dropdown (reusable)
+
+`field_column_dropdown` lists the columns of the data above a block, filtered
+by kind (here: measurements only). Unlike Blockly's standard dropdown, it keeps
+a chosen column that isn't in the list at the moment — e.g. while a saved
+workspace is still loading its data — instead of silently dropping it, and
+updates its label once the data arrives. Filter and group-by blocks will need
+the same field.
+
 ### Setup window (shared)
 
 Both API blocks with many settings use the same mechanism: the window opens
@@ -160,8 +210,10 @@ Blockly change (non-UI event)
        ├─ core/plan.ts        blocks → Plan: one strand per load (hat) block,
        │                      disabled blocks marked, "needs data" warnings
        ├─ store.loadSteps     first step of each strand
+       ├─ store.hiddenColumns columns with an open guess, per strand
        ├─ Python per strand   generators + unique variable names
-       └─ warnings on blocks  (plan problems, load errors)
+       ├─ guess blocks        result text, unit, column list (from loaded data)
+       └─ warnings on blocks  (plan problems, load errors, guess problems)
 
 useLoadRunner (hooks/)        for each load step whose params changed:
   └─ waits 600 ms, cancels outdated requests, caches by (op, params)
@@ -172,7 +224,12 @@ useLoadRunner (hooks/)        for each load step whose params changed:
   └─ store.loads[blockId] = loading | ready | error
 
 DatasetPanel / Python tab     show the strand from selectShownStrandId()
+store.loads changes           guess blocks refresh (result, column labels)
 ```
+
+Blocks below a load block get its data through `setTableProvider` (registered
+in `BlocklyWorkspace.tsx`): the root block of their stack is the load block,
+and its result in `store.loads` is the table they work on.
 
 Loading runs on the main thread for now (fetch is async; mapping is cheap). A
 cached executor in a Web Worker is the planned replacement for `useLoadRunner`.
@@ -208,6 +265,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
 | `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
+| `src/blocks/predict/` | guess block: definition (button, "Warum?" line), plan step, Python, `compare.ts` (real value, gap) + tests |
+| `src/blocks/fields/columnDropdown.ts` | column dropdown that keeps its value while data is loading; `setTableProvider` |
 | `src/blocks/setup.ts` | shared parts of blocks with a setup window (gear, open once, undoable changes) |
 | `src/blocks/index.ts` | registers blocks; `loadOperations`, `pythonBaseNames` |
 | `src/blocks/pythonNames.ts` | variable name per block, shared by all code views |
@@ -337,6 +396,15 @@ Quirks found (covered by tests with recorded responses):
   sense together with `combine_with`, whose semantics are still open.
 - Each data block gets **its own variable name** in the Python code, so
   students can work with several datasets side by side.
+- Predict first is **a block**, not a button in the side panel, so it is part
+  of the analysis and saved with it. The real values stay **hidden until
+  revealed**.
+- Values are **not covered on load**: students who don't want to guess
+  shouldn't hit a hurdle. A guess therefore only hides values if it is placed
+  before looking; a real "predict first" lesson needs a teacher-prepared
+  workspace (see open questions).
+- Guesses are limited to **measurement** columns.
+- The **"Warum?"** explanation is optional.
 
 ## 6. Limitations and known issues
 
@@ -392,6 +460,22 @@ Quirks found (covered by tests with recorded responses):
   built in the language-free core.
 - Only one place per block; comparing places means one block per place.
 
+**Predict-first block**
+
+- **Values are visible before a guess is placed.** A strand starts with
+  loading, and the Daten tab shows the values as soon as they arrive; the guess
+  block can only be added afterwards. In free exploration it works as a
+  self-check, not as enforced "predict first".
+- Values are only hidden in the **Daten tab**. The Python tab, or running the
+  code, still shows them.
+- Only highest value, lowest value and mean. Questions like "when was the
+  hottest day?" or "how many days above 25 °C?" need more blocks first.
+- The **5 % "close" threshold** is a first guess. For values near zero (e.g.
+  minimum precipitation of 0 mm) almost any miss counts as "too high".
+- In Python, the guess line uses the app's column names. They match the Python
+  table for NASA, but not always for Huwise and openSenseMap (e.g. `lat`,
+  `lon`), so that line can fail there. The app itself is not affected.
+
 **Python view**
 
 - The code is Pyodide-specific (`open_url`) and won't run unchanged in a normal
@@ -413,7 +497,7 @@ Quirks found (covered by tests with recorded responses):
 
 ## 7. Tests
 
-`npm test` runs 77 unit tests:
+`npm test` runs 81 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - Huwise mapping and loading (paging, error codes, input validation);
@@ -421,7 +505,13 @@ Quirks found (covered by tests with recorded responses):
   10 000-value cap, table mapping, parameter validation, loading with mocked
   `fetch`, tag list;
 - NASA POWER settings checks, request URL, date keys, fill values, monthly
-  values without the annual value, dataset description, error handling.
+  values without the annual value, dataset description, error handling;
+- guess block: real value (highest, lowest, mean, ignoring missing values) and
+  the "too high / too low / close" comparison.
+
+The guess block's interaction (snapping, hiding, revealing, undo, the
+"Warum?" line, keeping the chosen column across a language switch) was checked
+with scripted browser runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses** recorded on
 2026-10-06, 2026-10-07 and 2026-10-13, some trimmed; each folder has a README
@@ -446,3 +536,10 @@ There are no automated UI tests in the repo.
   (`/boxes/:box/sensors`)?
 - **NASA POWER in class:** test with a whole class whether repeated requests get
   blocked, before relying on it in a workshop.
+- **Predict first in a lesson:** values are only hidden if the guess block is
+  there before the data. Teacher-prepared activities (load block and guess block
+  already placed) would solve this — needs saving and opening workspaces first.
+- **"Close enough"** for a guess: is 5 % a good rule, and what should happen
+  near zero?
+- Should the **"Warum?"** explanation be required, or only nudged ("Schreib
+  einen Satz, warum …")? Worth asking teachers.

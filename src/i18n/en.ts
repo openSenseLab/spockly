@@ -103,6 +103,30 @@ export const en: Record<keyof typeof de, string> = {
   'load.nasaFromAfterTo': 'The start is after the end. Swap the two dates.',
   'load.nasaRejected': 'NASA POWER rejected the request. Check place, values and period.',
 
+  // predict_value block
+  'toolbox.predict': 'Predict & check',
+  'block.predict.line1': 'guess %1 of %2',
+  'block.predict.line2': 'is about %1 %2',
+  'block.predict.line3': 'Why? %1',
+  'block.predict.tooltip': 'Guess first, then check: enter your guess and click “Reveal”. Until then, the values of this column stay hidden in the data panel.',
+  'block.predict.max': 'the highest value',
+  'block.predict.min': 'the lowest value',
+  'block.predict.mean': 'the average',
+  'block.predict.reveal': 'Reveal',
+  'block.predict.hide': 'Hide',
+  'block.predict.result': 'Actual: {actual} · {how}',
+  'block.predict.close': 'almost exactly right!',
+  'block.predict.tooHigh': '{by} too high',
+  'block.predict.tooLow': '{by} too low',
+  'block.predict.waiting': 'The data is still loading …',
+  'block.predict.noValue': 'This column has no numbers.',
+  'block.predict.noMeasurements': 'This data has no measurements to guess, only identifiers, categories or coordinates. Try another dataset.',
+  'field.noFittingColumns': '(no measurements)',
+  'block.predict.pickColumn': 'Choose a column.',
+  'block.predict.columnMissing': 'This column isn’t in the data (any more). Choose another one.',
+  'field.noColumns': '(load data first)',
+  'dataset.hiddenForPrediction': 'Guess first!',
+
   // Problems in how blocks are put together (shown on the block)
   'plan.needsData': 'This block needs data above it. Attach it below a “load dataset” block.',
 

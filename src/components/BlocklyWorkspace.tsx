@@ -15,7 +15,13 @@ import {
   pythonBaseNames,
   setPythonNames,
   needsSetup,
+  PREDICT,
+  type PredictBlock,
+  predictToStep,
+  refreshPrediction,
   requestBlockSetup,
+  setRevealed,
+  setTableProvider,
   spocklyTheme,
 } from "../blocks";
 import { DEFAULT_PYTHON_CODE } from "../constants";
@@ -34,6 +40,13 @@ if (lang === "de") {
 
 const LOAD_WARNING_ID = "load";
 const PLAN_WARNING_ID = "plan";
+const PREDICT_WARNING_ID = "predict";
+
+/** Blocks below a load block work on the data that block loaded. */
+setTableProvider((block) => {
+  const load = useAppStore.getState().loads[block.getRootBlock().id];
+  return load?.status === "ready" ? load.table : null;
+});
 
 const toolbox = {
   ...standardToolbox,
@@ -48,6 +61,12 @@ const toolbox = {
         { kind: "block", type: LOAD_NASA_POWER },
       ],
     },
+    {
+      kind: "category",
+      name: t("toolbox.predict"),
+      categorystyle: "predict_category",
+      contents: [{ kind: "block", type: PREDICT }],
+    },
     ...standardToolbox.contents,
   ],
 };
@@ -57,6 +76,7 @@ const generators: Record<string, StepGenerator> = {
   [LOAD_HUWISE]: (block) => loadHuwiseToStep(block as Blockly.Block),
   [LOAD_OSEM]: (block) => loadOsemToStep(block as Blockly.Block),
   [LOAD_NASA_POWER]: (block) => loadNasaPowerToStep(block as Blockly.Block),
+  [PREDICT]: (block) => predictToStep(block as Blockly.Block),
 };
 const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER]);
 
@@ -110,6 +130,39 @@ const compile = (workspace: Blockly.WorkspaceSvg) => {
     .filter((step) => !!step && step.op in loadOperations);
   if (JSON.stringify(loadSteps) !== JSON.stringify(state.loadSteps)) {
     state.setLoadSteps(loadSteps);
+  }
+
+  // Columns with an open prediction stay hidden in the Daten tab.
+  const hidden: Record<string, string[]> = {};
+  for (const strand of plan.strands) {
+    const columns = strand.steps
+      .filter((step) => step.op === PREDICT && !step.disabled && !step.params.revealed && step.params.column)
+      .map((step) => String(step.params.column));
+    if (columns.length) hidden[strand.id] = columns;
+  }
+  if (JSON.stringify(hidden) !== JSON.stringify(state.hiddenColumns)) {
+    state.setHiddenColumns(hidden);
+  }
+
+  refreshPredictions(workspace);
+};
+
+/** Result text, unit and warnings of prediction blocks; depends on the loaded data. */
+const refreshPredictions = (workspace: Blockly.WorkspaceSvg) => {
+  for (const block of workspace.getBlocksByType(PREDICT, false) as PredictBlock[]) {
+    refreshPrediction(block);
+    const load = useAppStore.getState().loads[block.getRootBlock().id];
+    const column = String(block.getFieldValue("COLUMN") ?? "");
+    let warning: string | null = null;
+    if (load?.status === "ready" && block.getRootBlock() !== block) {
+      const hasMeasurements = load.table.columns.some(
+        (c) => c.dataType === "number" && c.semanticType === "measurement",
+      );
+      if (!hasMeasurements) warning = t("block.predict.noMeasurements");
+      else if (!column) warning = t("block.predict.pickColumn");
+      else if (!load.table.columns.some((c) => c.name === column)) warning = t("block.predict.columnMissing");
+    }
+    block.setWarningText(warning, PREDICT_WARNING_ID);
   }
 };
 
@@ -236,12 +289,28 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
         return;
       }
 
+      // Asking about another value or column is a new question: hide the answer again.
+      if (event.type === Blockly.Events.BLOCK_CHANGE) {
+        const change = event as Blockly.Events.BlockChange;
+        const block = change.blockId ? workspace.getBlockById(change.blockId) : null;
+        if (
+          block?.type === PREDICT &&
+          change.element === "field" &&
+          (change.name === "QUANTITY" || change.name === "COLUMN")
+        ) {
+          setRevealed(block as unknown as PredictBlock, false);
+        }
+      }
+
       updateDerivedState(workspace);
     };
 
     const onResize = () => Blockly.svgResize(workspace);
     const unsubscribeLoads = useAppStore.subscribe((state, previous) => {
-      if (state.loads !== previous.loads) applyLoadWarnings(workspace);
+      if (state.loads !== previous.loads) {
+        applyLoadWarnings(workspace);
+        refreshPredictions(workspace);
+      }
     });
 
     workspace.addChangeListener(onWorkspaceChange);

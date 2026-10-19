@@ -102,6 +102,30 @@ export const de = {
   'load.nasaFromAfterTo': 'Der Beginn liegt nach dem Ende. Tausche die beiden Daten.',
   'load.nasaRejected': 'NASA POWER hat die Anfrage abgelehnt. Prüfe Ort, Werte und Zeitraum.',
 
+  // predict_value block
+  'toolbox.predict': 'Schätzen & Prüfen',
+  'block.predict.line1': 'schätze %1 von %2',
+  'block.predict.line2': 'ist ungefähr %1 %2',
+  'block.predict.line3': 'Warum? %1',
+  'block.predict.tooltip': 'Erst schätzen, dann prüfen: Gib deine Vermutung ein und klick auf „Auflösen“. Bis dahin bleiben die Werte dieser Spalte im Datenbereich verborgen.',
+  'block.predict.max': 'den höchsten Wert',
+  'block.predict.min': 'den niedrigsten Wert',
+  'block.predict.mean': 'den Mittelwert',
+  'block.predict.reveal': 'Auflösen',
+  'block.predict.hide': 'Verbergen',
+  'block.predict.result': 'Tatsächlich: {actual} · {how}',
+  'block.predict.close': 'fast genau getroffen!',
+  'block.predict.tooHigh': '{by} zu hoch',
+  'block.predict.tooLow': '{by} zu niedrig',
+  'block.predict.waiting': 'Die Daten werden noch geladen …',
+  'block.predict.noValue': 'In dieser Spalte gibt es keine Zahlen.',
+  'block.predict.noMeasurements': 'In diesen Daten gibt es keine Messwerte zum Schätzen, nur Kennungen, Kategorien oder Koordinaten. Probier einen anderen Datensatz.',
+  'field.noFittingColumns': '(keine Messwerte)',
+  'block.predict.pickColumn': 'Wähle eine Spalte aus.',
+  'block.predict.columnMissing': 'Diese Spalte gibt es in den Daten nicht (mehr). Wähle eine andere.',
+  'field.noColumns': '(erst Daten laden)',
+  'dataset.hiddenForPrediction': 'Erst schätzen!',
+
   // Problems in how blocks are put together (shown on the block)
   'plan.needsData':
     'Dieser Block braucht Daten darüber. Häng ihn unter einen „lade Datensatz“-Block.',
