@@ -23,9 +23,12 @@ type SavedState = LoadOsemParams & { configured?: boolean }
 // ---- Labels ----
 
 function updateLabels(block: OsemBlock) {
-  const { phenomenon, source, period, outdoorOnly } = block.osemParams
+  const { phenomena, source, period, outdoorOnly } = block.osemParams
   const when = pick(PERIODS[period].label) ?? period
-  block.setFieldValue(phenomenon, 'PHENOMENON')
+  // Up to two names, otherwise "Temperatur + 2 weitere", so the block stays narrow.
+  const what =
+    phenomena.length <= 2 ? phenomena.join(', ') : t('block.moreValues', { first: phenomena[0], count: phenomena.length - 1 })
+  block.setFieldValue(what, 'PHENOMENON')
   block.setFieldValue(pick(sourceLabel(source)) ?? '', 'PLACE')
   block.setFieldValue(outdoorOnly ? `${when} · ${t('block.loadOsem.outdoorShort')}` : when, 'PERIOD')
 }

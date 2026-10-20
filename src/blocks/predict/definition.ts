@@ -1,7 +1,8 @@
 import * as Blockly from 'blockly'
 
 import type { ColumnMeta } from '../../core/types'
-import { formatNumber, t } from '../../i18n'
+import { glossaryForColumn } from '../../glossary'
+import { formatNumber, pick, t } from '../../i18n'
 import '../fields/columnDropdown'
 import { columnsFor, FieldColumnDropdown, tableFor } from '../fields/columnDropdown'
 import { fireStateChange } from '../setup'
@@ -15,7 +16,19 @@ Blockly.Msg.SPOCKLY_PREDICT_LINE3 = t('block.predict.line3')
 Blockly.Msg.SPOCKLY_PREDICT_TOOLTIP = t('block.predict.tooltip')
 
 /** State the block keeps besides its fields; saved via saveExtraState. */
-export type PredictBlock = Blockly.Block & { revealed: boolean }
+export type PredictBlock = Blockly.Block & {
+  revealed: boolean
+  /** The data above changed; check the column once the new data is there. Not saved. */
+  awaitingNewData?: boolean
+}
+
+/** The guessed column is gone (e.g. another phenomenon was loaded): start over. */
+export function resetPrediction(block: PredictBlock) {
+  block.setFieldValue('', 'COLUMN')
+  block.setFieldValue(0, 'GUESS')
+  block.setFieldValue('', 'REASON')
+  setRevealed(block, false)
+}
 
 /** Both button texts get the same width: an image field can't be resized later. */
 const BUTTON_WIDTH = Math.round(Math.max(t('block.predict.reveal').length, t('block.predict.hide').length) * 7.4 + 28)
@@ -59,6 +72,17 @@ function resultText(block: PredictBlock): string {
   return t('block.predict.result', { actual: withUnit(actual), how })
 }
 
+/** "Zur Orientierung: …" for the chosen column, if the glossary has a reference value. */
+function showHint(block: PredictBlock) {
+  const column = columnsFor(block)?.find((c: ColumnMeta) => c.name === block.getFieldValue('COLUMN'))
+  const hint = column ? pick(glossaryForColumn(column)?.hint) : undefined
+  block.setFieldValue(hint ? t('block.predict.hint', { hint }) : '', 'HINT')
+  const row = block.getInput('HINT_ROW')
+  if (!row || row.isVisible() === !!hint) return
+  row.setVisible(!!hint)
+  if (block instanceof Blockly.BlockSvg) block.queueRender()
+}
+
 /** The "Warum?" line only makes sense once the real value is shown. */
 function showReasonRow(block: PredictBlock) {
   const row = block.getInput('REASON_ROW')
@@ -82,6 +106,7 @@ export function refreshPrediction(block: PredictBlock) {
     if (button && button.getValue() !== image.src) button.setValue(image.src)
     block.setFieldValue(resultText(block), 'RESULT')
     showReasonRow(block)
+    showHint(block)
   } finally {
     Blockly.Events.enable()
   }
@@ -114,6 +139,7 @@ Blockly.Extensions.registerMutator(
     const reason = this.getField('REASON')
     if (reason) reason.maxDisplayLength = 36
     this.getInput('REASON_ROW')?.setVisible(false)
+    this.getInput('HINT_ROW')?.setVisible(false)
     const button = this.getField('REVEAL') as Blockly.FieldImage | null
     button?.setOnClickHandler((field) => {
       const block = field.getSourceBlock() as PredictBlock | null
@@ -141,14 +167,20 @@ Blockly.common.defineBlocksWithJsonArray([
       { type: 'field_number', name: 'GUESS', value: 0 },
       { type: 'field_label', name: 'UNIT', text: '' },
     ],
+    // A reference value to guess against, from the glossary (hidden if there is none).
     message2: '%1 %2',
     args2: [
+      { type: 'field_label', name: 'HINT', text: '' },
+      { type: 'input_dummy', name: 'HINT_ROW' },
+    ],
+    message3: '%1 %2',
+    args3: [
       { type: 'field_image', name: 'REVEAL', src: REVEAL.src, width: REVEAL.width, height: 26, alt: t('block.predict.reveal') },
       { type: 'field_label', name: 'RESULT', text: '' },
     ],
     // Shown after revealing: the student explains the difference in one sentence.
-    message3: '%{BKY_SPOCKLY_PREDICT_LINE3} %2',
-    args3: [
+    message4: '%{BKY_SPOCKLY_PREDICT_LINE3} %2',
+    args4: [
       { type: 'field_input', name: 'REASON', text: '', spellcheck: true },
       { type: 'input_dummy', name: 'REASON_ROW' },
     ],

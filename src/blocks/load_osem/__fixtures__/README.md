@@ -12,3 +12,5 @@ Real responses from the openSenseMap API (api.opensensemap.org), recorded on
   `GET /boxes?format=json&bbox=7.5897085,51.9205942,7.6647924,51.989764&exposure=outdoor`
   whose current location is in Berlin: the area query also returns boxes that
   are no longer in the area.
+- `sensor-data-humidity.json` — first 40 values of the same box's "rel. Luftfeuchte" sensor
+  (`…/data/591f578c51d34600116a8ea7`, same period), recorded on 2026-10-19

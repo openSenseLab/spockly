@@ -19,6 +19,7 @@ import {
   type PredictBlock,
   predictToStep,
   refreshPrediction,
+  resetPrediction,
   requestBlockSetup,
   setRevealed,
   setTableProvider,
@@ -41,6 +42,8 @@ if (lang === "de") {
 const LOAD_WARNING_ID = "load";
 const PLAN_WARNING_ID = "plan";
 const PREDICT_WARNING_ID = "predict";
+/** Fields of load blocks that change which data is loaded (the API blocks use their saved state). */
+const LOAD_FIELDS = new Set(["DATASET", "DOMAIN", "MAX_ROWS"]);
 
 /** Blocks below a load block work on the data that block loaded. */
 setTableProvider((block) => {
@@ -149,9 +152,22 @@ const compile = (workspace: Blockly.WorkspaceSvg) => {
 
 /** Result text, unit and warnings of prediction blocks; depends on the loaded data. */
 const refreshPredictions = (workspace: Blockly.WorkspaceSvg) => {
+  const { loads, loadSteps } = useAppStore.getState();
   for (const block of workspace.getBlocksByType(PREDICT, false) as PredictBlock[]) {
+    const rootId = block.getRootBlock().id;
+    const load = loads[rootId];
+
+    // After the data above changed: once data for the new settings is there,
+    // a guess about a column that no longer exists starts over.
+    const step = loadSteps.find((s) => s.id === rootId);
+    const newDataReady = load?.status === "ready" && !!step && load.key === JSON.stringify([step.op, step.params]);
+    if (block.awaitingNewData && newDataReady) {
+      block.awaitingNewData = false;
+      const chosen = String(block.getFieldValue("COLUMN") ?? "");
+      if (chosen && !load.table.columns.some((c) => c.name === chosen)) resetPrediction(block);
+    }
+
     refreshPrediction(block);
-    const load = useAppStore.getState().loads[block.getRootBlock().id];
     const column = String(block.getFieldValue("COLUMN") ?? "");
     let warning: string | null = null;
     if (load?.status === "ready" && block.getRootBlock() !== block) {
@@ -299,6 +315,20 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
           (change.name === "QUANTITY" || change.name === "COLUMN")
         ) {
           setRevealed(block as unknown as PredictBlock, false);
+        }
+
+        // New data above a guess is a new question too: hide the answer, and
+        // check the guessed column once the new data has arrived.
+        const settingsChanged =
+          change.element === "mutation" ||
+          (change.element === "field" && LOAD_FIELDS.has(change.name ?? ""));
+        if (block && hatTypes.has(block.type) && settingsChanged) {
+          for (const below of block.getDescendants(false)) {
+            if (below.type !== PREDICT) continue;
+            const guess = below as unknown as PredictBlock;
+            guess.awaitingNewData = true;
+            setRevealed(guess, false);
+          }
         }
       }
 

@@ -60,7 +60,7 @@ describe('loadHuwise', () => {
     [404, 'load.notFound'],
     [403, 'load.notPublic'],
     [429, 'load.tooManyRequests'],
-    [500, 'load.failed'],
+    [500, 'load.serverTrouble'],
   ])('turns HTTP %i into %s', async (status, code) => {
     vi.stubGlobal('fetch', vi.fn(async () => json({}, status)))
     await expect(

@@ -4,9 +4,9 @@ import {
   Button,
   Callout,
   Checkbox,
+  CheckboxCards,
   Dialog,
   Flex,
-  RadioCards,
   SegmentedControl,
   Select,
   Spinner,
@@ -16,6 +16,7 @@ import {
 
 import { setOsemParams, type OsemBlock } from '../blocks'
 import {
+  MAX_PHENOMENA,
   phenomenaIn,
   timeWindow,
   type LoadOsemParams,
@@ -25,7 +26,9 @@ import {
 import { fetchBoxes, fetchTags } from '../blocks/load_osem/operation'
 import { AREA_PRESETS, PERIODS, type PeriodId } from '../blocks/load_osem/presets'
 import { LoadError } from '../core/http'
+import { glossaryFor } from '../glossary'
 import { formatNumber, pick, t } from '../i18n'
+import { GlossaryInfo } from './GlossaryInfo'
 
 /** Phenomena shown before "show all". */
 const SHORT_LIST = 9
@@ -96,15 +99,22 @@ export function OsemSetupForm({ block, onDone }: { block: OsemBlock; onDone: () 
 
   const options = search.status === 'ready' ? search.options : []
   const short = options.slice(0, SHORT_LIST)
-  // Keep the current choice visible even if it's further down the list.
-  const chosen = options.find((o) => o.title === draft.phenomenon)
-  const visible = showAll || !chosen || short.includes(chosen) ? (showAll ? options : short) : [...short, chosen]
+  // Chosen measurements that the stations here actually measure.
+  const chosen = options.filter((o) => draft.phenomena.includes(o.title))
+  // Keep chosen ones visible even if they're further down the list.
+  const visible = showAll ? options : [...short, ...chosen.filter((o) => !short.includes(o))]
+  const canApply = search.status === 'ready' && chosen.length > 0
+  const full = chosen.length >= MAX_PHENOMENA
 
-  const phenomenonAvailable = options.some((o) => o.title === draft.phenomenon)
-  const canApply = search.status === 'ready' && phenomenonAvailable
+  const choose = (titles: string[]) => {
+    if (titles.length > MAX_PHENOMENA) return
+    // Keep the list's order (most common first), whatever order they were ticked in.
+    update({ phenomena: options.map((o) => o.title).filter((title) => titles.includes(title)) })
+  }
 
   const apply = () => {
-    setOsemParams(block, draft)
+    // Only what is measured here; a choice from another area drops out.
+    setOsemParams(block, { ...draft, phenomena: chosen.map((o) => o.title) })
     onDone()
   }
 
@@ -226,26 +236,31 @@ export function OsemSetupForm({ block, onDone }: { block: OsemBlock; onDone: () 
 
         {search.status === 'ready' && options.length > 0 && (
           <>
-            <RadioCards.Root
-              value={phenomenonAvailable ? draft.phenomenon : ''}
-              onValueChange={(phenomenon) => update({ phenomenon })}
+            <CheckboxCards.Root
+              value={chosen.map((o) => o.title)}
+              onValueChange={choose}
               columns={{ initial: '1', sm: '3' }}
               size="1"
             >
               {visible.map((option) => (
-                <RadioCards.Item key={option.title} value={option.title}>
+                <CheckboxCards.Item
+                  key={option.title}
+                  value={option.title}
+                  disabled={full && !draft.phenomena.includes(option.title)}
+                >
                   <Flex direction="column" width="100%">
                     <Text weight="bold" className="osem-phenomenon">
                       {option.title}
-                      {option.unit ? <Text color="gray" weight="regular"> ({option.unit})</Text> : null}
+                      {option.unit ? <Text color="gray" weight="regular"> ({option.unit})</Text> : null}{' '}
+                      <GlossaryInfo entry={glossaryFor(option.title)} />
                     </Text>
                     <Text size="1" color="gray">
                       {stationCount(option.stations)}
                     </Text>
                   </Flex>
-                </RadioCards.Item>
+                </CheckboxCards.Item>
               ))}
-            </RadioCards.Root>
+            </CheckboxCards.Root>
             {options.length > SHORT_LIST && (
               <Box>
                 <Button size="1" variant="ghost" onClick={() => setShowAll((s) => !s)}>
@@ -255,9 +270,14 @@ export function OsemSetupForm({ block, onDone }: { block: OsemBlock; onDone: () 
                 </Button>
               </Box>
             )}
-            {!phenomenonAvailable && (
+            {chosen.length === 0 && (
               <Text size="1" color="amber">
                 {t('osem.dialog.pickPhenomenon')}
+              </Text>
+            )}
+            {full && (
+              <Text size="1" color="gray">
+                {t('osem.dialog.maxPhenomena', { max: MAX_PHENOMENA })}
               </Text>
             )}
           </>

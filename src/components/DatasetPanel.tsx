@@ -15,7 +15,9 @@ import {
 import { summarizeTable, type ColumnSummary } from '../core/summary'
 import type { ColumnMeta, DataTable, SemanticType } from '../core/types'
 import { formatDate, formatNumber, pick, t } from '../i18n'
+import { glossaryForColumn } from '../glossary'
 import { selectShownStrandId, useAppStore } from '../store/useAppStore'
+import { GlossaryInfo } from './GlossaryInfo'
 
 const PREVIEW_ROWS = 20
 
@@ -114,7 +116,8 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
               <Table.RowHeaderCell>
                 <Text weight="medium" title={description}>
                   {label}
-                </Text>
+                </Text>{' '}
+                <GlossaryInfo entry={glossaryForColumn(column)} />
                 {label !== column.name && (
                   <Text as="div" size="1" color="gray" className="column-name">
                     {column.name}

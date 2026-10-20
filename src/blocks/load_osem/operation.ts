@@ -2,6 +2,7 @@ import { getJson, LoadError, mapLimit } from '../../core/http'
 import type { DataTable, ExecContext, OperationDef } from '../../core/types'
 import {
   boxesInArea,
+  phenomenonColumns,
   MAX_STATIONS,
   nextPageEnd,
   stationsFor,
@@ -108,19 +109,24 @@ export async function loadOsem(
   const window = timeWindow(params.period, now)
 
   const boxes = await fetchBoxes(params.source, params.outdoorOnly, signal)
-  const found = stationsFor(boxes, params.phenomenon, window.from)
+  const found = stationsFor(boxes, params.phenomena, window.from)
   if (found.length === 0) throw new LoadError('load.osemNoStations')
   const stations = found.slice(0, MAX_STATIONS)
 
   let done = 0
   onProgress?.(0, stations.length, 'stations')
-  const results = await mapLimit(stations, PARALLEL_REQUESTS, async (station) => {
-    const values = await fetchSensorValues(station.box._id, station.sensor._id, window.from, window.to, signal)
+  // A few stations at a time; each station's sensors one after another.
+  const perStation = await mapLimit(stations, PARALLEL_REQUESTS, async ({ box, sensors }) => {
+    const results = []
+    for (const sensor of sensors) {
+      const values = await fetchSensorValues(box._id, sensor._id, window.from, window.to, signal)
+      results.push({ box, sensor, values })
+    }
     onProgress?.(++done, stations.length, 'stations')
-    return { station, values }
+    return results
   })
 
-  return toDataTable(params, results, window, found.length)
+  return toDataTable(params, perStation.flat(), window, found.length)
 }
 
 export const loadOsemOperation: OperationDef<LoadOsemParams> = {
@@ -130,8 +136,11 @@ export const loadOsemOperation: OperationDef<LoadOsemParams> = {
   inferSchema: () => ({ columns: [], warnings: [] }),
   execute: (_input, params, ctx) => loadOsem(params, ctx),
   // Runs in Pyodide (downloads go through the browser via open_url).
-  toCode: ({ source, phenomenon, period, outdoorOnly }, { output = 'df' } = {}) => {
+  toCode: ({ source, phenomena, period, outdoorOnly }, { output = 'df' } = {}) => {
     const boxQuery = boxesUrl(source, outdoorOnly).slice(OSEM_API.length)
+    // Sensor title → column name, as in the app's table.
+    const names = phenomenonColumns(phenomena)
+    const columns = JSON.stringify(Object.fromEntries(phenomena.map((title, i) => [title, names[i]])))
     return {
       python:
         `import json\n` +
@@ -143,15 +152,17 @@ export const loadOsemOperation: OperationDef<LoadOsemParams> = {
         `von = bis - timedelta(days=${PERIODS[period].days})\n` +
         `zeit = f"from-date={von:%Y-%m-%dT%H:%M:%SZ}&to-date={bis:%Y-%m-%dT%H:%M:%SZ}"\n\n` +
         `boxen = json.load(open_url(api + "${boxQuery}"))\n` +
+        `spalten = ${columns}\n` +
         `zeilen = []\n` +
         `for box in boxen:\n` +
         `    for sensor in box["sensors"]:\n` +
-        `        if sensor["title"] != ${JSON.stringify(phenomenon)}:\n` +
+        `        if sensor["title"] not in spalten:\n` +
         `            continue\n` +
         `        url = f"{api}/boxes/{box['_id']}/data/{sensor['_id']}?{zeit}&format=json"\n` +
         `        for wert in json.load(open_url(url)):\n` +
-        `            zeilen.append({"time": wert["createdAt"], "value": float(wert["value"]), "station": box["name"]})\n\n` +
-        `${output} = pd.DataFrame(zeilen)\n` +
+        `            zeilen.append({"time": wert["createdAt"], "station": box["name"], "messgroesse": spalten[sensor["title"]], "wert": float(wert["value"])})\n\n` +
+        `# eine Zeile pro Station und Zeitpunkt, eine Spalte pro Messgröße\n` +
+        `${output} = pd.DataFrame(zeilen).pivot_table(index=["time", "station"], columns="messgroesse", values="wert").reset_index()\n` +
         `print(${output})`,
     }
   },

@@ -2,6 +2,7 @@
  * Pure logic for the openSenseMap loader: picking stations, phenomena,
  * paging and mapping to the DataTable contract. No network access here.
  */
+import { toPythonName, uniqueNames } from '../../core/names'
 import type { ColumnMeta, DataTable, DatasetMeta, LocalizedText } from '../../core/types'
 import { areaPreset, PERIODS, type PeriodId } from './presets'
 
@@ -36,14 +37,15 @@ export type OsemSource = { kind: 'area'; area: string } | { kind: 'tag'; tag: st
 
 export interface LoadOsemParams {
   source: OsemSource
-  phenomenon: string
+  /** Sensor titles as the boxes name them, e.g. "Temperatur", "rel. Luftfeuchte". */
+  phenomena: string[]
   period: PeriodId
   outdoorOnly: boolean
 }
 
 export const DEFAULT_PARAMS: LoadOsemParams = {
   source: { kind: 'area', area: 'muenster-mitte' },
-  phenomenon: 'Temperatur',
+  phenomena: ['Temperatur'],
   period: '1d',
   outdoorOnly: true,
 }
@@ -52,6 +54,8 @@ export const DEFAULT_PARAMS: LoadOsemParams = {
 export const SENSOR_LIMIT = 10_000
 /** Upper bound on stations per load, so a big group can't flood the API. */
 export const MAX_STATIONS = 50
+/** Measurements per load: each one is another request per station. */
+export const MAX_PHENOMENA = 5
 
 // ---- Time ----
 
@@ -98,16 +102,19 @@ const isActiveSince = (box: OsemBox, from: Date) =>
 
 export interface Station {
   box: OsemBox
-  sensor: OsemSensor
+  /** The box's sensors for the chosen phenomena (at least one). */
+  sensors: OsemSensor[]
 }
 
-/** Boxes that measured something in the window and have a sensor for `phenomenon`. */
-export function stationsFor(boxes: OsemBox[], phenomenon: string, from: Date): Station[] {
+/** Boxes that measured something in the window and have a sensor for at least one of the phenomena. */
+export function stationsFor(boxes: OsemBox[], phenomena: string[], from: Date): Station[] {
   const stations: Station[] = []
   for (const box of boxes) {
     if (!isActiveSince(box, from)) continue
-    const sensor = box.sensors?.find((s) => s.title === phenomenon)
-    if (sensor) stations.push({ box, sensor })
+    const sensors = phenomena
+      .map((title) => box.sensors?.find((s) => s.title === title))
+      .filter((s): s is OsemSensor => !!s)
+    if (sensors.length) stations.push({ box, sensors })
   }
   // Most recently active first, so a cap keeps the liveliest stations.
   return stations.sort(
@@ -156,80 +163,121 @@ export function sourceLabel(source: OsemSource): LocalizedText {
 const formatRange = (from: Date, to: Date) =>
   `${from.toISOString().slice(0, 16).replace('T', ' ')} – ${to.toISOString().slice(0, 16).replace('T', ' ')} UTC`
 
+/** Column names that are always there; a phenomenon must not take one of them. */
+const FIXED_COLUMNS = new Set(['time', 'station', 'station_id', 'lat', 'lon', 'exposure'])
+
+/** "rel. Luftfeuchte" → "rel_luftfeuchte": one stable column name per phenomenon. */
+export function phenomenonColumns(phenomena: string[]): string[] {
+  return uniqueNames(
+    phenomena.map((title) => {
+      const name = toPythonName(title, 'messwert')
+      return FIXED_COLUMNS.has(name) ? `${name}_wert` : name
+    }),
+  )
+}
+
+const listOf = (titles: string[]) => titles.join(', ')
+
+/**
+ * One row per station and time, one column per phenomenon. The sensors of a
+ * senseBox send their values together with the same timestamp, so they line
+ * up; a sensor that didn't report leaves its column empty in that row.
+ */
 export function toDataTable(
   params: LoadOsemParams,
-  results: { station: Station; values: OsemMeasurement[] }[],
+  results: { box: OsemBox; sensor: OsemSensor; values: OsemMeasurement[] }[],
   window: { from: Date; to: Date },
   stationsFound: number,
 ): DataTable {
-  const rows: Record<string, unknown>[] = []
-  const units = new Set<string>()
+  const names = phenomenonColumns(params.phenomena)
+  const columnOf = new Map(params.phenomena.map((title, i) => [title, names[i]]))
+  const unitCounts = new Map<string, Map<string, number>>()
+  const rowsByKey = new Map<string, Record<string, unknown>>()
 
-  for (const { station, values } of results) {
-    const { box, sensor } = station
-    if (sensor.unit) units.add(sensor.unit)
+  for (const { box, sensor, values } of results) {
+    const column = columnOf.get(sensor.title)
+    if (!column) continue
+    if (sensor.unit) {
+      const counts = unitCounts.get(column) ?? new Map<string, number>()
+      counts.set(sensor.unit, (counts.get(sensor.unit) ?? 0) + 1)
+      unitCounts.set(column, counts)
+    }
     for (const m of values) {
+      const key = `${box._id}|${m.createdAt}`
+      let row = rowsByKey.get(key)
+      if (!row) {
+        row = { time: m.createdAt }
+        for (const name of names) row[name] = null
+        Object.assign(row, { station: box.name, station_id: box._id, ...lonLatOf(box, m), exposure: box.exposure ?? null })
+        rowsByKey.set(key, row)
+      }
       const value = Number(m.value)
-      rows.push({
-        time: m.createdAt,
-        value: Number.isFinite(value) ? value : null,
-        unit: sensor.unit ?? null,
-        station: box.name,
-        station_id: box._id,
-        ...lonLatOf(box, m),
-        exposure: box.exposure ?? null,
-        sensor_type: sensor.sensorType ?? null,
-      })
+      row[column] = Number.isFinite(value) ? value : null
     }
   }
-  rows.sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  const rows = [...rowsByKey.values()].sort(
+    (a, b) => String(a.time).localeCompare(String(b.time)) || String(a.station).localeCompare(String(b.station)),
+  )
 
-  // A unit column only helps when stations disagree on the unit.
-  const unit = units.size === 1 ? [...units][0] : undefined
+  // The unit the stations use; if they disagree, none is shown and the description says so.
+  const mixedUnits: string[] = []
+  const unitFor = (column: string, title: string) => {
+    const counts = unitCounts.get(column)
+    if (!counts || counts.size === 0) return undefined
+    if (counts.size > 1) {
+      mixedUnits.push(title)
+      return undefined
+    }
+    return [...counts.keys()][0]
+  }
+
   const columns: ColumnMeta[] = [
     { name: 'time', label: { de: 'Zeitpunkt', en: 'Time' }, dataType: 'date', semanticType: 'timestamp' },
-    {
-      name: 'value',
-      label: { de: params.phenomenon, en: params.phenomenon },
-      dataType: 'number',
-      semanticType: 'measurement',
-      unit,
-    },
-    ...(units.size > 1
-      ? [{ name: 'unit', label: { de: 'Einheit', en: 'Unit' }, dataType: 'string', semanticType: 'category' } as const]
-      : []),
+    ...params.phenomena.map(
+      (title, i): ColumnMeta => ({
+        name: names[i],
+        label: { de: title, en: title },
+        dataType: 'number',
+        semanticType: 'measurement',
+        unit: unitFor(names[i], title),
+      }),
+    ),
     { name: 'station', label: { de: 'Station', en: 'Station' }, dataType: 'string', semanticType: 'category' },
     { name: 'station_id', label: { de: 'Stations-ID', en: 'Station ID' }, dataType: 'string', semanticType: 'identifier' },
     { name: 'lat', label: { de: 'Breitengrad', en: 'Latitude' }, dataType: 'number', semanticType: 'latitude', unit: '°' },
     { name: 'lon', label: { de: 'Längengrad', en: 'Longitude' }, dataType: 'number', semanticType: 'longitude', unit: '°' },
     { name: 'exposure', label: { de: 'Aufstellung', en: 'Placement' }, dataType: 'string', semanticType: 'category' },
-    { name: 'sensor_type', label: { de: 'Sensortyp', en: 'Sensor type' }, dataType: 'string', semanticType: 'category' },
   ]
-  if (units.size <= 1) for (const row of rows) delete row.unit
 
   const place = sourceLabel(params.source)
   const period = PERIODS[params.period].label
-  const used = results.length
+  const used = new Set(results.map((r) => r.box._id)).size
   const range = formatRange(window.from, window.to)
+  const what = listOf(params.phenomena)
+  const several = params.phenomena.length > 1
 
   const meta: DatasetMeta = {
-    id: `osem:${params.source.kind}:${params.source.kind === 'area' ? params.source.area : params.source.tag}:${params.phenomenon}`,
+    id: `osem:${params.source.kind}:${params.source.kind === 'area' ? params.source.area : params.source.tag}:${what}`,
     title: {
-      de: `openSenseMap: ${params.phenomenon} – ${place.de}`,
-      en: `openSenseMap: ${params.phenomenon} – ${place.en}`,
+      de: `openSenseMap: ${what} – ${place.de}`,
+      en: `openSenseMap: ${what} – ${place.en}`,
     },
     description: {
       de:
         `Messwerte von ${used} openSenseMap-Stationen (${place.de}), ${period.de}: ${range}.` +
         (stationsFound > used ? ` Es gibt ${stationsFound} passende Stationen; geladen wurden die ${used} zuletzt aktiven.` : '') +
-        (params.outdoorOnly ? ' Nur Stationen im Freien.' : ''),
+        (params.outdoorOnly ? ' Nur Stationen im Freien.' : '') +
+        (several ? ' Nicht jede Station misst alles; fehlende Werte bleiben leer.' : '') +
+        (mixedUnits.length ? ` Die Stationen nutzen unterschiedliche Einheiten für: ${listOf(mixedUnits)}.` : ''),
       en:
         `Measurements from ${used} openSenseMap stations (${place.en}), ${period.en}: ${range}.` +
         (stationsFound > used ? ` ${stationsFound} stations match; the ${used} most recently active were loaded.` : '') +
-        (params.outdoorOnly ? ' Outdoor stations only.' : ''),
+        (params.outdoorOnly ? ' Outdoor stations only.' : '') +
+        (several ? ' Not every station measures everything; missing values stay empty.' : '') +
+        (mixedUnits.length ? ` Stations use different units for: ${listOf(mixedUnits)}.` : ''),
     },
     source: { name: 'openSenseMap', url: 'https://opensensemap.org' },
-    keywords: ['openSenseMap', 'senseBox', params.phenomenon],
+    keywords: ['openSenseMap', 'senseBox', ...params.phenomena],
     spatialExtent: extentOf(params, rows),
     temporalExtent: [window.from.toISOString(), window.to.toISOString()],
     totalRecords: rows.length,
@@ -248,7 +296,7 @@ function extentOf(params: LoadOsemParams, rows: Record<string, unknown>[]): Data
 
 /** Checks params coming from a saved block; anything odd falls back to the defaults. */
 export function normalizeParams(raw: unknown): LoadOsemParams {
-  const r = (raw ?? {}) as Partial<LoadOsemParams>
+  const r = (raw ?? {}) as Partial<LoadOsemParams> & { phenomenon?: unknown }
   const source: OsemSource =
     r.source?.kind === 'tag' && typeof r.source.tag === 'string'
       ? { kind: 'tag', tag: r.source.tag }
@@ -257,8 +305,15 @@ export function normalizeParams(raw: unknown): LoadOsemParams {
         : DEFAULT_PARAMS.source
   return {
     source,
-    phenomenon: typeof r.phenomenon === 'string' && r.phenomenon ? r.phenomenon : DEFAULT_PARAMS.phenomenon,
+    phenomena: normalizePhenomena(r.phenomena, r.phenomenon),
     period: r.period && r.period in PERIODS ? r.period : DEFAULT_PARAMS.period,
     outdoorOnly: typeof r.outdoorOnly === 'boolean' ? r.outdoorOnly : DEFAULT_PARAMS.outdoorOnly,
   }
+}
+
+/** Blocks saved before several phenomena were possible have a single `phenomenon`. */
+function normalizePhenomena(list: unknown, single: unknown): string[] {
+  const titles: unknown[] = Array.isArray(list) ? list : typeof single === 'string' ? [single] : []
+  const clean = [...new Set(titles.filter((t): t is string => typeof t === 'string' && t.trim() !== ''))]
+  return clean.length ? clean.slice(0, MAX_PHENOMENA) : [...DEFAULT_PARAMS.phenomena]
 }

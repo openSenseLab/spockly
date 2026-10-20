@@ -21,7 +21,7 @@ type SavedState = LoadNasaParams & { configured?: boolean }
 /** Up to two names, otherwise "Temperatur + 2 weitere", so the block stays narrow. */
 function valuesText(codes: string[]) {
   const names = codes.map((code) => pick(variable(code)?.label) ?? code)
-  return names.length <= 2 ? names.join(', ') : t('block.loadNasa.moreValues', { first: names[0], count: names.length - 1 })
+  return names.length <= 2 ? names.join(', ') : t('block.moreValues', { first: names[0], count: names.length - 1 })
 }
 
 function updateLabels(block: NasaBlock) {

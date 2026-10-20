@@ -36,6 +36,8 @@ export class FieldColumnDropdown extends Blockly.FieldDropdown {
       if (field.kept && !columns.some((c) => c.name === field.kept)) {
         options.push([`${field.kept} ⚠`, field.kept])
       }
+      // Nothing chosen yet (or reset): say so instead of showing a column.
+      if (!field.kept && options.length) options.unshift([t('field.chooseColumn'), NO_COLUMN])
       if (options.length) return options
       // Data is there, but none of its columns fit this block.
       const loaded = !!block && columnsFor(block) !== null

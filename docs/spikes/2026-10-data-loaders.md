@@ -6,6 +6,8 @@ This spike tries out the "load data" part of SPOCKLY: three load blocks for
 real APIs, a side panel that shows what was loaded, and a Python view of the
 blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
 where students guess a value before they see it, then compare and explain.
+Measured quantities that students may not know (relative humidity, PM10, UV
+index …) get a short, sourced explanation behind a **"?"** button.
 Along the way it lays down a first version of the shared data format, the plan
 that blocks are compiled into, a registry of load operations, and a column
 dropdown that later processing blocks can reuse. This document records what
@@ -28,7 +30,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 81 unit tests (Vitest)
+npm test         # 122 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -41,6 +43,8 @@ npm run lint
   gear (⚙) on the block opens it again.
 - From **Schätzen & Prüfen**, snap **schätze …** under a load block, pick a
   column, type a guess and click **Auflösen**.
+- Point at a **"?"** (setup windows, Daten tab) to read what a measured
+  quantity is; a click keeps the explanation open.
 - Click a block to see its data in the **Daten** tab and its code in the
   **Python** tab. **Code ausführen** runs that code in the browser with
   Pyodide (the first run downloads pandas, ~10–40 s).
@@ -76,10 +80,23 @@ gear. The setup window lets students choose:
 - **Period:** last 24 hours, 3 days or 7 days.
 - **What is measured:** cards listing what the *active* stations in that area
   or group actually measure, with unit and station count. Nothing hard-coded.
+  Students can tick **up to 5** measurements (e.g. temperature, humidity and
+  pressure) to compare them side by side; each card has a "?" with an
+  explanation where one exists.
 
-Result: one row per measurement — time, value (number, with unit), station
-name, station id, latitude, longitude, placement (outdoor/indoor/mobile),
-sensor type. If stations use different units, a unit column is added.
+The block shows up to two measurement names, otherwise "Temperatur + 2
+weitere".
+
+Result: one row per station and point in time — time, **one column per chosen
+measurement** (number, with unit), station name, station id, latitude,
+longitude, placement (outdoor/indoor/mobile). The sensors of a senseBox send
+their values with the same timestamp, so they line up in one row; a sensor
+that didn't report leaves its cell empty. Column names come from the sensor
+titles (`rel. Luftfeuchte` → `rel_luftfeuchte`) and are the same in the app
+and in Python. If stations use different units for a measurement, no unit is
+shown and the dataset description says so.
+
+Workspaces saved with the earlier one-measurement version still open.
 
 ### NASA POWER load block
 
@@ -109,6 +126,7 @@ cell, not station measurements, and includes NASA's requested credit line.
 ```
 schätze den [höchsten Wert ▾] von [Temperatur (Mittel) ▾]
 ist ungefähr [ 30 ] °C
+Zur Orientierung: Sommertag ab 25 °C, heißer Tag ab 30 °C (DWD)
 ( Auflösen )
 → after revealing:
 ( Verbergen )  Tatsächlich: 25,96 °C · 4,04 °C zu hoch
@@ -127,18 +145,66 @@ station).
   column. Coordinates, identifiers and codes are numbers too, but are not
   offered — their maximum or mean isn't a meaningful question. Data without
   measurements (e.g. the German federal states) shows "(keine Messwerte)" and a
-  friendly warning on the block.
+  friendly warning on the block. Until a column is picked, the dropdown says
+  "– Spalte wählen –".
+- **"Zur Orientierung"** line: for quantities with a sourced reference value
+  in the glossary (see below), the block shows one short line to guess
+  against, e.g. "1 mm = 1 Liter pro m²". Without one, the line is hidden.
 - While the guess is open, that column shows **"🔒 Erst schätzen!"** in the
   Daten tab (overview and preview rows). Other columns stay visible.
 - **Auflösen** shows the real value and the gap ("4,04 °C zu hoch"); within
   5 % it says "fast genau getroffen!". **Verbergen** hides it again for another
   try. Choosing a different measure or column hides it automatically, because
   it is a new question. All of this can be undone with Ctrl+Z.
+- **New data above the guess is a new question too.** When the load block's
+  settings change (another measurement, area, dataset …), the answer is hidden
+  at once. When the new data has arrived and the guessed column is no longer
+  in it, the guess starts over (column, number and "Warum?" are cleared). If
+  the column is still there — e.g. only the period changed — the guess stays.
 - After revealing, a **"Warum?"** line appears for a one-sentence explanation.
   It is optional, saved with the workspace, kept when hiding again, and stored
   in the plan step (`reason`) so a later data-story feature can reuse it.
 - Python shows the guess, the real value and the explanation as a comment:
   `print("Vermutung:", vermutung, "| tatsächlich:", wetter_muenster["T2M"].max())`.
+
+### Explanations of measured quantities ("?")
+
+Students can't make a sensible guess about "PM2.5" or "rel. Luftfeuchte" if
+they don't know what it is. A small **"?"** button next to a measured quantity
+opens a short box with:
+
+- what the quantity is, in school-level words (DE and EN);
+- **"Zur Orientierung:"** reference values to compare with (e.g. EU limits and
+  WHO guideline values for particulate matter, DWD definitions of "summer day"
+  and wind strengths);
+- the **sources**, as links.
+
+Where it appears: on the measurement cards in both setup windows, and next to
+the column name in the Daten tab. The guess block shows the short version
+("Zur Orientierung: …").
+
+How it behaves: with a mouse it opens after a short pause when pointing at it
+and closes when the pointer leaves; a click (or a tap on touch screens) keeps
+it open until clicking again, pressing Escape or clicking elsewhere. It works
+with the keyboard (Tab, Enter). Clicking a card itself still ticks the card;
+only the "?" opens the explanation.
+
+Content (`src/glossary/entries.ts`): 14 quantities — temperature, relative
+humidity, air pressure, precipitation, wind speed, solar radiation, PM10,
+PM2.5, PM1, PM4, UV index, UV intensity, illuminance, noise level. **Every
+fact comes from a listed source** (DWD, Umweltbundesamt, EU air quality
+standards and Directive (EU) 2024/2881, WHO Air Quality Guidelines 2021,
+Bundesamt für Strahlenschutz), checked on 2026-10-20. Where no reliable
+source was found, the entry has an explanation but no reference value (PM1,
+PM4, UV intensity, illuminance). The texts have **not been reviewed by a
+teacher yet**.
+
+Matching (`src/glossary/index.ts`): an entry is found by an exact column code
+(NASA POWER: `T2M`, `PRECTOTCORR` …) or by a known name, compared as a whole
+after lower-casing (`rel. Luftfeuchte`, `relative_humidity`, `Finedust PM10`
+…). Whole-name matching is deliberate: "Bodentemperatur" or "Windböen" are
+different quantities and get no (wrong) explanation. Spellings found on
+openSenseMap around Münster are included; others simply show no "?".
 
 ### Column dropdown (reusable)
 
@@ -193,6 +259,14 @@ Shows the selected strand, or the one edited last:
   and reloaded the page, killing the worker ("The Python worker stopped
   unexpectedly"); and after a crash, every later run hung on "Preparing the
   Python runtime…" because the dead worker was reused.
+- **One retry for failed requests** (all loaders): a network error, a server
+  error (HTTP 5xx) or a response that is cut off in the middle is tried once
+  more after 1 s. If that fails too, the block says "Der Datendienst antwortet
+  gerade nicht richtig. Warte kurz und versuch es noch einmal." Errors a retry
+  can't fix (404, 422, 429) are reported straight away, as before. Before
+  this, a cut-off response ended the whole load with a raw error.
+- Popovers and dialogs use a solid background (`panelBackground="solid"`), so
+  text behind them doesn't show through.
 - **Daten tab on small screens:** the card's border scrolled away with the
   content (Radix draws it as a separate layer); a scroll area inside the card
   fixes it.
@@ -212,7 +286,8 @@ Blockly change (non-UI event)
        ├─ store.loadSteps     first step of each strand
        ├─ store.hiddenColumns columns with an open guess, per strand
        ├─ Python per strand   generators + unique variable names
-       ├─ guess blocks        result text, unit, column list (from loaded data)
+       ├─ guess blocks        result text, unit, hint, column list (from loaded data);
+       │                      reset if the guessed column is gone after new data
        └─ warnings on blocks  (plan problems, load errors, guess problems)
 
 useLoadRunner (hooks/)        for each load step whose params changed:
@@ -230,6 +305,13 @@ store.loads changes           guess blocks refresh (result, column labels)
 Blocks below a load block get its data through `setTableProvider` (registered
 in `BlocklyWorkspace.tsx`): the root block of their stack is the load block,
 and its result in `store.loads` is the table they work on.
+
+Resetting a guess after new data: when a load block's settings change
+(its saved state, or the `DATASET`, `DOMAIN`, `MAX_ROWS` fields), the guess
+blocks below it are hidden and marked `awaitingNewData`. `refreshPredictions`
+waits until the load result in `store.loads` belongs to the *new* settings
+(same `key` as the step), then clears the guess only if its column is missing.
+Waiting matters: right after the change, the old data is still in the store.
 
 Loading runs on the main thread for now (fetch is async; mapping is cheap). A
 cached executor in a Web Worker is the planned replacement for `useLoadRunner`.
@@ -261,7 +343,7 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/core/plan.ts` | workspace → plan (framework-free, tested with fake blocks) |
 | `src/core/summary.ts` | column summary for the Daten tab (any `DataTable`) |
 | `src/core/names.ts` | text → valid, unique Python variable names |
-| `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code), `mapLimit` |
+| `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code, one retry for temporary problems), `mapLimit` |
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
 | `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
@@ -275,6 +357,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/components/DatasetPanel.tsx` | Daten tab |
 | `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
 | `src/components/OsemSetupForm.tsx`, `NasaSetupForm.tsx` | the two setup forms |
+| `src/glossary/` | explanations of measured quantities with sources (`entries.ts`), lookup by code or name (`index.ts`) + tests |
+| `src/components/GlossaryInfo.tsx` | the "?" button and its explanation box |
 | `src/components/LanguageSwitch.tsx`, `blockly/carryWorkspace.ts` | language switch, keeping blocks across the reload |
 | `src/i18n/` | DE/EN dictionaries (`en` must have the same keys as `de`), `t()`, number/date formatting |
 
@@ -299,11 +383,18 @@ semantic type such as measurement/category/timestamp/latitude, unit),
    with the setup window).
 2. Keep boxes whose **current location** is inside the area, that measured
    since the start of the period (`lastMeasurementAt`), and have a sensor whose
-   title equals the chosen measurement. At most 50, most recently active first.
-3. Per sensor: `GET /boxes/:box/data/:sensor?from-date&to-date&format=json`,
-   4 at a time. A full page (10 000 values) triggers another request that ends
-   just before its oldest value.
-4. Map everything into one `DataTable`.
+   title equals one of the chosen measurements. At most 50, most recently
+   active first.
+3. Per sensor: `GET /boxes/:box/data/:sensor?from-date&to-date&format=json`.
+   4 stations at a time; a station's sensors one after another. A full page
+   (10 000 values) triggers another request that ends just before its oldest
+   value.
+4. Map everything into one `DataTable`: rows are keyed by station and
+   timestamp, one column per measurement.
+
+So the number of requests grows with the measurements: for all of Münster,
+one day, temperature alone needs 20 requests; temperature + humidity +
+pressure 47.
 
 ### NASA POWER: how a load runs
 
@@ -356,6 +447,15 @@ Quirks found (covered by tests with recorded responses):
   phenomena). The setup window shows them as the boxes name them.
 - Most group tags we tried had no station active recently (e.g.
   `codeformuenster`, `TTN MS`, school tags); `Smart City MS` had one.
+- **The server is sometimes very slow.** On 2026-10-20 a load of all of
+  Münster (one day, three measurements, 47 requests) took **3.5 minutes**: the
+  box list took 27 s, a sensor request 17 s (median), even the tiny `/stats`
+  4.5 s. One response was cut off in the middle of the JSON. A few minutes
+  later the same load took **2.3 s**. Nothing on our side can make this
+  faster; the retry (see above) at least turns a cut-off response into a
+  second try instead of a failed load.
+- The sensors of one box share identical timestamps, which is what lets
+  several measurements share one row.
 
 ### NASA POWER (API v2.10.0)
 
@@ -405,6 +505,12 @@ Quirks found (covered by tests with recorded responses):
   workspace (see open questions).
 - Guesses are limited to **measurement** columns.
 - The **"Warum?"** explanation is optional.
+- openSenseMap: **several measurements side by side** (up to 5), one row per
+  station and time, rather than one measurement per block.
+- A guess **starts over** only if its column disappears with new data; other
+  changes keep it.
+- Explanations ("?") contain **only sourced facts**; no source, no reference
+  value. They open on hover *and* on click/tap, so they work without a mouse.
 
 ## 6. Limitations and known issues
 
@@ -446,6 +552,11 @@ Quirks found (covered by tests with recorded responses):
   (the repositories only state MIT for the code).
 - Stations are matched by exact sensor title; `Temperatur` and `Temperature`
   are separate choices.
+- Each extra measurement adds requests (see above); with 5 measurements and
+  50 stations that can be ~250 requests. When openSenseMap is slow, a load can
+  take minutes. The progress line counts stations, not requests.
+- Rows are merged by exact timestamp. Stations whose sensors don't share a
+  timestamp would get one row per sensor value, with the other columns empty.
 
 **NASA POWER block**
 
@@ -473,8 +584,20 @@ Quirks found (covered by tests with recorded responses):
 - The **5 % "close" threshold** is a first guess. For values near zero (e.g.
   minimum precipitation of 0 mm) almost any miss counts as "too high".
 - In Python, the guess line uses the app's column names. They match the Python
-  table for NASA, but not always for Huwise and openSenseMap (e.g. `lat`,
-  `lon`), so that line can fail there. The app itself is not affected.
+  table for NASA and for the openSenseMap measurement columns, but not always
+  for Huwise, so that line can fail there. The app itself is not affected.
+- The "Zur Orientierung" line only appears for quantities the glossary knows.
+
+**Explanations ("?")**
+
+- **Not reviewed by a teacher yet** — wording level and choice of reference
+  values are a first draft.
+- Only quantities with a known name or code get a "?". openSenseMap names are
+  free text, so new spellings need to be added by hand.
+- Reference values are general (e.g. EU limits for daily or annual means);
+  single sensor readings can be far above them without breaking a limit. The
+  PM texts say so, but students may still compare a single reading with a
+  daily limit.
 
 **Python view**
 
@@ -491,30 +614,41 @@ Quirks found (covered by tests with recorded responses):
 **Checked only partly**
 
 - The English setup windows were not looked at in the browser (texts exist).
-- Touch devices (iPads, Chromebooks) were not tested.
+- Touch devices (iPads, Chromebooks) were not tested on real hardware; only
+  the "?" buttons and measurement cards were checked in Edge's tablet
+  emulation.
 - On narrow screens, the column table in the Daten tab is wider than the panel
   and has to be scrolled sideways.
 
 ## 7. Tests
 
-`npm test` runs 81 unit tests:
+`npm test` runs 122 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
+- `core/http`: one retry for server errors, cut-off responses and network
+  errors; no retry for 404/422/429; cancelling during the wait;
 - Huwise mapping and loading (paging, error codes, input validation);
 - openSenseMap station selection, phenomena, area filter, paging past the
-  10 000-value cap, table mapping, parameter validation, loading with mocked
-  `fetch`, tag list;
+  10 000-value cap, table mapping (several measurements side by side, matched
+  by timestamp, empty cells, mixed units), column names, parameter validation
+  (including blocks saved with one measurement, at most 5), loading with
+  mocked `fetch`, tag list;
 - NASA POWER settings checks, request URL, date keys, fill values, monthly
   values without the annual value, dataset description, error handling;
 - guess block: real value (highest, lowest, mean, ignoring missing values) and
-  the "too high / too low / close" comparison.
+  the "too high / too low / close" comparison;
+- glossary: names and codes found (including openSenseMap spellings), no match
+  for different quantities with similar names, a source for every reference
+  value, each name in only one entry.
 
 The guess block's interaction (snapping, hiding, revealing, undo, the
-"Warum?" line, keeping the chosen column across a language switch) was checked
-with scripted browser runs, not with automated tests.
+"Warum?" line, keeping the chosen column across a language switch, starting
+over after another measurement is loaded) and the "?" buttons (hover, click,
+keyboard, tap; cards still selectable) were checked with scripted browser
+runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses** recorded on
-2026-10-06, 2026-10-07 and 2026-10-13, some trimmed; each folder has a README
+2026-10-06, 2026-10-07, 2026-10-13 and 2026-10-19, some trimmed; each folder has a README
 saying exactly what was requested. They contain public data: German federal
 states (Data licence Germany – attribution 2.0), OpenStreetMap drinking water
 points (ODbL), a few openSenseMap boxes and values, and NASA POWER values for
@@ -543,3 +677,9 @@ There are no automated UI tests in the repo.
   near zero?
 - Should the **"Warum?"** explanation be required, or only nudged ("Schreib
   einen Satz, warum …")? Worth asking teachers.
+- **Glossary texts:** right level for the age group? Which reference values
+  help most — e.g. for particulate matter, the current EU limits, the stricter
+  ones from 2030, or the WHO values? Teachers should review before use.
+- **openSenseMap speed:** if slow phases are common, should the block warn
+  when many measurements and stations are chosen, or should we move to a
+  curated snapshot sooner?

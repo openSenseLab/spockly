@@ -9,9 +9,9 @@ import { areaPreset } from './presets'
 
 const NOW = new Date('2026-10-07T00:00:00Z')
 
-/** Stations the loader should use: active, with the phenomenon, and inside the area now. */
-const expectedStations = (area: string, phenomenon = 'Temperatur') =>
-  stationsFor(boxesInArea(boxesFixture as OsemBox[], areaPreset(area)!.bbox), phenomenon, timeWindow('3d', NOW).from)
+/** Stations the loader should use: active, with one of the phenomena, and inside the area now. */
+const expectedStations = (area: string, phenomena = ['Temperatur']) =>
+  stationsFor(boxesInArea(boxesFixture as OsemBox[], areaPreset(area)!.bbox), phenomena, timeWindow('3d', NOW).from)
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -58,22 +58,35 @@ describe('loadOsem', () => {
   it('pages backwards when a sensor returns a full page', async () => {
     let calls = 0
     const fullPage = Array.from({ length: SENSOR_LIMIT }, (_, i) => sensorData[i % sensorData.length])
-    serveRecorded(() => (++calls === 1 ? fullPage : sensorData.slice(0, 3)))
-    const table = await loadOsem(
-      { ...DEFAULT_PARAMS, source: { kind: 'area', area: 'muenster' }, phenomenon: 'Temperatur', period: '3d' },
+    const fetchMock = serveRecorded(() => (++calls === 1 ? fullPage : sensorData.slice(0, 3)))
+    await loadOsem(
+      { ...DEFAULT_PARAMS, source: { kind: 'area', area: 'muenster' }, phenomena: ['Temperatur'], period: '3d' },
       {},
       NOW,
     )
-    // First station: a full page plus 3 older values; every other station: 3 values.
+    // The first sensor answers with a full page, so it is asked once more for older values.
     const stations = expectedStations('muenster').length
-    expect(table.rows).toHaveLength(SENSOR_LIMIT + 3 + (stations - 1) * 3)
+    const sensorCalls = fetchMock.mock.calls.map((c) => new URL(String(c[0]))).filter((u) => u.pathname.includes('/data/'))
+    expect(sensorCalls).toHaveLength(stations + 1)
+    const [first, second] = sensorCalls.filter((u) => u.pathname === sensorCalls[0].pathname)
+    expect(Date.parse(second.searchParams.get('to-date')!)).toBeLessThan(Date.parse(first.searchParams.get('to-date')!))
   })
 
   it('says so when no active station measures the phenomenon', async () => {
     serveRecorded()
     await expect(
-      loadOsem({ ...DEFAULT_PARAMS, source: { kind: 'area', area: 'kreis-coesfeld' }, phenomenon: 'Gibt es nicht' }, {}, NOW),
+      loadOsem({ ...DEFAULT_PARAMS, source: { kind: 'area', area: 'kreis-coesfeld' }, phenomena: ['Gibt es nicht'] }, {}, NOW),
     ).rejects.toMatchObject({ code: 'load.osemNoStations' })
+  })
+})
+
+describe('loadOsem with several phenomena', () => {
+  it('asks each station for every chosen sensor it has', async () => {
+    const fetchMock = serveRecorded()
+    await loadOsem({ ...DEFAULT_PARAMS, source: { kind: 'area', area: 'muenster' }, phenomena: ['Temperatur', 'rel. Luftfeuchte'], period: '3d' }, {}, NOW)
+    const stations = expectedStations('muenster', ['Temperatur', 'rel. Luftfeuchte'])
+    const sensors = stations.reduce((n, s) => n + s.sensors.length, 0)
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes('/data/'))).toHaveLength(sensors)
   })
 })
 

@@ -9,8 +9,28 @@ export class LoadError extends Error {
   }
 }
 
-/** GET a JSON document; network and HTTP problems become LoadErrors. */
+/** Wait before the one retry, so a briefly overloaded server can recover. */
+const RETRY_DELAY_MS = 1000
+
+/** Problems that often go away on a second try. */
+const isTransient = (error: unknown) =>
+  error instanceof LoadError && (error.code === 'load.unreachable' || error.code === 'load.serverTrouble')
+
+/**
+ * GET a JSON document; network and HTTP problems become LoadErrors. A network
+ * error, a server error (5xx) or a cut-off response is tried once more.
+ */
 export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  try {
+    return await getJsonOnce<T>(url, signal)
+  } catch (error) {
+    if (signal?.aborted || !isTransient(error)) throw error
+    await wait(RETRY_DELAY_MS, signal)
+    return getJsonOnce<T>(url, signal)
+  }
+}
+
+async function getJsonOnce<T>(url: string, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, { signal })
@@ -22,9 +42,30 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
   if (res.status === 404) throw new LoadError('load.notFound', url)
   if (res.status === 401 || res.status === 403) throw new LoadError('load.notPublic', url)
   if (res.status === 429) throw new LoadError('load.tooManyRequests', url)
+  if (res.status >= 500) throw new LoadError('load.serverTrouble', `${res.status} ${url}`)
   if (!res.ok) throw new LoadError('load.failed', `${res.status} ${url}`)
-  return (await res.json()) as T
+  try {
+    return (await res.json()) as T
+  } catch (error) {
+    if (signal?.aborted) throw error
+    // Seen on openSenseMap under load: the connection drops in the middle of the data.
+    throw new LoadError('load.serverTrouble', `${String(error)} ${url}`)
+  }
 }
+
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason)
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(signal.reason)
+      },
+      { once: true },
+    )
+  })
 
 /** Runs `task` for every item, at most `limit` at a time, in input order. */
 export async function mapLimit<T, R>(

@@ -234,3 +234,13 @@
 .osem-phenomenon {
   overflow-wrap: anywhere;
 }
+
+/* The ⓘ sits inside selectable cards. Radix turns pointer events off for
+   everything inside a card (so the whole card is one checkbox); switch them
+   back on for this button. A button inside a label doesn't tick the card. */
+.glossary-trigger {
+  pointer-events: auto;
+  vertical-align: middle;
+  cursor: help;
+  font-weight: 700;
+}

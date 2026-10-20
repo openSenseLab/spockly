@@ -15,7 +15,9 @@ import {
 import { setNasaParams, type NasaBlock } from '../blocks'
 import { checkParams, type LoadNasaParams, type Resolution } from '../blocks/load_nasa_power/mapping'
 import { FIRST_DATE, PLACE_PRESETS, VARIABLES } from '../blocks/load_nasa_power/presets'
+import { glossaryFor } from '../glossary'
 import { pick, t } from '../i18n'
+import { GlossaryInfo } from './GlossaryInfo'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const lastFullYear = () => String(new Date().getUTCFullYear() - 1)
@@ -125,7 +127,8 @@ export function NasaSetupForm({ block, onDone }: { block: NasaBlock; onDone: () 
           {VARIABLES.map((v) => (
             <CheckboxCards.Item key={v.code} value={v.code}>
               <Text>
-                {pick(v.label)} <Text color="gray">({v.unit})</Text>
+                {pick(v.label)} <Text color="gray">({v.unit})</Text>{' '}
+                <GlossaryInfo entry={glossaryFor(v.code)} />
               </Text>
             </CheckboxCards.Item>
           ))}

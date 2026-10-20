@@ -51,14 +51,15 @@ export const de = {
     'Gib oben eine Gruppe ein oder wähle eine aus der Liste, zum Beispiel „Smart City MS“. Dann siehst du hier, was ihre Stationen messen.',
   'osem.dialog.period': 'Zeitraum',
   'osem.dialog.outdoorOnly': 'Nur Stationen im Freien',
-  'osem.dialog.phenomenon': 'Was soll gemessen werden?',
+  'osem.dialog.phenomenon': 'Was soll gemessen werden? (eine oder mehrere Messgrößen)',
   'osem.dialog.stationCount': '{count} Stationen',
   'osem.dialog.stationCountOne': '1 Station',
   'osem.dialog.searching': 'Suche Stationen …',
   'osem.dialog.noneActive': 'Hier hat im gewählten Zeitraum keine Station gemessen. Wähle ein anderes Gebiet, eine andere Gruppe oder einen längeren Zeitraum.',
   'osem.dialog.showAll': 'Alle {count} anzeigen',
   'osem.dialog.showFewer': 'Weniger anzeigen',
-  'osem.dialog.pickPhenomenon': 'Wähle eine Messgröße aus.',
+  'osem.dialog.pickPhenomenon': 'Wähle mindestens eine Messgröße aus.',
+  'osem.dialog.maxPhenomena': 'Höchstens {max} Messgrößen auf einmal – jede braucht eigene Anfragen.',
   'dataset.loadingStations': 'Lade Stationen: {done} von {total}',
   'load.osemNoStations': 'Im gewählten Gebiet und Zeitraum hat keine Station diese Messgröße gemessen. Klick auf das Zahnrad und wähle etwas anderes.',
   'load.osemNoTag': 'Wähle eine Gruppe aus. Klick dazu auf das Zahnrad.',
@@ -69,7 +70,7 @@ export const de = {
   'block.loadNasa.place': 'Ort: %1',
   'block.loadNasa.values': 'Werte: %1',
   'block.loadNasa.period': 'Zeitraum: %1',
-  'block.loadNasa.moreValues': '{first} + {count} weitere',
+  'block.moreValues': '{first} + {count} weitere',
   'block.loadNasa.tooltip': 'Lädt Wetter- und Sonnendaten von NASA POWER für einen Ort, täglich oder monatlich ab 1981. Klick auf das Zahnrad, um Ort, Werte und Zeitraum zu wählen.',
   'nasa.daily': 'täglich',
   'nasa.monthly': 'monatlich',
@@ -123,8 +124,15 @@ export const de = {
   'field.noFittingColumns': '(keine Messwerte)',
   'block.predict.pickColumn': 'Wähle eine Spalte aus.',
   'block.predict.columnMissing': 'Diese Spalte gibt es in den Daten nicht (mehr). Wähle eine andere.',
+  'field.chooseColumn': '– Spalte wählen –',
   'field.noColumns': '(erst Daten laden)',
   'dataset.hiddenForPrediction': 'Erst schätzen!',
+
+  // Glossary (explanations of measured quantities)
+  'glossary.whatIs': 'Was ist {name}?',
+  'glossary.reference': 'Zur Orientierung:',
+  'glossary.sources': 'Quellen:',
+  'block.predict.hint': 'Zur Orientierung: {hint}',
 
   // Problems in how blocks are put together (shown on the block)
   'plan.needsData':
@@ -213,5 +221,6 @@ export const de = {
   'load.notPublic': 'Dieser Datensatz ist nicht öffentlich.',
   'load.tooManyRequests': 'Das Portal bekommt gerade zu viele Anfragen. Warte kurz und versuch es noch einmal.',
   'load.noUsableFields': 'Dieser Datensatz hat keine Spalten, die SPOCKLY schon anzeigen kann.',
+  'load.serverTrouble': 'Der Datendienst antwortet gerade nicht richtig. Warte kurz und versuch es noch einmal.',
   'load.failed': 'Die Daten konnten nicht geladen werden. Versuch es noch einmal.',
 }
