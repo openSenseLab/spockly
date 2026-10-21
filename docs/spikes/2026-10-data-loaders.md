@@ -7,8 +7,9 @@ real APIs, a side panel that shows what was loaded, and a Python view of the
 blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
 where students guess a value before they see it, then compare and explain.
 Measured quantities that students may not know (relative humidity, PM10, UV
-index …) get a short, sourced explanation behind a **"?"** button.
-Along the way it lays down a first version of the shared data format, the plan
+index …) get a short, sourced explanation behind a **"?"** button. A **map**
+in the side panel shows where the data comes from and what was measured
+there. Along the way it lays down a first version of the shared data format, the plan
 that blocks are compiled into, a registry of load operations, and a column
 dropdown that later processing blocks can reuse. This document records what
 was built, how it works, what we learned about the APIs, and what is still
@@ -30,7 +31,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 122 unit tests (Vitest)
+npm test         # 132 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -48,7 +49,11 @@ npm run lint
 - Click a block to see its data in the **Daten** tab and its code in the
   **Python** tab. **Code ausführen** runs that code in the browser with
   Pyodide (the first run downloads pandas, ~10–40 s).
+- In the Daten tab, the **Karte** shows the places; the buttons above it pick
+  the measurement the markers are coloured by.
 - **Deutsch | English** switch at the top right; `?lang=en` also works.
+- On a phone (or any canvas narrower than 600 px) the toolbox is hidden; the
+  **☰ Blöcke** button above the canvas opens it.
 
 The standard Blockly toolbox (Logik, Schleifen, …) is still visible. It should
 move behind a developer switch, since students won't need it.
@@ -232,8 +237,67 @@ Shows the selected strand, or the one edited last:
 - one row per column: kind of data (Messwert, Kategorie, Zeit, Breitengrad,
   Kennung …), how much is filled in (missing values highlighted), and an
   overview (range and mean, time span, or most frequent values);
-- the first 20 rows, missing values shown as "–";
+- a **map** for data with coordinates (see below);
+- the first 20 rows, missing values shown as "–". When they are wider than the
+  panel, a hint says "Seitlich wischen oder scrollen, um alle Spalten zu sehen →"
+  (Radix shows the sideways scrollbar only on mouse hover, so touch users
+  otherwise see no sign of more columns);
 - progress while loading ("Lade Zeilen: 300 von 1 000", "Lade Stationen: 5 von 9").
+
+When the panel is narrower than 520 px (a phone, or the side panel next to the
+canvas on a small laptop), the column table turns into one block per column:
+name and kind on top, then "Ausgefüllt" with its bar, then the overview. This
+follows the panel's own width (CSS container query), not the screen's.
+
+### Map (Daten tab)
+
+Shown for every dataset with a latitude and a longitude column, between the
+dataset card and the column table. Built with **Leaflet 1.9.4** and
+**OpenStreetMap tiles** (no API key).
+
+- **One marker per place:** rows with the same coordinates become one marker,
+  so a station with 1 436 measurements is one box, not 1 436. At most 5 000
+  places are drawn; the caption says how many were left out and how many rows
+  had no coordinates.
+- **Marker by kind of place:** a **box** for a senseBox station
+  (openSenseMap), a **satellite** for a model/satellite grid cell (NASA POWER),
+  a plain dot otherwise (Huwise; it can have thousands of places, so the dots
+  are drawn on one canvas). The caption explains the icon ("Kästchen =
+  senseBox-Station", "Satellit = Wert für ein Gitterfeld von rund 50 km, keine
+  Messstation"). The icons are drawn for SPOCKLY, not taken from the senseBox
+  or NASA logos.
+- **Colour = a real measurement.** The buttons above the map list every
+  measurement column ("Temperatur | rel. Luftfeuchte | Luftdruck"); the chosen
+  one colours the markers. **"Wert je Ort"** picks how a place's many values
+  become one: Mittelwert, Höchstwert, Tiefstwert or Neuester Wert. Switching
+  visibly recolours the map, which makes "aggregation" something students can
+  see.
+- **Colours:** five steps of one blue, light = low, dark = high (checked with
+  a palette validator for colour-blind separation and contrast). Grey = no
+  value at this place. Class limits are equal steps between the lowest and
+  highest value that is **not an outlier by the boxplot rule** (beyond 1.5 ×
+  the interquartile range). Without that, one station reporting −144 °C would
+  put all other stations into the same colour; the outlier goes into the
+  first or last class instead.
+- **Legend** below the map: "Temperatur: Mittelwert je Ort (°C)" with the
+  ranges ("unter 11,9 · 11,9 bis 13,8 · … · ab 17,6") and a "?" with the
+  explanation of that measurement.
+- **Tooltip** on hover (or tap): place name, kind of place, the chosen
+  statistic for **every** measurement (the coloured one first, in bold), and
+  for the coloured one its range and number of values.
+- **"Zahlen zeigen"** writes the value next to each marker (off by default;
+  numbers overlap where stations are close together).
+- **The area asked for** (openSenseMap area, Huwise dataset extent) is drawn
+  as a dashed rectangle.
+- **Guesses stay hidden:** a column with an open guess is left out of the
+  buttons, colours, labels and tooltips; a note says it appears after
+  revealing. The map code only reads the columns it is given, so a hidden
+  value can't reach it by accident.
+- The mouse wheel scrolls the panel, not the map; +/− zoom. Leaflet's layers
+  are kept inside the map, so dialogs and popovers stay on top.
+
+Station names are typed in by openSenseMap users, so tooltips are built as
+plain text (no HTML).
 
 ### Python tab
 
@@ -270,6 +334,19 @@ Shows the selected strand, or the one edited last:
 - **Daten tab on small screens:** the card's border scrolled away with the
   content (Radix draws it as a separate layer); a scroll area inside the card
   fixes it.
+- **Small screens in general** (checked at 390, 768 and 1100 px):
+  - Below 1080 px the layout has one column. That column used to grow to fit
+    its widest content (the rows table, the Python code), so on a phone the
+    whole side panel was ~900 px wide and cut off. It now keeps to the screen
+    width (`minmax(0, 1fr)`, `min-width: 0`).
+  - In the one-column layout the Python code box grows with the code (up to
+    70 % of the screen height) instead of showing four lines; on phones long
+    code lines wrap.
+  - **Toolbox behind a button:** when the canvas is narrower than 600 px, the
+    toolbox is hidden and **☰ Blöcke** opens it over the canvas. It closes by
+    itself once a block has been dragged onto the canvas (the setup window
+    still opens). Wider canvases keep the normal toolbox. Uses Blockly's own
+    `Toolbox.setVisible`, so dragging and undo are unaffected.
 - Load blocks are drawn as hat blocks (Zelos renderer, theme with
   `hat: 'cap'`); the toolbox got some top spacing.
 - Vitest added (`npm test`).
@@ -334,6 +411,10 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 - `toCode(params, { output })` takes the variable name for generated code.
 - `ExecContext.onProgress(done, total, unit)` says whether rows or stations are
   being counted.
+- `DatasetMeta.placeKind` (optional, new) says what a place in the rows
+  stands for: `'sensor-station'` (openSenseMap) or `'grid-cell'` (NASA POWER).
+  The map picks its marker from it rather than guessing from the source name.
+  Loaders that don't set it get plain dots.
 
 ### Where things are
 
@@ -343,6 +424,7 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/core/plan.ts` | workspace → plan (framework-free, tested with fake blocks) |
 | `src/core/summary.ts` | column summary for the Daten tab (any `DataTable`) |
 | `src/core/names.ts` | text → valid, unique Python variable names |
+| `src/core/geo.ts` | rows → places for the map, values per place (mean, min, max, newest), colour classes + tests |
 | `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code, one retry for temporary problems), `mapLimit` |
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
@@ -355,6 +437,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/theme.ts` | Zelos theme with hat-shaped load blocks |
 | `src/hooks/useLoadRunner.ts` | runs load steps (debounce, cancel, cache) |
 | `src/components/DatasetPanel.tsx` | Daten tab |
+| `src/components/MapPreview.tsx` | the map: markers and icons, measurement buttons, legend, tooltips |
+| `src/components/BlocklyWorkspace.tsx` | canvas, toolbox (incl. the "Blöcke" button on small screens), plan and code updates |
 | `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
 | `src/components/OsemSetupForm.tsx`, `NasaSetupForm.tsx` | the two setup forms |
 | `src/glossary/` | explanations of measured quantities with sources (`entries.ts`), lookup by code or name (`index.ts`) + tests |
@@ -373,7 +457,10 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 3. In `BlocklyWorkspace.tsx`: add the block to the toolbox, `generators` and
    `hatTypes`.
 4. Add DE and EN strings.
-5. If it needs a setup window: use `gearField`, `attachGear` and
+5. If the rows have coordinates, mark the columns as `latitude` and
+   `longitude` (the map appears by itself), and set `meta.placeKind` if the
+   places are stations or grid cells.
+6. If it needs a setup window: use `gearField`, `attachGear` and
    `fireStateChange` from `src/blocks/setup.ts`, give the block a
    `setupConfigured` flag, and add a form to `BlockSetupDialog.tsx`.
 
@@ -511,6 +598,15 @@ Quirks found (covered by tests with recorded responses):
   changes keep it.
 - Explanations ("?") contain **only sourced facts**; no source, no reference
   value. They open on hover *and* on click/tap, so they work without a mouse.
+- Map: **Leaflet + OpenStreetMap tiles** for now (small, no API key). The map
+  is a **preview of the loaded data** in the side panel, not yet a block.
+- Map colours show **real values** of one measurement at a time, with the
+  per-place statistic chosen by the student; outliers are kept out of the
+  class limits by the boxplot rule.
+- Icons only for the API loaders (few places); plain canvas dots for datasets
+  that can have thousands of places.
+- On small screens the **toolbox opens on demand** instead of taking a third
+  of the canvas.
 
 ## 6. Limitations and known issues
 
@@ -523,7 +619,7 @@ Quirks found (covered by tests with recorded responses):
 - A load block can't tell later blocks its columns before the data has
   arrived (columns are only known after asking the API). This needs a decision
   before processing blocks are added (e.g. cache the dataset description).
-- No processing blocks yet (filter, group by time, charts, maps); the plan has
+- No processing blocks yet (filter, group by time, charts, a map block); the plan has
   only load steps.
 - Any block can snap under a load block, including standard Blockly blocks
   (loops, …). Those appear in the Python code but are ignored by the plan, so
@@ -548,8 +644,6 @@ Quirks found (covered by tests with recorded responses):
   ~150 000 rows in the browser.
 - Area presets are bounding rectangles from OpenStreetMap, so they include
   parts of neighbouring areas.
-- **No data licence shown** — we found no statement for openSenseMap *data*
-  (the repositories only state MIT for the code).
 - Stations are matched by exact sensor title; `Temperatur` and `Temperature`
   are separate choices.
 - Each extra measurement adds requests (see above); with 5 measurements and
@@ -599,6 +693,28 @@ Quirks found (covered by tests with recorded responses):
   PM texts say so, but students may still compare a single reading with a
   daily limit.
 
+**Map**
+
+- **Points only.** Lines, polygons (Huwise `geo_shape` is still dropped) and
+  raster data need a decision on how geometries are stored in `DataTable`.
+- **OpenStreetMap's tile servers** are fine for a prototype, but their usage
+  policy doesn't cover heavy use; a whole school using SPOCKLY needs another
+  tile provider.
+- **Colours are relative to the loaded data:** dark blue means "high among
+  these places", not a fixed value, so the same colour means different values
+  in two loads. The legend always states the numbers.
+- Stations in the Münster city centre overlap at the starting zoom; numbers
+  ("Zahlen zeigen") overlap there too.
+- openSenseMap stations are picked by their *current* location, but plotted
+  where each measurement was taken; a station with a slightly different
+  recorded position can appear just outside the dashed area.
+- Some openSenseMap measurements have no unit on the map, because the
+  stations use different units: of the "Luftdruck" sensors in Münster-Mitte,
+  123 report hPa and 2 report Pa (checked 2026-10-21). The dataset description
+  says so, but the mixed values (≈ 1 000 vs. ≈ 100 000) also distort mean and
+  colours. Converting known units (Pa → hPa) would fix this case.
+- No map for the Python view yet; the map exists only in the app.
+
 **Python view**
 
 - The code is Pyodide-specific (`open_url`) and won't run unchanged in a normal
@@ -610,21 +726,32 @@ Quirks found (covered by tests with recorded responses):
   confuse readers.
 - The first run downloads numpy, pandas, python-dateutil, pytz and six, which
   is slow on a shared school network.
+- On phones, a wrapped code line continues at the left edge, not at its
+  indentation.
+
+**Small screens**
+
+- While the toolbox is open on a phone, it covers the left part of the canvas;
+  blocks underneath can't be reached until it closes.
+- "Erste Zeilen" still scrolls sideways (it's a real table with many columns).
 
 **Checked only partly**
 
 - The English setup windows were not looked at in the browser (texts exist).
-- Touch devices (iPads, Chromebooks) were not tested on real hardware; only
-  the "?" buttons and measurement cards were checked in Edge's tablet
-  emulation.
-- On narrow screens, the column table in the Daten tab is wider than the panel
-  and has to be scrolled sideways.
+- Touch devices (iPads, Chromebooks) were not tested on real hardware; the
+  "?" buttons, measurement cards, small-screen layout and the "Blöcke" button
+  were checked in Edge's phone and tablet emulation only.
 
 ## 7. Tests
 
-`npm test` runs 122 unit tests:
+`npm test` runs 132 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
+- `core/geo`: one place per coordinate, rows without coordinates, the
+  5 000-place cap, values per place for several measurements (mean, lowest,
+  highest, newest), no values unless asked for (so hidden guesses stay
+  hidden), colour classes (equal steps, a faulty −144 °C doesn't squeeze the
+  others into one class, all-equal values);
 - `core/http`: one retry for server errors, cut-off responses and network
   errors; no retry for 404/422/429; cancelling during the wait;
 - Huwise mapping and loading (paging, error codes, input validation);
@@ -643,9 +770,12 @@ Quirks found (covered by tests with recorded responses):
 
 The guess block's interaction (snapping, hiding, revealing, undo, the
 "Warum?" line, keeping the chosen column across a language switch, starting
-over after another measurement is loaded) and the "?" buttons (hover, click,
-keyboard, tap; cards still selectable) were checked with scripted browser
-runs, not with automated tests.
+over after another measurement is loaded), the "?" buttons (hover, click,
+keyboard, tap; cards still selectable), the map (all three loaders,
+measurement buttons, statistic switch, numbers, tooltips, an open guess
+hiding its column, dialogs above the map) and the small-screen layout (390,
+768 and 1100 px; "Blöcke" button) were checked with scripted browser runs,
+not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses** recorded on
 2026-10-06, 2026-10-07, 2026-10-13 and 2026-10-19, some trimmed; each folder has a README
@@ -680,6 +810,13 @@ There are no automated UI tests in the repo.
 - **Glossary texts:** right level for the age group? Which reference values
   help most — e.g. for particulate matter, the current EU limits, the stricter
   ones from 2030, or the WHO values? Teachers should review before use.
-- **openSenseMap speed:** if slow phases are common, should the block warn
-  when many measurements and stations are chosen, or should we move to a
-  curated snapshot sooner?
+- **Geometries in `DataTable`:** how should lines and polygons be stored (e.g.
+  a GeoJSON geometry column), and raster data? Needed before the map can show
+  more than points.
+- **Map tiles for classroom use:** which tile provider, and does it need a
+  key or a proxy?
+- **Colour scale:** relative to the loaded data (now), or fixed scales per
+  quantity (e.g. temperature always −10 to 35 °C) so that maps of different
+  loads can be compared?
+- Should the map become a **block** of its own (e.g. "zeige auf Karte"), so it
+  is part of the analysis and its settings are saved?

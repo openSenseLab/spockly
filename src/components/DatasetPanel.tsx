@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   Badge,
   Box,
@@ -18,6 +18,7 @@ import { formatDate, formatNumber, pick, t } from '../i18n'
 import { glossaryForColumn } from '../glossary'
 import { selectShownStrandId, useAppStore } from '../store/useAppStore'
 import { GlossaryInfo } from './GlossaryInfo'
+import { MapPreview } from './MapPreview'
 
 const PREVIEW_ROWS = 20
 
@@ -96,7 +97,7 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const rowCount = table.rows.length
 
   return (
-    <Table.Root size="1" variant="surface" className="dataset-table">
+    <Table.Root size="1" variant="surface" className="dataset-table columns-table">
       <Table.Header>
         <Table.Row>
           <Table.ColumnHeaderCell>{t('column.name')}</Table.ColumnHeaderCell>
@@ -129,7 +130,7 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
                   {t(`semantic.${column.semanticType}`)}
                 </Badge>
               </Table.Cell>
-              <Table.Cell className="filled-cell">
+              <Table.Cell className="filled-cell" data-label={t('column.filled')}>
                 <Progress
                   value={filledShare}
                   size="1"
@@ -142,7 +143,7 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
                   </Text>
                 )}
               </Table.Cell>
-              <Table.Cell>
+              <Table.Cell className="overview-cell">
                 {hidden.has(column.name) ? <HiddenValue /> : <ColumnOverview summary={summary} />}
               </Table.Cell>
             </Table.Row>
@@ -153,10 +154,37 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   )
 }
 
+/** True while the element's table is wider than the space it has. */
+function useWiderThanBox(box: RefObject<HTMLElement | null>) {
+  const [wider, setWider] = useState(false)
+  useEffect(() => {
+    const element = box.current
+    if (!element) return
+    const check = () => {
+      // Radix scrolls the table inside its own viewport.
+      const viewport = element.querySelector('.rt-ScrollAreaViewport') ?? element
+      setWider(viewport.scrollWidth > viewport.clientWidth + 1)
+    }
+    const observer = new ResizeObserver(check)
+    observer.observe(element)
+    check()
+    return () => observer.disconnect()
+  }, [box])
+  return wider
+}
+
 function RowsPreview({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const rows = table.rows.slice(0, PREVIEW_ROWS)
+  const box = useRef<HTMLDivElement>(null)
+  // Radix shows the sideways scrollbar only on hover, so on touch screens nothing hints at more columns.
+  const wider = useWiderThanBox(box)
   return (
-    <Box className="preview-scroll">
+    <Box className="preview-scroll" ref={box}>
+      {wider && (
+        <Text as="p" size="1" color="gray" mb="1">
+          {t('dataset.scrollSideways')}
+        </Text>
+      )}
       <Table.Root size="1" variant="surface" className="dataset-table preview-table">
         <Table.Header>
           <Table.Row>
@@ -193,6 +221,8 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const loaded = table.rows.length
   const total = meta.totalRecords ?? loaded
   const description = pick(meta.description)
+  const hasPlaces =
+    table.columns.some((c) => c.semanticType === 'latitude') && table.columns.some((c) => c.semanticType === 'longitude')
 
   return (
     <Flex direction="column" gap="3">
@@ -275,6 +305,15 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
             </Badge>
           ))}
         </Flex>
+      )}
+
+      {hasPlaces && (
+        <>
+          <Heading size="3" mt="2">
+            {t('dataset.map')}
+          </Heading>
+          <MapPreview table={table} hidden={hidden} />
+        </>
       )}
 
       <Heading size="3" mt="2">

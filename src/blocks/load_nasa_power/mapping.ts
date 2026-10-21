@@ -191,6 +191,7 @@ export function toDataTable(params: LoadNasaParams, response: PowerResponse, acc
       collectedBy: 'NASA Langley Research Center',
       keywords: ['NASA POWER', ...codes.map((code) => variable(code)?.label.de ?? code)],
       spatialExtent: [lon, lat, lon, lat],
+      placeKind: 'grid-cell',
       temporalExtent: rows.length ? [String(rows[0].date), String(rows.at(-1)!.date)] : undefined,
       totalRecords: rows.length,
     },

@@ -38,6 +38,12 @@ export interface DatasetMeta {
   /** ISO timestamp of the last data update reported by the source. */
   updated?: string
   spatialExtent?: [minLon: number, minLat: number, maxLon: number, maxLat: number]
+  /**
+   * What a place (latitude/longitude) in the rows stands for: a measuring
+   * station on the ground, or a cell of a model/satellite grid. Shown on the
+   * map; unset for other data.
+   */
+  placeKind?: 'sensor-station' | 'grid-cell'
   temporalExtent?: [startIso: string, endIso: string]
   /** Number of records the source holds; may exceed the rows actually loaded. */
   totalRecords?: number

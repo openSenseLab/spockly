@@ -279,6 +279,7 @@ export function toDataTable(
     source: { name: 'openSenseMap', url: 'https://opensensemap.org' },
     keywords: ['openSenseMap', 'senseBox', ...params.phenomena],
     spatialExtent: extentOf(params, rows),
+    placeKind: 'sensor-station',
     temporalExtent: [window.from.toISOString(), window.to.toISOString()],
     totalRecords: rows.length,
   }

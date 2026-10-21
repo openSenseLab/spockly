@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@radix-ui/themes";
 import * as Blockly from "blockly";
 import * as BlocklyDe from "blockly/msg/de";
 import { pythonGenerator } from "blockly/python";
@@ -242,9 +243,26 @@ const resetWorkspaceState = (workspace: Blockly.WorkspaceSvg) => {
   updateDerivedState(workspace);
 };
 
+/** Narrower than this, the toolbox takes too much of the canvas: it opens on demand. */
+const COMPACT_WIDTH = 600;
+
+/** Shows or hides the toolbox (and its open flyout); the canvas takes the freed space. */
+const showToolbox = (workspace: Blockly.WorkspaceSvg, visible: boolean) => {
+  const toolbox = workspace.getToolbox() as Blockly.Toolbox | null;
+  if (!toolbox) return;
+  if (!visible) toolbox.clearSelection();
+  toolbox.setVisible(visible);
+  Blockly.svgResize(workspace);
+};
+
 export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
   const blocklyRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  /** Small screens: the toolbox is hidden until the "Blöcke" button opens it. */
+  const [compact, setCompact] = useState(false);
+  const [toolboxOpen, setToolboxOpen] = useState(false);
+  /** For the Blockly listener, which is registered once. */
+  const compactRef = useRef(compact);
 
   useEffect(() => {
     if (!blocklyRef.current || workspaceRef.current) {
@@ -287,6 +305,10 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
           : null;
         if (!drag.isStart && needsSetup(block)) {
           requestBlockSetup(block.id);
+        }
+        // Small screens: a block was placed, give the canvas its space back.
+        if (!drag.isStart && compactRef.current) {
+          setToolboxOpen(false);
         }
       }
 
@@ -336,6 +358,12 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     };
 
     const onResize = () => Blockly.svgResize(workspace);
+    // The canvas width decides, not the screen: it is what the toolbox crowds.
+    const sizeObserver = new ResizeObserver(([entry]) => {
+      setCompact(entry.contentRect.width < COMPACT_WIDTH);
+      onResize();
+    });
+    sizeObserver.observe(blocklyRef.current);
     const unsubscribeLoads = useAppStore.subscribe((state, previous) => {
       if (state.loads !== previous.loads) {
         applyLoadWarnings(workspace);
@@ -359,6 +387,7 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
 
     return () => {
       unsubscribeLoads();
+      sizeObserver.disconnect();
       window.removeEventListener("resize", onResize);
       workspace.removeChangeListener(onWorkspaceChange);
       workspace.dispose();
@@ -377,5 +406,28 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     resetWorkspaceState(workspaceRef.current);
   }, [workspaceVersion]);
 
-  return <div className="blockly-workspace" ref={blocklyRef} />;
+  useEffect(() => {
+    compactRef.current = compact;
+    if (workspaceRef.current) {
+      showToolbox(workspaceRef.current, !compact || toolboxOpen);
+    }
+  }, [compact, toolboxOpen]);
+
+  return (
+    <>
+      {compact && (
+        <div className="toolbox-toggle">
+          <Button
+            size="2"
+            variant={toolboxOpen ? "soft" : "solid"}
+            aria-expanded={toolboxOpen}
+            onClick={() => setToolboxOpen((open) => !open)}
+          >
+            {toolboxOpen ? `✕ ${t("workspace.hideBlocks")}` : `☰ ${t("workspace.showBlocks")}`}
+          </Button>
+        </div>
+      )}
+      <div className="blockly-workspace" ref={blocklyRef} />
+    </>
+  );
 }

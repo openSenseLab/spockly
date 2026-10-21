@@ -37,6 +37,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .code-column {
@@ -68,6 +69,60 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* The panel is narrow on phones and next to the workspace on laptops alike:
+     layout inside it follows its own width, not the screen's. */
+  container: dataset / inline-size;
+}
+
+/* Too narrow for four columns: one block per column of the data, with name and
+   kind on top, then how much is filled in, then the overview. */
+@container dataset (max-width: 520px) {
+  .columns-table thead {
+    display: none;
+  }
+  .columns-table table,
+  .columns-table tbody {
+    display: block;
+  }
+  /* Radix sets height: 0, which a real table grows past but a block doesn't. */
+  .columns-table table {
+    height: auto;
+  }
+  .columns-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--gray-a5);
+  }
+  .columns-table tr:last-child {
+    border-bottom: none;
+  }
+  .columns-table th,
+  .columns-table td {
+    display: block;
+    /* Radix gives cells a fixed height, which only acts as a minimum in a real table. */
+    height: auto;
+    box-shadow: none;
+    padding-block: 2px;
+  }
+  .columns-table .filled-cell,
+  .columns-table .overview-cell {
+    grid-column: 1 / -1;
+  }
+  .columns-table .filled-cell {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-2);
+  }
+  .columns-table .filled-cell::before {
+    content: attr(data-label);
+    color: var(--gray-11);
+  }
+  .columns-table .filled-cell > :not(.rt-ProgressRoot) {
+    grid-column: 1 / -1;
+  }
 }
 
 .dataset-facts {
@@ -198,9 +253,11 @@
 }
 
 @media (max-width: 1080px) {
+  /* minmax(0, …): a plain 1fr grows to fit wide content (tables, code) and
+     pushes the whole column past the screen. */
   .hero-panel,
   .workspace-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-shell {
@@ -218,6 +275,17 @@
   .output-card {
     min-height: 300px;
   }
+
+  /* The page scrolls here, so the code box grows with the code instead of
+     showing a few lines in a box of its own. */
+  .code-card {
+    flex: none;
+  }
+
+  .python-preview {
+    flex: none;
+    max-height: 70vh;
+  }
 }
 
 @media (max-width: 720px) {
@@ -228,6 +296,14 @@
 
   .blockly-workspace {
     min-height: 360px;
+  }
+
+  /* Long code lines wrap on phones; indentation at the start of a line stays. */
+  .python-preview {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: 12px;
+    font-size: 0.85rem;
   }
 }
 
@@ -242,5 +318,76 @@
   pointer-events: auto;
   vertical-align: middle;
   cursor: help;
+  font-weight: 700;
+}
+
+/* Leaflet's panes and controls use z-indexes up to 1000; keep them inside the
+   map so they can't cover dialogs and popovers. */
+.map-preview {
+  height: 260px;
+  border-radius: var(--radius-3);
+  border: 1px solid var(--gray-a6);
+  isolation: isolate;
+}
+
+/* Small screens: the button that opens and closes the toolbox. */
+.toolbox-toggle {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.map-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-a6);
+  flex-shrink: 0;
+}
+
+/* Number next to a dot ("Zahlen zeigen"): dark text with a white halo, readable on any tile. */
+.map-value-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1c2024;
+  white-space: nowrap;
+  text-shadow:
+    0 0 2px #fff,
+    0 0 2px #fff,
+    0 0 3px #fff;
+}
+
+.map-legend-swatch.square {
+  border-radius: 3px;
+}
+
+/* Box and satellite markers: no Leaflet default box, a soft shadow to lift them off the tiles. */
+.map-icon {
+  background: none;
+  border: none;
+}
+
+.map-icon svg {
+  display: block;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
+}
+
+.map-tooltip {
+  line-height: 1.45;
+}
+
+.map-tooltip-title {
+  font-weight: 700;
+}
+
+.map-tooltip-kind,
+.map-tooltip-note {
+  color: #60646c;
+}
+
+.map-tooltip-heading {
+  margin-top: 4px;
+}
+
+.map-tooltip-chosen {
   font-weight: 700;
 }
