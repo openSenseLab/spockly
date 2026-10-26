@@ -185,6 +185,32 @@ describe('toDataTable', () => {
     expect(table.columns.find((c) => c.name === 'temperatur')?.unit).toBeUndefined()
     expect(table.meta.description?.de).toContain('unterschiedliche Einheiten für: Temperatur')
   })
+
+  it('converts air pressure in Pa to hPa, so all stations share one unit', () => {
+    // Seen around Münster: most stations report hPa, two report Pa.
+    const params = { ...DEFAULT_PARAMS, phenomena: ['Luftdruck'] }
+    const at = (createdAt: string, value: string): OsemMeasurement => ({ createdAt, value })
+    const hpa = { ...tempSensor, _id: 's1', title: 'Luftdruck', unit: 'hPa' }
+    const pa = { ...tempSensor, _id: 's2', title: 'Luftdruck', unit: 'Pa' }
+    const other = { ...erpho.box, _id: 'other-box', name: 'Andere Station' }
+    const table = toDataTable(
+      params,
+      [
+        { box: erpho.box, sensor: hpa, values: [at('2026-10-21T10:00:00Z', '1012.4')] },
+        { box: other, sensor: pa, values: [at('2026-10-21T10:00:00Z', '101325')] },
+      ],
+      oneDay,
+      2,
+    )
+    // Rows are sorted by time, then station name ("Andere Station" first).
+    expect(table.rows.map((r) => [r.station, r.luftdruck])).toEqual([
+      ['Andere Station', 1013.25],
+      ['Wetterstation Erpho', 1012.4],
+    ])
+    expect(table.columns.find((c) => c.name === 'luftdruck')?.unit).toBe('hPa')
+    expect(table.meta.description?.de).toContain('Luftdruck: 1 Station misst in Pa; ihre Werte wurden in hPa umgerechnet.')
+    expect(table.meta.description?.de).not.toContain('unterschiedliche Einheiten')
+  })
 })
 
 describe('normalizeParams', () => {

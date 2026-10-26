@@ -179,6 +179,24 @@ export function phenomenonColumns(phenomena: string[]): string[] {
 const listOf = (titles: string[]) => titles.join(', ')
 
 /**
+ * Air pressure: most senseBoxes report hPa, a few Pa (around Münster-Mitte
+ * on 2026-10-21: 123 sensors hPa, 2 Pa). Mixed, the Pa values (≈ 100 000)
+ * would distort means and the map. Pressure units are converted to hPa
+ * (1 hPa = 1 mbar = 100 Pa = 0.1 kPa); other units stay as delivered.
+ */
+export const TO_HPA: Readonly<Record<string, number>> = { hPa: 1, mbar: 1, Pa: 0.01, kPa: 10 }
+
+/** The unit a sensor's values are stored in, and the factor to get there. */
+function storedUnit(unit: string | undefined): { unit?: string; factor: number } {
+  const trimmed = unit?.trim()
+  if (trimmed && trimmed in TO_HPA) return { unit: 'hPa', factor: TO_HPA[trimmed] }
+  return { unit: trimmed || undefined, factor: 1 }
+}
+
+/** Scaling by 0.01 leaves float noise (101325 × 0.01 = 1013.2500000000001). */
+const clean = (value: number) => Number(value.toPrecision(12))
+
+/**
  * One row per station and time, one column per phenomenon. The sensors of a
  * senseBox send their values together with the same timestamp, so they line
  * up; a sensor that didn't report leaves its column empty in that row.
@@ -192,15 +210,24 @@ export function toDataTable(
   const names = phenomenonColumns(params.phenomena)
   const columnOf = new Map(params.phenomena.map((title, i) => [title, names[i]]))
   const unitCounts = new Map<string, Map<string, number>>()
+  /** Per column title: stations whose values were converted, and from which units. */
+  const converted = new Map<string, { stations: Set<string>; from: Set<string> }>()
   const rowsByKey = new Map<string, Record<string, unknown>>()
 
   for (const { box, sensor, values } of results) {
     const column = columnOf.get(sensor.title)
     if (!column) continue
-    if (sensor.unit) {
+    const { unit, factor } = storedUnit(sensor.unit)
+    if (unit) {
       const counts = unitCounts.get(column) ?? new Map<string, number>()
-      counts.set(sensor.unit, (counts.get(sensor.unit) ?? 0) + 1)
+      counts.set(unit, (counts.get(unit) ?? 0) + 1)
       unitCounts.set(column, counts)
+    }
+    if (factor !== 1) {
+      const note = converted.get(sensor.title) ?? { stations: new Set<string>(), from: new Set<string>() }
+      note.stations.add(box._id)
+      note.from.add(sensor.unit!.trim())
+      converted.set(sensor.title, note)
     }
     for (const m of values) {
       const key = `${box._id}|${m.createdAt}`
@@ -212,7 +239,7 @@ export function toDataTable(
         rowsByKey.set(key, row)
       }
       const value = Number(m.value)
-      row[column] = Number.isFinite(value) ? value : null
+      row[column] = Number.isFinite(value) ? clean(value * factor) : null
     }
   }
   const rows = [...rowsByKey.values()].sort(
@@ -255,6 +282,11 @@ export function toDataTable(
   const range = formatRange(window.from, window.to)
   const what = listOf(params.phenomena)
   const several = params.phenomena.length > 1
+  const conversions = [...converted].map(([title, { stations, from }]) => ({
+    title,
+    count: stations.size,
+    from: listOf([...from]),
+  }))
 
   const meta: DatasetMeta = {
     id: `osem:${params.source.kind}:${params.source.kind === 'area' ? params.source.area : params.source.tag}:${what}`,
@@ -268,12 +300,26 @@ export function toDataTable(
         (stationsFound > used ? ` Es gibt ${stationsFound} passende Stationen; geladen wurden die ${used} zuletzt aktiven.` : '') +
         (params.outdoorOnly ? ' Nur Stationen im Freien.' : '') +
         (several ? ' Nicht jede Station misst alles; fehlende Werte bleiben leer.' : '') +
+        conversions
+          .map(({ title, count, from }) =>
+            count === 1
+              ? ` ${title}: 1 Station misst in ${from}; ihre Werte wurden in hPa umgerechnet.`
+              : ` ${title}: ${count} Stationen messen in ${from}; ihre Werte wurden in hPa umgerechnet.`,
+          )
+          .join('') +
         (mixedUnits.length ? ` Die Stationen nutzen unterschiedliche Einheiten für: ${listOf(mixedUnits)}.` : ''),
       en:
         `Measurements from ${used} openSenseMap stations (${place.en}), ${period.en}: ${range}.` +
         (stationsFound > used ? ` ${stationsFound} stations match; the ${used} most recently active were loaded.` : '') +
         (params.outdoorOnly ? ' Outdoor stations only.' : '') +
         (several ? ' Not every station measures everything; missing values stay empty.' : '') +
+        conversions
+          .map(({ title, count, from }) =>
+            count === 1
+              ? ` ${title}: 1 station measures in ${from}; its values were converted to hPa.`
+              : ` ${title}: ${count} stations measure in ${from}; their values were converted to hPa.`,
+          )
+          .join('') +
         (mixedUnits.length ? ` Stations use different units for: ${listOf(mixedUnits)}.` : ''),
     },
     source: { name: 'openSenseMap', url: 'https://opensensemap.org' },

@@ -12,6 +12,7 @@ import {
   type OsemBox,
   type OsemMeasurement,
   type OsemSource,
+  TO_HPA,
 } from './mapping'
 import { areaPreset, PERIODS } from './presets'
 
@@ -153,14 +154,17 @@ export const loadOsemOperation: OperationDef<LoadOsemParams> = {
         `zeit = f"from-date={von:%Y-%m-%dT%H:%M:%SZ}&to-date={bis:%Y-%m-%dT%H:%M:%SZ}"\n\n` +
         `boxen = json.load(open_url(api + "${boxQuery}"))\n` +
         `spalten = ${columns}\n` +
+        `# Luftdruck immer in hPa (ein paar Stationen melden Pa)\n` +
+        `faktor = ${JSON.stringify(TO_HPA)}\n` +
         `zeilen = []\n` +
         `for box in boxen:\n` +
         `    for sensor in box["sensors"]:\n` +
         `        if sensor["title"] not in spalten:\n` +
         `            continue\n` +
-        `        url = f"{api}/boxes/{box['_id']}/data/{sensor['_id']}?{zeit}&format=json"\n` +
+        `        umrechnung = faktor.get((sensor.get("unit") or "").strip(), 1)\n` +
+        `        url =f"{api}/boxes/{box['_id']}/data/{sensor['_id']}?{zeit}&format=json"\n` +
         `        for wert in json.load(open_url(url)):\n` +
-        `            zeilen.append({"time": wert["createdAt"], "station": box["name"], "messgroesse": spalten[sensor["title"]], "wert": float(wert["value"])})\n\n` +
+        `            zeilen.append({"time": wert["createdAt"], "station": box["name"], "messgroesse": spalten[sensor["title"]], "wert": float(wert["value"]) * umrechnung})\n\n` +
         `# eine Zeile pro Station und Zeitpunkt, eine Spalte pro Messgröße\n` +
         `${output} = pd.DataFrame(zeilen).pivot_table(index=["time", "station"], columns="messgroesse", values="wert").reset_index()\n` +
         `print(${output})`,

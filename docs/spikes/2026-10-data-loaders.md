@@ -31,7 +31,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 132 unit tests (Vitest)
+npm test         # 134 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -98,8 +98,17 @@ longitude, placement (outdoor/indoor/mobile). The sensors of a senseBox send
 their values with the same timestamp, so they line up in one row; a sensor
 that didn't report leaves its cell empty. Column names come from the sensor
 titles (`rel. Luftfeuchte` → `rel_luftfeuchte`) and are the same in the app
-and in Python. If stations use different units for a measurement, no unit is
-shown and the dataset description says so.
+and in Python.
+
+Units: **air pressure is always converted to hPa.** Most senseBoxes report
+hPa, a few Pa (of the "Luftdruck" sensors in Münster-Mitte on 2026-10-21:
+123 hPa, 2 Pa). Mixed, one Pa station (≈ 100 000) would distort the mean, the
+overview and the map colours. Pa, kPa and mbar are converted (1 hPa = 1 mbar
+= 100 Pa = 0.1 kPa), in the app and in the generated Python code, and the
+dataset description says so ("Luftdruck: 1 Station misst in Pa; ihre Werte
+wurden in hPa umgerechnet."). Any other unit stays as delivered; if stations
+still use different units for a measurement, no unit is shown and the
+description says so.
 
 Workspaces saved with the earlier one-measurement version still open.
 
@@ -646,6 +655,8 @@ Quirks found (covered by tests with recorded responses):
   parts of neighbouring areas.
 - Stations are matched by exact sensor title; `Temperatur` and `Temperature`
   are separate choices.
+- Only pressure units are converted. Other mixed units (e.g. a temperature
+  in °F) still leave the column without a unit.
 - Each extra measurement adds requests (see above); with 5 measurements and
   50 stations that can be ~250 requests. When openSenseMap is slow, a load can
   take minutes. The progress line counts stations, not requests.
@@ -708,11 +719,6 @@ Quirks found (covered by tests with recorded responses):
 - openSenseMap stations are picked by their *current* location, but plotted
   where each measurement was taken; a station with a slightly different
   recorded position can appear just outside the dashed area.
-- Some openSenseMap measurements have no unit on the map, because the
-  stations use different units: of the "Luftdruck" sensors in Münster-Mitte,
-  123 report hPa and 2 report Pa (checked 2026-10-21). The dataset description
-  says so, but the mixed values (≈ 1 000 vs. ≈ 100 000) also distort mean and
-  colours. Converting known units (Pa → hPa) would fix this case.
 - No map for the Python view yet; the map exists only in the app.
 
 **Python view**
@@ -744,7 +750,7 @@ Quirks found (covered by tests with recorded responses):
 
 ## 7. Tests
 
-`npm test` runs 132 unit tests:
+`npm test` runs 134 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -757,7 +763,8 @@ Quirks found (covered by tests with recorded responses):
 - Huwise mapping and loading (paging, error codes, input validation);
 - openSenseMap station selection, phenomena, area filter, paging past the
   10 000-value cap, table mapping (several measurements side by side, matched
-  by timestamp, empty cells, mixed units), column names, parameter validation
+  by timestamp, empty cells, mixed units, Pa → hPa), the hPa conversion in
+  the Python code, column names, parameter validation
   (including blocks saved with one measurement, at most 5), loading with
   mocked `fetch`, tag list;
 - NASA POWER settings checks, request URL, date keys, fill values, monthly

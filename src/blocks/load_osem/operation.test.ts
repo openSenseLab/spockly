@@ -4,7 +4,7 @@ import boxesFixture from './__fixtures__/boxes-muenster.json'
 import sensorData from './__fixtures__/sensor-data.json'
 import tagsFixture from './__fixtures__/tags.json'
 import { boxesInArea, DEFAULT_PARAMS, SENSOR_LIMIT, stationsFor, timeWindow, type OsemBox } from './mapping'
-import { boxesUrl, fetchTags, loadOsem } from './operation'
+import { boxesUrl, fetchTags, loadOsem, loadOsemOperation } from './operation'
 import { areaPreset } from './presets'
 
 const NOW = new Date('2026-10-07T00:00:00Z')
@@ -117,5 +117,13 @@ describe('fetchTags', () => {
     expect(tags.length).toBeGreaterThan(0)
     expect(tags).toEqual([...tags].sort((a, b) => a.localeCompare(b, 'de')))
     expect(tags).not.toContain('')
+  })
+})
+
+describe('Python code', () => {
+  it('converts air pressure to hPa like the app does', () => {
+    const { python } = loadOsemOperation.toCode!({ ...DEFAULT_PARAMS, phenomena: ['Luftdruck'] }, { output: 'df' })
+    expect(python).toContain('faktor = {"hPa":1,"mbar":1,"Pa":0.01,"kPa":10}')
+    expect(python).toContain('float(wert["value"]) * umrechnung')
   })
 })
