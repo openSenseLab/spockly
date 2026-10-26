@@ -1,4 +1,5 @@
-import type { DataTable } from './types'
+import { isGeometry } from './geometry'
+import type { DataTable, Geometry } from './types'
 
 /** More distinct places than this are not drawn (the map would be unreadable and slow). */
 export const MAX_MAP_POINTS = 5000
@@ -50,6 +51,12 @@ interface Running {
   latestAt?: string
 }
 
+/** The column that names a place or shape: one called "…name…", else the first text or category column. */
+function labelColumn(table: DataTable): string | undefined {
+  const texts = table.columns.filter((c) => c.semanticType === 'text' || c.semanticType === 'category')
+  return (texts.find((c) => /(^|_)name/i.test(c.name)) ?? texts[0])?.name
+}
+
 /**
  * One point per place: rows with the same coordinates (a station measuring
  * every few minutes) become one point. Null when the table has no
@@ -60,7 +67,7 @@ export function mapPointsOf(table: DataTable, measures: readonly string[] = []):
   const lat = table.columns.find((c) => c.semanticType === 'latitude')?.name
   const lon = table.columns.find((c) => c.semanticType === 'longitude')?.name
   if (!lat || !lon) return null
-  const name = table.columns.find((c) => c.semanticType === 'category' || c.semanticType === 'text')?.name
+  const name = labelColumn(table)
   const time = table.columns.find((c) => c.semanticType === 'timestamp')?.name
 
   const byPlace = new Map<string, MapPoint>()
@@ -116,6 +123,49 @@ export function mapPointsOf(table: DataTable, measures: readonly string[] = []):
     }
   }
   return { points: [...byPlace.values()], withoutPlace, leftOut: leftOut.size }
+}
+
+export interface MapShape {
+  geometry: Geometry
+  label?: string
+  /** Always 1: every row is its own shape. */
+  rows: number
+  values: Record<string, PlaceValues>
+}
+
+export interface MapShapes {
+  shapes: MapShape[]
+  /** Rows without a usable geometry. */
+  withoutShape: number
+}
+
+/**
+ * One shape per row, for tables with a geometry column (outlines of
+ * countries, rivers, …). Each measurement's value is the row's own value, so
+ * mean, lowest, highest and newest are all the same. Null without a geometry
+ * column. Like mapPointsOf, only `measures` are read.
+ */
+export function mapShapesOf(table: DataTable, measures: readonly string[] = []): MapShapes | null {
+  const shape = table.columns.find((c) => c.semanticType === 'geometry')?.name
+  if (!shape) return null
+  const name = labelColumn(table)
+  const shapes: MapShape[] = []
+  let withoutShape = 0
+  for (const row of table.rows) {
+    const geometry = row[shape]
+    if (!isGeometry(geometry)) {
+      withoutShape++
+      continue
+    }
+    const values: Record<string, PlaceValues> = {}
+    for (const measure of measures) {
+      const v = row[measure]
+      if (isValue(v)) values[measure] = { count: 1, mean: v, min: v, max: v, latest: v }
+    }
+    const label = name && row[name] !== null && row[name] !== undefined ? String(row[name]) : undefined
+    shapes.push({ geometry, label, rows: 1, values })
+  }
+  return { shapes, withoutShape }
 }
 
 /** The value a place's dot shows for the chosen statistic. */

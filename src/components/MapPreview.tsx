@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Checkbox, Flex, Select, Text } from '@radix-ui/themes'
+import { Button, Checkbox, Flex, Select, Slider, Text } from '@radix-ui/themes'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import { classLimits, classOf, mapPointsOf, type MapPoint, type PlaceStat } from '../core/geo'
-import type { ColumnMeta, DataTable, DatasetMeta } from '../core/types'
+import { classLimits, classOf, mapPointsOf, mapShapesOf, type MapPoint, type PlaceStat } from '../core/geo'
+import { boundsOf, shapeKind, type ShapeKind } from '../core/geometry'
+import type { ColumnMeta, DataTable, DatasetMeta, Geometry } from '../core/types'
 import { glossaryForColumn } from '../glossary'
-import { formatDate, formatNumber, pick, t } from '../i18n'
+import { formatDate, formatNumber, lang, pick, t } from '../i18n'
 import { GlossaryInfo } from './GlossaryInfo'
 
 /**
@@ -23,6 +24,14 @@ const NO_VALUE_COLOR = '#b9bbc6'
 const INK_DARK = '#0d366b'
 const INK_LIGHT = '#ffffff'
 const AREA_COLOR = '#8b8d98'
+/** Lines that show no value (e.g. rivers): darker than the ramp's middle, so they read as lines. */
+const LINE_COLOR = '#1c5cab'
+/** The outline of the area the data is about, drawn above the data. */
+const OUTLINE_COLOR = '#1c2024'
+/** A time slider only makes sense for a handful of steps (e.g. 12 months). */
+const MAX_TIME_STEPS = 60
+/** Pause between two months when playing. */
+const PLAY_STEP_MS = 1100
 /** Zoom for a single point: shows the town and its surroundings. */
 const SINGLE_POINT_ZOOM = 9
 
@@ -30,8 +39,30 @@ const STATS: PlaceStat[] = ['mean', 'max', 'min', 'latest']
 
 type PlaceKind = NonNullable<DatasetMeta['placeKind']>
 
+/** Anything drawn on the map: a place (point or grid cell) or a shape, with its values. */
+type MapItem = { label?: string; rows: number; values: MapPoint['values']; geometry?: Geometry; lat?: number; lon?: number }
+
+/** Points from latitude/longitude, shapes from a geometry column, or the cells of a grid. */
+type MapMode = 'points' | 'shapes' | 'grid'
+
+/** How the legend draws a colour: like the marks on the map. */
+type Swatch = 'circle' | 'square' | 'line'
+
 /** One decimal is enough on a map; the tooltip keeps the full value. */
-const short = (value: number) => formatNumber(Math.round(value * 10) / 10)
+/**
+ * Short numbers for legend and labels: one decimal for small values, three
+ * significant digits for large ones (13 925 228 → 13 900 000). The tooltip
+ * keeps the full value.
+ */
+function short(value: number): string {
+  const abs = Math.abs(value)
+  if (abs < 1000) return formatNumber(Math.round(value * 10) / 10)
+  const factor = 10 ** (Math.floor(Math.log10(abs)) - 2)
+  return formatNumber(Math.round(value / factor) * factor)
+}
+
+/** Grid sizes like 0.625° need three decimals. */
+const degrees = new Intl.NumberFormat(lang, { maximumFractionDigits: 3 })
 
 const withUnit = (value: number, column?: ColumnMeta) =>
   column?.unit ? `${formatNumber(value)} ${column.unit}` : formatNumber(value)
@@ -96,11 +127,12 @@ function iconFor(kind: PlaceKind, fill: string): L.DivIcon {
  * stands for comes first and in bold.
  */
 function tooltipFor(
-  point: MapPoint,
+  point: MapItem,
   measures: ColumnMeta[],
   colourBy: ColumnMeta | undefined,
   stat: PlaceStat,
   kind: PlaceKind | undefined,
+  options: { heading?: string; extra?: string[] } = {},
 ): HTMLElement {
   const box = document.createElement('div')
   box.className = 'map-tooltip'
@@ -112,12 +144,13 @@ function tooltipFor(
   }
   if (point.label) line(point.label, 'map-tooltip-title')
   if (kind) line(t(kind === 'sensor-station' ? 'map.kind.station' : 'map.kind.gridCell'), 'map-tooltip-kind')
+  for (const text of options.extra ?? []) line(text, 'map-tooltip-kind')
   if (measures.length === 0) {
     line(rowsText(point.rows))
     return box
   }
 
-  line(`${t(`map.stat.${stat}`)}:`, 'map-tooltip-heading')
+  line(options.heading ?? `${t(`map.stat.${stat}`)}:`, 'map-tooltip-heading')
   const ordered = colourBy ? [colourBy, ...measures.filter((m) => m !== colourBy)] : measures
   for (const measure of ordered) {
     const value = point.values[measure.name]?.[stat]
@@ -156,17 +189,27 @@ function Legend({
   limits,
   single,
   missing,
-  kind,
+  swatch,
+  withStat,
+  at,
 }: {
   measure: ColumnMeta
   stat: PlaceStat
   limits: number[]
   single?: string
   missing: boolean
-  kind: PlaceKind | undefined
+  swatch: Swatch
+  /** Only when a place has several values, the statistic chosen matters. */
+  withStat: boolean
+  /** The month shown, if the map shows one month. */
+  at?: string
 }) {
   const title =
-    t('map.legendTitle', { name: nameOf(measure), stat: t(`map.stat.${stat}`) }) +
+    (at
+      ? t('map.legendAt', { name: nameOf(measure), time: at })
+      : withStat
+        ? t('map.legendTitle', { name: nameOf(measure), stat: t(`map.stat.${stat}`) })
+        : nameOf(measure)) +
     (measure.unit ? ` (${measure.unit})` : '')
   const entries: [color: string, label: string][] = single
     ? [[SINGLE_COLOR, single]]
@@ -181,7 +224,7 @@ function Legend({
         {entries.map(([color, label]) => (
           <Flex key={label} align="center" gap="1">
             <span
-              className={kind === 'sensor-station' ? 'map-legend-swatch square' : 'map-legend-swatch'}
+              className={`map-legend-swatch ${swatch}`}
               style={{ background: color }}
             />
             <Text size="1" color="gray">
@@ -196,13 +239,32 @@ function Legend({
 
 // ---- Map ----
 
+const SHAPE_COUNT: Record<ShapeKind, [many: string, one: string]> = {
+  point: ['shape.points', 'shape.pointOne'],
+  line: ['shape.lines', 'shape.lineOne'],
+  area: ['shape.areas', 'shape.areaOne'],
+}
+
+/** "177 Flächen", "1 325 Linien · 3 Punkte" */
+function shapeCounts(items: MapItem[]): string {
+  const counts = new Map<ShapeKind, number>()
+  for (const item of items) {
+    if (item.geometry) counts.set(shapeKind(item.geometry), (counts.get(shapeKind(item.geometry)) ?? 0) + 1)
+  }
+  return [...counts]
+    .map(([kind, n]) => (n === 1 ? t(SHAPE_COUNT[kind][1]) : t(SHAPE_COUNT[kind][0], { count: formatNumber(n) })))
+    .join(' · ')
+}
+
 /**
- * Where the data is and what was measured there: one marker per place
- * (a box for a senseBox station, a satellite for a model/satellite grid
- * cell, a dot otherwise), coloured by the measurement the student picks,
- * summed up per place (mean, highest, lowest or newest value). The tooltip
- * lists all measurements of the place. The area that was asked for is a
- * dashed rectangle. Columns hidden for a guess are left out entirely.
+ * Where the data is and what was measured there, in one of three ways:
+ * - points (latitude/longitude): one marker per place — a box for a senseBox
+ *   station, a satellite for a grid point, a dot otherwise;
+ * - shapes (a geometry column): the rows' own points, lines and areas;
+ * - grid (raster data): every cell as a coloured tile.
+ * Marks are coloured by the measurement the student picks, summed up per
+ * place (mean, highest, lowest or newest value). The tooltip lists all
+ * measurements. Columns hidden for a guess are left out entirely.
  */
 export function MapPreview({ table, hidden }: { table: DataTable; hidden: ReadonlySet<string> }) {
   const element = useRef<HTMLDivElement>(null)
@@ -210,50 +272,156 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
   const [chosen, setChosen] = useState<string | undefined>(undefined)
   const [stat, setStat] = useState<PlaceStat>('mean')
   const [numbers, setNumbers] = useState(false)
+  /** Grid data: one month on the map, or null for the whole period summed up per cell. */
+  const [month, setMonth] = useState<string | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const monthRef = useRef<string | null>(null)
 
-  const kind = table.meta.placeKind
+  const grid = table.meta.grid
+  const mode: MapMode = table.columns.some((c) => c.semanticType === 'geometry') ? 'shapes' : grid ? 'grid' : 'points'
+  // Grid cells are drawn as tiles, so the point icons are only for stations and grid points.
+  const kind = mode === 'points' ? table.meta.placeKind : undefined
   const measures = useMemo(() => table.columns.filter((c) => c.semanticType === 'measurement'), [table])
   const allowed = useMemo(() => measures.filter((c) => !hidden.has(c.name)), [measures, hidden])
   const measure = useMemo(() => allowed.find((c) => c.name === chosen) ?? allowed[0], [allowed, chosen])
+  const { outline, landmarks, initialView } = table.meta
 
-  // Places only (for the view); then the values of every shown measurement per place.
-  const places = useMemo(() => mapPointsOf(table), [table])
-  const found = useMemo(() => mapPointsOf(table, allowed.map((c) => c.name)), [table, allowed])
+  // Grids over time (e.g. 12 months): a slider shows one month at a time.
+  const timeColumn = table.columns.find((c) => c.semanticType === 'timestamp')?.name
+  const months = useMemo(() => {
+    if (mode !== 'grid' || !timeColumn) return []
+    const all = [...new Set(table.rows.map((r) => String(r[timeColumn])))].sort()
+    return all.length > 1 && all.length <= MAX_TIME_STEPS ? all : []
+  }, [table, mode, timeColumn])
+  const shownMonth = month !== null && months.includes(month) ? month : null
+  const shown = useMemo(
+    () => (shownMonth && timeColumn ? { ...table, rows: table.rows.filter((r) => r[timeColumn] === shownMonth) } : table),
+    [table, shownMonth, timeColumn],
+  )
+
+  // Everything to draw, with the values of every shown measurement.
+  const found = useMemo(() => {
+    const names = allowed.map((c) => c.name)
+    if (mode === 'shapes') {
+      const result = mapShapesOf(shown, names)
+      return result && { items: result.shapes as MapItem[], withoutPlace: result.withoutShape, leftOut: 0 }
+    }
+    const result = mapPointsOf(shown, names)
+    return result && { items: result.points as MapItem[], withoutPlace: result.withoutPlace, leftOut: result.leftOut }
+  }, [shown, allowed, mode])
+  const items = useMemo(() => found?.items ?? [], [found])
+
   const values = useMemo(
     () =>
       measure
-        ? (found?.points ?? []).flatMap((p) => {
+        ? items.flatMap((p) => {
             const v = p.values[measure.name]?.[stat]
             return v === undefined ? [] : [v]
           })
         : [],
-    [found, measure, stat],
+    [items, measure, stat],
   )
-  const limits = useMemo(() => classLimits(values), [values])
-  const severalPerPlace = !!measure && (found?.points ?? []).some((p) => (p.values[measure.name]?.count ?? 0) > 1)
+  const periodLimits = useMemo(() => classLimits(values), [values])
+  // One scale for all months, so that the colours show the seasons, not each month's own spread.
+  const monthLimits = useMemo(
+    () =>
+      measure && months.length
+        ? classLimits(table.rows.map((r) => r[measure.name]).filter((v): v is number => typeof v === 'number'))
+        : [],
+    [table, measure, months],
+  )
+  const limits = shownMonth ? monthLimits : periodLimits
+  const severalPerPlace = !!measure && items.some((p) => (p.values[measure.name]?.count ?? 0) > 1)
   const extent = table.meta.spatialExtent
-  const isArea = !!extent && (extent[0] !== extent[2] || extent[1] !== extent[3])
+  // The dashed "area asked for" only helps around points; shapes and grids show their own extent.
+  const isArea = mode === 'points' && !!extent && (extent[0] !== extent[2] || extent[1] !== extent[3])
+
+  /**
+   * What the view has to show: [minLon, minLat, maxLon, maxLat]. From the
+   * whole table, so that changing the month or a hidden column doesn't move
+   * (or rebuild) the map.
+   */
+  const view = useMemo((): [number, number, number, number] | undefined => {
+    if (mode === 'shapes') return boundsOf((mapShapesOf(table)?.shapes ?? []).map((s) => s.geometry))
+    const points = mapPointsOf(table)?.points ?? []
+    if (points.length === 0) return undefined
+    const lons = points.map((i) => i.lon)
+    const lats = points.map((i) => i.lat)
+    const [halfLon, halfLat] = grid ? [grid.cellSize[0] / 2, grid.cellSize[1] / 2] : [0, 0]
+    return [Math.min(...lons) - halfLon, Math.min(...lats) - halfLat, Math.max(...lons) + halfLon, Math.max(...lats) + halfLat]
+  }, [table, mode, grid])
+
+  // Playing: one month after the other, stopping at the last one.
+  useEffect(() => {
+    monthRef.current = shownMonth
+  }, [shownMonth])
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setInterval(() => {
+      const next = months.indexOf(monthRef.current ?? '') + 1
+      if (next >= months.length) setPlaying(false)
+      else setMonth(months[next])
+    }, PLAY_STEP_MS)
+    return () => window.clearInterval(timer)
+  }, [playing, months])
+  const play = () => {
+    if (!shownMonth || shownMonth === months.at(-1)) setMonth(months[0])
+    setPlaying(true)
+  }
 
   // The map itself: tiles, the area asked for, and the view. Only for new data.
   useEffect(() => {
-    if (!element.current || !places || places.points.length === 0) return
+    if (!element.current || !view) return
     // The panel scrolls; the wheel should scroll it, not zoom the map.
-    const map = L.map(element.current, { preferCanvas: true, scrollWheelZoom: false })
+    // zoomSnap 0.25: an area fills the map instead of jumping to the next whole zoom level.
+    const map = L.map(element.current, { preferCanvas: true, scrollWheelZoom: false, zoomSnap: 0.25 })
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map)
 
-    const bounds = L.latLngBounds([])
+    // Detailed European data (rivers, lakes) starts on Germany; everything else on all of it.
+    const first = initialView?.bbox ?? view
+    const bounds = L.latLngBounds([first[1], first[0]], [first[3], first[2]])
     if (extent && isArea) {
       const area = L.latLngBounds([extent[1], extent[0]], [extent[3], extent[2]])
       L.rectangle(area, { color: AREA_COLOR, weight: 1.5, dashArray: '6 4', fill: false, interactive: false }).addTo(map)
       bounds.extend(area)
     }
-    for (const point of places.points) bounds.extend([point.lat, point.lon])
     // A single place (e.g. NASA POWER) has no extent to fit.
     if (bounds.getNorthEast().equals(bounds.getSouthWest())) map.setView(bounds.getCenter(), SINGLE_POINT_ZOOM)
     else map.fitBounds(bounds, { padding: [20, 20] })
+
+    // Outline and orientation places sit above the data in their own panes and
+    // let the pointer through, so the cells underneath still show their tooltips.
+    if (outline) {
+      const pane = map.createPane('outline')
+      pane.style.zIndex = '450'
+      pane.style.pointerEvents = 'none'
+      L.geoJSON(outline.geometry as GeoJSON.Geometry, {
+        pane: 'outline',
+        interactive: false,
+        style: { color: OUTLINE_COLOR, weight: 1.8, opacity: 0.9, fill: false },
+      }).addTo(map)
+    }
+    if (landmarks?.length) {
+      const pane = map.createPane('landmarks')
+      pane.style.zIndex = '460'
+      pane.style.pointerEvents = 'none'
+      for (const place of landmarks) {
+        L.circleMarker([place.lat, place.lon], {
+          pane: 'landmarks',
+          interactive: false,
+          radius: 3.5,
+          color: '#ffffff',
+          weight: 1.5,
+          fillColor: OUTLINE_COLOR,
+          fillOpacity: 1,
+        })
+          .bindTooltip(pick(place.label) ?? '', { permanent: true, direction: 'right', offset: [5, 0], className: 'map-landmark' })
+          .addTo(map)
+      }
+    }
 
     mapRef.current = map
     // The tab may be hidden or resized; Leaflet needs to know its new size.
@@ -264,44 +432,106 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
       map.remove()
       mapRef.current = null
     }
-  }, [places, extent, isArea])
+  }, [view, extent, isArea, initialView, outline, landmarks])
 
-  // The markers: redrawn when the measurement, the statistic or the labels change.
+  // The marks: redrawn when the measurement, the statistic or the labels change.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !found) return
+    if (!map) return
     const layer = L.layerGroup().addTo(map)
-    for (const point of found.points) {
-      const value = measure ? point.values[measure.name]?.[stat] : undefined
-      const color =
-        !measure ? SINGLE_COLOR
-        : value === undefined ? NO_VALUE_COLOR
-        : limits.length ? CLASS_COLORS[classOf(value, limits)]
-        : SINGLE_COLOR
-      const tooltip = tooltipFor(point, allowed, measure, stat, kind)
-      // Icons for the few stations or grid cells of the API loaders; plain
-      // dots (drawn on one canvas) for datasets that can have thousands of places.
-      const marker = kind
-        ? L.marker([point.lat, point.lon], { icon: iconFor(kind, color), keyboard: true })
-        : L.circleMarker([point.lat, point.lon], { radius: 7, color: '#ffffff', weight: 1.5, fillColor: color, fillOpacity: 0.95 })
-      marker.bindTooltip(tooltip).addTo(layer)
-      if (numbers && value !== undefined) {
-        const label = document.createElement('span')
-        label.textContent = short(value)
-        L.marker([point.lat, point.lon], {
-          icon: L.divIcon({ className: 'map-value-label', html: label, iconSize: undefined, iconAnchor: [kind ? -16 : -10, 9] }),
-          interactive: false,
-          keyboard: false,
-        }).addTo(layer)
+    const colorOf = (item: MapItem) => {
+      const value = measure ? item.values[measure.name]?.[stat] : undefined
+      if (!measure) return SINGLE_COLOR
+      if (value === undefined) return NO_VALUE_COLOR
+      return limits.length ? CLASS_COLORS[classOf(value, limits)] : SINGLE_COLOR
+    }
+    /** "In dieser Zelle: Münster" — which orientation places lie in a grid cell. */
+    const placesIn = (item: MapItem) =>
+      grid && landmarks
+        ? landmarks
+            .filter((l) => Math.abs(l.lat - item.lat!) <= grid.cellSize[1] / 2 && Math.abs(l.lon - item.lon!) <= grid.cellSize[0] / 2)
+            .map((l) => pick(l.label) ?? '')
+        : []
+    const tooltipOf = (item: MapItem) => {
+      const inCell = placesIn(item)
+      return tooltipFor(item, allowed, measure, stat, kind, {
+        heading: shownMonth ? `${formatDate(shownMonth)}:` : undefined,
+        extra: inCell.length ? [t('map.inCell', { places: inCell.join(', ') })] : [],
+      })
+    }
+
+    if (mode === 'shapes') {
+      // One GeoJSON layer for all shapes (drawn on one canvas); each feature knows its row.
+      const features = items.map((item, i) => ({ type: 'Feature' as const, geometry: item.geometry!, properties: { i } }))
+      L.geoJSON({ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection, {
+        style: (feature) => {
+          const item = items[feature?.properties.i]
+          const color = colorOf(item)
+          // Lines without a value to show (rivers) are thin and dark, so a dense network stays readable.
+          return shapeKind(item.geometry!) === 'line'
+            ? measure
+              ? { color, weight: 1.5, opacity: 0.95 }
+              : { color: LINE_COLOR, weight: 1.1, opacity: 0.85 }
+            : { fillColor: color, fillOpacity: 0.75, color: '#ffffff', weight: 0.8 }
+        },
+        pointToLayer: (feature, latlng) =>
+          L.circleMarker(latlng, {
+            radius: 6,
+            color: '#ffffff',
+            weight: 1.5,
+            fillColor: colorOf(items[feature.properties.i]),
+            fillOpacity: 0.95,
+          }),
+        onEachFeature: (feature, shapeLayer) => shapeLayer.bindTooltip(tooltipOf(items[feature.properties.i]), { sticky: true }),
+      }).addTo(layer)
+    } else {
+      for (const item of items) {
+        const color = colorOf(item)
+        const at: L.LatLngTuple = [item.lat!, item.lon!]
+        let mark: L.Layer
+        if (mode === 'grid' && grid) {
+          const [dLon, dLat] = grid.cellSize
+          mark = L.rectangle(
+            [
+              [item.lat! - dLat / 2, item.lon! - dLon / 2],
+              [item.lat! + dLat / 2, item.lon! + dLon / 2],
+            ],
+            { fillColor: color, fillOpacity: 0.75, color: '#ffffff', weight: 0.5 },
+          )
+        } else if (kind) {
+          // Icons for the few stations or grid points of the API loaders.
+          mark = L.marker(at, { icon: iconFor(kind, color), keyboard: true })
+        } else {
+          // Plain dots (drawn on one canvas) for datasets that can have thousands of places.
+          mark = L.circleMarker(at, { radius: 7, color: '#ffffff', weight: 1.5, fillColor: color, fillOpacity: 0.95 })
+        }
+        mark.bindTooltip(tooltipOf(item), { sticky: mode === 'grid' }).addTo(layer)
+        const value = measure ? item.values[measure.name]?.[stat] : undefined
+        if (numbers && value !== undefined) {
+          const label = document.createElement('span')
+          label.textContent = short(value)
+          L.marker(at, {
+            icon: L.divIcon({
+              className: 'map-value-label',
+              html: label,
+              iconSize: undefined,
+              // Next to a marker; on a grid cell, in its middle.
+              iconAnchor: mode === 'grid' ? [12, 7] : [kind ? -16 : -10, 9],
+            }),
+            interactive: false,
+            keyboard: false,
+          }).addTo(layer)
+        }
       }
     }
     return () => {
       layer.remove()
     }
-  }, [found, allowed, measure, stat, limits, numbers, kind])
+    // `view` is listed so the marks are drawn again on a newly created map.
+  }, [items, allowed, measure, stat, limits, numbers, kind, mode, grid, view, landmarks, shownMonth])
 
-  if (!places) return null
-  if (places.points.length === 0) {
+  if (!found) return null
+  if (items.length === 0) {
     return (
       <Text size="2" color="gray">
         {t('map.noPlaces')}
@@ -309,16 +539,34 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     )
   }
 
+  let count: string
+  if (mode === 'shapes') count = shapeCounts(items)
+  else if (mode === 'grid' && grid) {
+    count = t('map.gridCells', {
+      count: formatNumber(items.length),
+      lat: degrees.format(grid.cellSize[1]),
+      lon: degrees.format(grid.cellSize[0]),
+    })
+  } else count = items.length === 1 ? t('map.placeOne') : t('map.places', { count: formatNumber(items.length) })
   const notes = [
-    places.points.length === 1 ? t('map.placeOne') : t('map.places', { count: formatNumber(places.points.length) }),
+    count,
     kind === 'sensor-station' && t('map.iconStation'),
     kind === 'grid-cell' && t('map.iconGridCell'),
-    places.leftOut > 0 && t('map.leftOut', { count: formatNumber(places.leftOut) }),
-    places.withoutPlace > 0 && t('map.withoutPlace', { count: formatNumber(places.withoutPlace) }),
+    found.leftOut > 0 && t('map.leftOut', { count: formatNumber(found.leftOut) }),
+    found.withoutPlace > 0 &&
+      t(mode === 'shapes' ? 'map.withoutShape' : 'map.withoutPlace', { count: formatNumber(found.withoutPlace) }),
     isArea && t('map.area'),
+    outline && t('map.outlineNote', { area: pick(outline.label) ?? '' }),
+    landmarks?.length && t('map.landmarksNote'),
+    initialView && t('map.initialView', { area: pick(initialView.label) ?? '' }),
   ].filter(Boolean)
 
-  const missing = !!measure && found!.points.some((p) => !p.values[measure.name])
+  const missing = !!measure && items.some((p) => !p.values[measure.name])
+  const kinds = new Set(items.flatMap((i) => (i.geometry ? [shapeKind(i.geometry)] : [])))
+  const swatch: Swatch =
+    mode === 'grid' || kind === 'sensor-station' || kinds.has('area') ? 'square'
+    : kinds.size === 1 && kinds.has('line') ? 'line'
+    : 'circle'
 
   return (
     <Flex direction="column" gap="2">
@@ -341,6 +589,44 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
               </Button>
             ))}
           </Flex>
+          {months.length > 0 && (
+            <Flex gap="2" wrap="wrap" align="center" className="map-time" role="group" aria-label={t('map.month')}>
+              <Button size="1" variant="soft" onClick={() => (playing ? setPlaying(false) : play())}>
+                {playing ? `❚❚ ${t('map.pause')}` : `▶ ${t('map.play')}`}
+              </Button>
+              <Slider
+                size="1"
+                min={0}
+                max={months.length - 1}
+                step={1}
+                value={[shownMonth ? months.indexOf(shownMonth) : 0]}
+                onValueChange={([i]) => {
+                  setPlaying(false)
+                  setMonth(months[i])
+                }}
+                aria-label={t('map.month')}
+                className="map-time-slider"
+                // From "whole year" the thumb rests on the first month; touching it picks that month.
+                onPointerDown={() => !shownMonth && setMonth(months[0])}
+                onKeyDown={() => !shownMonth && setMonth(months[0])}
+              />
+              <Text size="1" weight="medium" className="map-time-label">
+                {shownMonth ? formatDate(shownMonth) : t('map.wholePeriod')}
+              </Text>
+              <Button
+                size="1"
+                variant={shownMonth ? 'soft' : 'solid'}
+                color={shownMonth ? 'gray' : undefined}
+                aria-pressed={!shownMonth}
+                onClick={() => {
+                  setPlaying(false)
+                  setMonth(null)
+                }}
+              >
+                {t('map.wholePeriod')}
+              </Button>
+            </Flex>
+          )}
           <Flex gap="3" wrap="wrap" align="center">
             {severalPerPlace && (
               <Flex gap="2" align="center">
@@ -359,12 +645,15 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
                 </Select.Root>
               </Flex>
             )}
-            <Text as="label" size="1">
-              <Flex gap="1" align="center">
-                <Checkbox size="1" checked={numbers} onCheckedChange={(c) => setNumbers(c === true)} />
-                {t('map.showNumbers')}
-              </Flex>
-            </Text>
+            {/* Numbers next to markers or on cells; lines and areas have no single spot for them. */}
+            {mode !== 'shapes' && (
+              <Text as="label" size="1">
+                <Flex gap="1" align="center">
+                  <Checkbox size="1" checked={numbers} onCheckedChange={(c) => setNumbers(c === true)} />
+                  {t('map.showNumbers')}
+                </Flex>
+              </Text>
+            )}
           </Flex>
         </Flex>
       )}
@@ -382,7 +671,9 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
             : t('map.allAbout', { value: withUnit(values[0], measure) })
           }
           missing={missing}
-          kind={kind}
+          swatch={swatch}
+          withStat={severalPerPlace}
+          at={shownMonth ? formatDate(shownMonth) : undefined}
         />
       )}
       {measures.length > allowed.length && (

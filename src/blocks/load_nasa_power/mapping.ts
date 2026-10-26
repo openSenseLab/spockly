@@ -107,6 +107,15 @@ export function dateKey(key: string, resolution: Resolution): string | null {
   return month >= 1 && month <= 12 ? `${key.slice(0, 4)}-${key.slice(4)}` : null
 }
 
+/**
+ * Wording as requested on power.larc.nasa.gov/docs/referencing (checked
+ * 2026-10-13), plus service name, version and date accessed as asked there.
+ */
+export const powerAttribution = (version: string, accessed: string) =>
+  "The data was obtained from National Aeronautics and Space Administration (NASA) Langley Research Center's " +
+  'Prediction Of Worldwide Energy Resources (POWER) project funded through the NASA Earth Science Division' +
+  ` (POWER API ${version}, accessed ${accessed}).`
+
 const RESOLUTION_LABEL: Record<Resolution, LocalizedText> = {
   daily: { de: 'täglich', en: 'daily' },
   monthly: { de: 'monatlich', en: 'monthly' },
@@ -182,12 +191,7 @@ export function toDataTable(params: LoadNasaParams, response: PowerResponse, acc
           'The most recent days are often still missing because the data only becomes available after a few days.',
       },
       source: { name: 'NASA POWER', url: 'https://power.larc.nasa.gov' },
-      // Wording as requested on power.larc.nasa.gov/docs/referencing (checked 2026-10-13),
-      // plus service name, version and date accessed as asked there.
-      attribution:
-        "The data was obtained from National Aeronautics and Space Administration (NASA) Langley Research Center's " +
-        'Prediction Of Worldwide Energy Resources (POWER) project funded through the NASA Earth Science Division' +
-        ` (POWER API ${version}, accessed ${accessed}).`,
+      attribution: powerAttribution(version, accessed),
       collectedBy: 'NASA Langley Research Center',
       keywords: ['NASA POWER', ...codes.map((code) => variable(code)?.label.de ?? code)],
       spatialExtent: [lon, lat, lon, lat],

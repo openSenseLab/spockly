@@ -1,3 +1,4 @@
+import { isGeometry, shapeKind, vertexCount, type ShapeKind } from './geometry'
 import type { ColumnMeta, DataTable } from './types'
 
 export interface ColumnSummary {
@@ -10,6 +11,8 @@ export interface ColumnSummary {
   time?: { first: string; last: string }
   /** Most frequent values, most frequent first (categories and text). */
   topValues?: { value: string; count: number }[]
+  /** Geometry columns: how many points, lines and areas, and their vertices in total. */
+  shapes?: { counts: Partial<Record<ShapeKind, number>>; vertices: number }
 }
 
 const TOP_VALUES = 3
@@ -24,6 +27,21 @@ const median = (sorted: number[]) => {
 
 export function summarizeColumn(column: ColumnMeta, rows: DataTable['rows']): ColumnSummary {
   const values = rows.map((row) => row[column.name]).filter((value) => !isMissing(value))
+
+  // Shapes aren't compared as text ("[object Object]"): count kinds instead.
+  if (column.dataType === 'geometry') {
+    const shapes = values.filter(isGeometry)
+    const counts: Partial<Record<ShapeKind, number>> = {}
+    for (const shape of shapes) counts[shapeKind(shape)] = (counts[shapeKind(shape)] ?? 0) + 1
+    return {
+      column,
+      filled: shapes.length,
+      missing: rows.length - shapes.length,
+      distinct: shapes.length,
+      shapes: { counts, vertices: shapes.reduce((n, s) => n + vertexCount(s), 0) },
+    }
+  }
+
   const counts = new Map<string, number>()
   for (const value of values) {
     const key = String(value)

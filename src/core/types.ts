@@ -14,9 +14,20 @@ export type SemanticType =
   | 'longitude'
   | 'identifier' // e.g. sensor id — numeric but averaging it is meaningless
   | 'text'
+  | 'geometry' // the shape of a row: a point, line or area
 
-/** Values of `date` columns are ISO 8601 strings, so tables stay JSON-serialisable. */
-export type DataType = 'number' | 'string' | 'date' | 'boolean'
+/**
+ * Values of `date` columns are ISO 8601 strings and values of `geometry`
+ * columns are GeoJSON geometries, so tables stay JSON-serialisable.
+ */
+export type DataType = 'number' | 'string' | 'date' | 'boolean' | 'geometry'
+
+/** A GeoJSON geometry (RFC 7946): coordinates are [longitude, latitude]. */
+export type Geometry =
+  | { type: 'Point'; coordinates: number[] }
+  | { type: 'MultiPoint' | 'LineString'; coordinates: number[][] }
+  | { type: 'MultiLineString' | 'Polygon'; coordinates: number[][][] }
+  | { type: 'MultiPolygon'; coordinates: number[][][][] }
 
 export interface ColumnMeta {
   name: string
@@ -44,6 +55,18 @@ export interface DatasetMeta {
    * map; unset for other data.
    */
   placeKind?: 'sensor-station' | 'grid-cell'
+  /**
+   * Gridded (raster) data: every row is one cell of a regular grid, its
+   * latitude/longitude columns give the cell centre. The map draws the cells
+   * as tiles of this size, in degrees.
+   */
+  grid?: { cellSize: [lon: number, lat: number] }
+  /** Outline of the area the data is about (e.g. Germany); drawn on the map. */
+  outline?: { geometry: Geometry; label: LocalizedText }
+  /** Places for orientation on the map (e.g. Münster). Not part of the data. */
+  landmarks?: { label: LocalizedText; lat: number; lon: number }[]
+  /** What the map shows first when the data covers far more (e.g. Germany out of Europe). */
+  initialView?: { bbox: [minLon: number, minLat: number, maxLon: number, maxLat: number]; label: LocalizedText }
   temporalExtent?: [startIso: string, endIso: string]
   /** Number of records the source holds; may exceed the rows actually loaded. */
   totalRecords?: number

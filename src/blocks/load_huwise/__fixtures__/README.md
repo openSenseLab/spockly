@@ -6,3 +6,5 @@ dataset description shortened. Nothing else was changed.
 - `georef-germany-land.records.json` — `GET …/records?limit=100&select=<all but geo_shape>`
 - `osm-australia-drinking-water.meta.json` — `GET /catalog/datasets/osm-australia-drinking-water`
 - `osm-australia-drinking-water.records.json` — `GET …/records?limit=5`
+- `georef-germany-land.bremen-shape.json` — `GET …/records?select=lan_name,geo_shape&where=lan_name="Bremen"&limit=1`,
+  recorded on 2026-10-26, not trimmed: Bremen's outline (a MultiPolygon of 4 parts, Bremen and Bremerhaven)

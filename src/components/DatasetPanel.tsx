@@ -12,9 +12,10 @@ import {
   Text,
 } from '@radix-ui/themes'
 
+import { isGeometry, shapeKind, vertexCount, type ShapeKind } from '../core/geometry'
 import { summarizeTable, type ColumnSummary } from '../core/summary'
-import type { ColumnMeta, DataTable, SemanticType } from '../core/types'
-import { formatDate, formatNumber, pick, t } from '../i18n'
+import type { ColumnMeta, DataTable, Geometry, SemanticType } from '../core/types'
+import { formatDate, formatNumber, pick, t, type MessageKey } from '../i18n'
 import { glossaryForColumn } from '../glossary'
 import { selectShownStrandId, useAppStore } from '../store/useAppStore'
 import { GlossaryInfo } from './GlossaryInfo'
@@ -22,7 +23,7 @@ import { MapPreview } from './MapPreview'
 
 const PREVIEW_ROWS = 20
 
-type BadgeColor = 'blue' | 'violet' | 'orange' | 'green' | 'gray'
+type BadgeColor = 'blue' | 'violet' | 'orange' | 'green' | 'gray' | 'cyan'
 
 const semanticColor: Record<SemanticType, BadgeColor> = {
   measurement: 'blue',
@@ -32,12 +33,41 @@ const semanticColor: Record<SemanticType, BadgeColor> = {
   longitude: 'green',
   identifier: 'gray',
   text: 'gray',
+  geometry: 'cyan',
+}
+
+/** "Fläche (1.234 Eckpunkte)" instead of thousands of coordinates. */
+function shapeText(geometry: Geometry): string {
+  const kind = shapeKind(geometry)
+  return kind === 'point' && geometry.type === 'Point'
+    ? t('shape.cell.point')
+    : t(`shape.cell.${kind}`, { count: formatNumber(vertexCount(geometry)) })
 }
 
 function formatValue(value: unknown, column: ColumnMeta): string {
   if (typeof value === 'number') return formatNumber(value)
   if (column.dataType === 'date' && typeof value === 'string') return formatDate(value)
+  if (column.dataType === 'geometry') return isGeometry(value) ? shapeText(value) : '–'
   return String(value)
+}
+
+const SHAPE_TEXT: Record<ShapeKind, [many: MessageKey, one: MessageKey]> = {
+  point: ['shape.points', 'shape.pointOne'],
+  line: ['shape.lines', 'shape.lineOne'],
+  area: ['shape.areas', 'shape.areaOne'],
+}
+
+/** "16 Flächen", "1 325 Linien" plus the number of vertices. */
+function ShapesOverview({ shapes }: { shapes: NonNullable<ColumnSummary['shapes']> }) {
+  const parts = (Object.entries(shapes.counts) as [ShapeKind, number][]).map(([kind, count]) =>
+    count === 1 ? t(SHAPE_TEXT[kind][1]) : t(SHAPE_TEXT[kind][0], { count: formatNumber(count) }),
+  )
+  return (
+    <Flex direction="column">
+      <Text>{parts.join(' · ')}</Text>
+      <Text color="gray">{t('shape.vertices', { count: formatNumber(shapes.vertices) })}</Text>
+    </Flex>
+  )
 }
 
 const distinctText = (summary: ColumnSummary) =>
@@ -49,6 +79,7 @@ function ColumnOverview({ summary }: { summary: ColumnSummary }) {
   if (summary.filled === 0) {
     return <Text color="gray">{t('column.empty')}</Text>
   }
+  if (summary.shapes) return <ShapesOverview shapes={summary.shapes} />
   if (summary.numeric) {
     const { min, max, mean } = summary.numeric
     const unit = summary.column.unit ? ` ${summary.column.unit}` : ''
@@ -222,7 +253,8 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const total = meta.totalRecords ?? loaded
   const description = pick(meta.description)
   const hasPlaces =
-    table.columns.some((c) => c.semanticType === 'latitude') && table.columns.some((c) => c.semanticType === 'longitude')
+    table.columns.some((c) => c.semanticType === 'geometry') ||
+    (table.columns.some((c) => c.semanticType === 'latitude') && table.columns.some((c) => c.semanticType === 'longitude'))
 
   return (
     <Flex direction="column" gap="3">

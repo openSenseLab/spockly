@@ -8,6 +8,10 @@ import "blockly/blocks";
 import {
   LOAD_HUWISE,
   LOAD_NASA_POWER,
+  LOAD_NATURAL_EARTH,
+  loadNaturalEarthToStep,
+  LOAD_NASA_GRID,
+  loadNasaGridToStep,
   loadNasaPowerToStep,
   LOAD_OSEM,
   loadHuwiseToStep,
@@ -44,7 +48,7 @@ const LOAD_WARNING_ID = "load";
 const PLAN_WARNING_ID = "plan";
 const PREDICT_WARNING_ID = "predict";
 /** Fields of load blocks that change which data is loaded (the API blocks use their saved state). */
-const LOAD_FIELDS = new Set(["DATASET", "DOMAIN", "MAX_ROWS"]);
+const LOAD_FIELDS = new Set(["DATASET", "DOMAIN", "MAX_ROWS", "AREA", "PARAMETER", "YEAR"]);
 
 /** Blocks below a load block work on the data that block loaded. */
 setTableProvider((block) => {
@@ -63,6 +67,8 @@ const toolbox = {
         { kind: "block", type: LOAD_HUWISE },
         { kind: "block", type: LOAD_OSEM },
         { kind: "block", type: LOAD_NASA_POWER },
+        { kind: "block", type: LOAD_NASA_GRID },
+        { kind: "block", type: LOAD_NATURAL_EARTH },
       ],
     },
     {
@@ -80,9 +86,11 @@ const generators: Record<string, StepGenerator> = {
   [LOAD_HUWISE]: (block) => loadHuwiseToStep(block as Blockly.Block),
   [LOAD_OSEM]: (block) => loadOsemToStep(block as Blockly.Block),
   [LOAD_NASA_POWER]: (block) => loadNasaPowerToStep(block as Blockly.Block),
+  [LOAD_NATURAL_EARTH]: (block) => loadNaturalEarthToStep(block as Blockly.Block),
+  [LOAD_NASA_GRID]: (block) => loadNasaGridToStep(block as Blockly.Block),
   [PREDICT]: (block) => predictToStep(block as Blockly.Block),
 };
-const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER]);
+const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER, LOAD_NATURAL_EARTH, LOAD_NASA_GRID]);
 
 type BlocklyWorkspaceProps = {
   workspaceVersion: number;

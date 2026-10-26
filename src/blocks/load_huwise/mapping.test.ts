@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import bremenShape from './__fixtures__/georef-germany-land.bremen-shape.json'
 import landMeta from './__fixtures__/georef-germany-land.meta.json'
 import landRecords from './__fixtures__/georef-germany-land.records.json'
 import waterMeta from './__fixtures__/osm-australia-drinking-water.meta.json'
@@ -36,13 +37,22 @@ describe('toDataTable (georef-germany-land)', () => {
     expect(land.meta.description?.de).not.toMatch(/<[a-z]/i)
   })
 
-  it('splits geo points into latitude and longitude and drops polygons', () => {
+  it('splits geo points into latitude and longitude', () => {
     expect(column(land, 'geo_point_2d_lat')?.semanticType).toBe('latitude')
     expect(column(land, 'geo_point_2d_lon')?.semanticType).toBe('longitude')
-    expect(column(land, 'geo_shape')).toBeUndefined()
     const mv = land.rows.find((r) => r.lan_name === 'Mecklenburg-Vorpommern')
     expect(mv?.geo_point_2d_lat).toBeCloseTo(53.75, 1)
     expect(mv?.geo_point_2d_lon).toBeCloseTo(12.53, 1)
+  })
+
+  it('keeps polygons as a geometry column with the bare GeoJSON geometry', () => {
+    expect(column(land, 'geo_shape')).toMatchObject({ dataType: 'geometry', semanticType: 'geometry' })
+    // Recorded with the shape: Bremen and Bremerhaven are separate parts of one MultiPolygon.
+    const bremen = toDataTable('hub.huwise.com', landMeta as HuwiseDatasetResponse, bremenShape.results, 1)
+    const shape = bremen.rows[0].geo_shape as { type: string; coordinates: unknown[] }
+    expect(shape.type).toBe('MultiPolygon')
+    expect(shape.coordinates).toHaveLength(4)
+    expect(shape).not.toHaveProperty('properties')
   })
 
   it('joins multivalued fields and guesses semantic types', () => {

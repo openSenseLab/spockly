@@ -391,3 +391,34 @@
 .map-tooltip-chosen {
   font-weight: 700;
 }
+
+.map-legend-swatch.line {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+  border: none;
+}
+
+/* Names of orientation places on the map: small, readable on any colour, no tooltip arrow. */
+.leaflet-tooltip.map-landmark {
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1c2024;
+  background: rgba(255, 255, 255, 0.85);
+  border: none;
+  box-shadow: none;
+}
+
+.leaflet-tooltip.map-landmark::before {
+  display: none;
+}
+
+.map-time-slider {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.map-time-label {
+  min-width: 72px;
+}

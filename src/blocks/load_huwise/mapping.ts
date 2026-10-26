@@ -2,6 +2,7 @@
  * Pure mapping from Huwise (formerly Opendatasoft) Explore API v2.1 responses
  * to the shared DataTable contract. No network access here.
  */
+import { toGeometry } from '../../core/geometry'
 import { isMissing } from '../../core/summary'
 import type { ColumnMeta, DataTable, DatasetMeta, Lang, SemanticType } from '../../core/types'
 
@@ -47,8 +48,8 @@ export interface HuwiseRecordsResponse {
 
 // ---- Helpers ----
 
-/** Fields we can't represent yet (polygons, attachments) are left out of the request. */
-const UNSUPPORTED_TYPES = new Set(['geo_shape', 'file', 'image'])
+/** Fields we can't represent yet (attachments) are left out of the request. */
+const UNSUPPORTED_TYPES = new Set(['file', 'image'])
 
 export const isSupportedField = (field: HuwiseField) => !UNSUPPORTED_TYPES.has(field.type)
 
@@ -103,6 +104,11 @@ function columnsForField(field: HuwiseField, lang: Lang): ColumnMeta[] {
     ]
   }
 
+  // A point, line or area per record (GeoJSON), e.g. the outline of a federal state.
+  if (field.type === 'geo_shape') {
+    return [{ name: field.name, label, dataType: 'geometry', semanticType: 'geometry', description }]
+  }
+
   const looksLikeId = IDENTIFIER_NAME.test(field.name)
   let dataType: ColumnMeta['dataType']
   let semanticType: SemanticType
@@ -132,6 +138,8 @@ function columnsForField(field: HuwiseField, lang: Lang): ColumnMeta[] {
 
 function cellValue(value: unknown, column: ColumnMeta): unknown {
   if (value === null || value === undefined) return null
+  // Huwise wraps shapes in a GeoJSON Feature; the table keeps the bare geometry.
+  if (column.dataType === 'geometry') return toGeometry(value)
   // Multivalued fields arrive as arrays.
   if (Array.isArray(value)) return value.map(String).join(', ')
   if (column.dataType === 'number' && typeof value === 'string') {

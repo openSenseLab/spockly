@@ -1,10 +1,11 @@
-# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER) and "predict first"
+# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER, Natural Earth) and "predict first"
 
 Branch `spike/data-loaders`, October 2026. Not merged and not reviewed yet.
 
-This spike tries out the "load data" part of SPOCKLY: three load blocks for
-real APIs, a side panel that shows what was loaded, and a Python view of the
-blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
+This spike tries out the "load data" part of SPOCKLY: five load blocks for
+real data sources — points, lines, areas (polygons) and gridded (raster)
+data, at local, regional and global scale — a side panel that shows what was
+loaded, and a Python view of the blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
 where students guess a value before they see it, then compare and explain.
 Measured quantities that students may not know (relative humidity, PM10, UV
 index …) get a short, sourced explanation behind a **"?"** button. A **map**
@@ -31,7 +32,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 134 unit tests (Vitest)
+npm test         # 160 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -40,6 +41,13 @@ npm run lint
   - **lade Datensatz** loads a Huwise dataset (default: German federal states).
   - **lade openSenseMap-Daten** loads sensor measurements.
   - **lade NASA-Wetterdaten** loads weather and solar data for a place.
+  - **lade NASA-Wetterkarte** loads one value for a grid over Germany or a
+    federal state (raster).
+  - **lade Weltkarten-Daten** loads countries, cities, lakes or rivers from
+    Natural Earth (areas, points, lines).
+
+  With five load blocks the list is taller than the canvas on many screens;
+  scroll it to reach the last two.
 - The openSenseMap and NASA blocks open a **setup window** when dropped; the
   gear (⚙) on the block opens it again.
 - From **Schätzen & Prüfen**, snap **schätze …** under a load block, pick a
@@ -49,8 +57,9 @@ npm run lint
 - Click a block to see its data in the **Daten** tab and its code in the
   **Python** tab. **Code ausführen** runs that code in the browser with
   Pyodide (the first run downloads pandas, ~10–40 s).
-- In the Daten tab, the **Karte** shows the places; the buttons above it pick
-  the measurement the markers are coloured by.
+- In the Daten tab, the **Karte** shows points, lines, areas or grid cells; the
+  buttons above it pick the measurement they are coloured by. For the NASA
+  weather map, **▶ Monate abspielen** steps through the months.
 - **Deutsch | English** switch at the top right; `?lang=en` also works.
 - On a phone (or any canvas narrower than 600 px) the toolbox is hidden; the
   **☰ Blöcke** button above the canvas opens it.
@@ -70,8 +79,10 @@ move behind a developer switch, since students won't need it.
   in both fields.
 - Wrong IDs, unreachable portals, private datasets and rate limits become a
   friendly warning on the block (details go to the browser console).
-- Polygons (`geo_shape`) are left out; `geo_point_2d` becomes a latitude and a
-  longitude column; multi-value fields are joined into text.
+- **Shapes (`geo_shape`) are kept** as a geometry column (see "Shared data
+  format"): the 16 federal states of `georef-germany-land` appear as areas on
+  the map. `geo_point_2d` becomes a latitude and a longitude column;
+  multi-value fields are joined into text.
 
 ### openSenseMap load block
 
@@ -134,6 +145,75 @@ Result: one row per day or month — date, one column per value (with unit),
 latitude, longitude. Days that NASA hasn't published yet are missing values.
 The dataset card says that the values are model and satellite data for a grid
 cell, not station measurements, and includes NASA's requested credit line.
+
+### NASA weather map block (raster)
+
+`lade NASA-Wetterkarte / Gebiet: [Deutschland ▾] / Wert: [Temperatur (Mittel) ▾] / Jahr: [2025 ▾]`
+
+Gridded data: one value for every cell of NASA POWER's grid over an area, for
+each month of one year. No setup window — three dropdowns.
+
+- **Areas:** Germany, North Rhine-Westphalia, Bavaria. NASA's grid request
+  needs 2° to 10° in each direction; all three fit.
+- **Values:** the same nine as the point block, **one at a time** (the grid
+  request takes a single parameter).
+- **Year:** completed years from 1981 (monthly values exist only for those).
+- **Only the area, not the rectangle:** the request is a rectangle, but only
+  cells that touch the area's outline are kept — 187 of 240 for Germany, 26 of
+  30 for NRW. Mean, overview and colours then describe Germany, not the North
+  Sea and the neighbours. Cells at the border stay whole, so the resolution
+  (about 55 × 45 km) stays visible.
+- **Cell size from the data:** temperature, precipitation etc. come on a
+  0.5° × 0.625° grid (MERRA-2), solar radiation on 1° × 1° (CERES); the loader
+  reads the step from the coordinates instead of assuming one.
+- **Elevation:** every cell also has its mean elevation in the model (the
+  third coordinate NASA sends), as the column "Höhe der Zelle (Modell)" —
+  temperature next to elevation is worth comparing.
+
+Result: one row per cell and month — month, the value (with unit), latitude
+and longitude of the cell centre, elevation. The annual value ("month 13") is
+left out, fill values become missing values. The map shows the cells as tiles
+(see "Map").
+
+The outlines of Germany, NRW and Bavaria are bundled with the app
+(`load_nasa_grid/outlines.json`, 25 KB): Huwise `georef-germany-land`,
+Germany dissolved from the 16 states, simplified with mapshaper to 4 % of the
+points and rounded to 0.001°. The licence (Datenlizenz Deutschland –
+Namensnennung 2.0) asks to name the provider, the licence and the dataset, and
+to say when data was changed; the credit line does all four ("© GeoBasis-DE /
+BKG (2025) … Umrisse vereinfacht (Daten geändert)").
+
+### World map data block (Natural Earth)
+
+`lade Weltkarten-Daten / [Länder der Welt ▾]`
+
+Natural Earth is free map data for the whole world, in the **public domain**
+(no credit required; the block shows the suggested "Made with Natural
+Earth."). Files of version 5.1.2 are loaded from the project's GitHub
+repository via jsDelivr, pinned to that version so a saved workspace always
+gets the same data.
+
+| Dataset | File(s) | Shapes | Columns besides name and shape |
+|---|---|---|---|
+| Länder der Welt | `ne_110m_admin_0_countries` | 177 areas | continent, population and its year, GDP (Mio. US-$) and its year, income group, ISO code |
+| Große Städte der Welt | `ne_110m_populated_places` | 243 points | country, population of the urban area, kind (capital …) |
+| Seen in Europa | `ne_10m_lakes` + `ne_10m_lakes_europe` | 926 areas | kind (lake, reservoir) |
+| Flüsse in Europa | `ne_10m_rivers_europe` | 1 325 lines | kind |
+
+- German names where the file has them (`NAME_DE`, `name_de`), else the
+  English one.
+- Natural Earth marks unknown values as `-99` (e.g. France's ISO code); they
+  become missing values.
+- **The country values come from different years** (population 2014–2020, GDP
+  2007–2019), so the years are columns of their own — something students can
+  notice and discuss.
+- **Lakes:** the world file has the large lakes (Bodensee, Müritz), the
+  European file the smaller ones (Chiemsee, Steinhuder Meer); neither alone
+  shows Germany's lakes. Both are joined and limited to Europe.
+- **First view:** lakes and rivers cover Europe, which looks empty (lakes) or
+  tangled (rivers) at full extent. The map starts on the Alpine foreland from
+  Bodensee to Chiemsee (lakes) and on Germany (rivers); the caption says
+  "Ausschnitt: … – herauszoomen, um alles zu sehen".
 
 ### Predict-first block ("Schätzen & Prüfen")
 
@@ -244,10 +324,12 @@ Shows the selected strand, or the one edited last:
   keywords, "16 Zeilen geladen" or "100 von 12 500 Zeilen geladen" with a hint
   when only part was loaded;
 - one row per column: kind of data (Messwert, Kategorie, Zeit, Breitengrad,
-  Kennung …), how much is filled in (missing values highlighted), and an
-  overview (range and mean, time span, or most frequent values);
-- a **map** for data with coordinates (see below);
-- the first 20 rows, missing values shown as "–". When they are wider than the
+  Kennung, Form …), how much is filled in (missing values highlighted), and an
+  overview (range and mean, time span, most frequent values, or for shapes
+  "16 Flächen · 71.599 Eckpunkte insgesamt");
+- a **map** for data with coordinates or shapes (see below);
+- the first 20 rows, missing values shown as "–", shapes as e.g. "Fläche
+  (22 Eckpunkte)" instead of their coordinates. When they are wider than the
   panel, a hint says "Seitlich wischen oder scrollen, um alle Spalten zu sehen →"
   (Radix shows the sideways scrollbar only on mouse hover, so touch users
   otherwise see no sign of more columns);
@@ -260,15 +342,26 @@ follows the panel's own width (CSS container query), not the screen's.
 
 ### Map (Daten tab)
 
-Shown for every dataset with a latitude and a longitude column, between the
-dataset card and the column table. Built with **Leaflet 1.9.4** and
-**OpenStreetMap tiles** (no API key).
+Shown for every dataset with a latitude and a longitude column or a shape
+column, between the dataset card and the column table. Built with **Leaflet
+1.9.4** and **OpenStreetMap tiles** (no API key).
 
-- **One marker per place:** rows with the same coordinates become one marker,
+The map works in one of three ways, depending on the data:
+
+| Data | Drawn as | Example |
+|---|---|---|
+| latitude/longitude columns | one marker per place | openSenseMap stations, NASA point, Huwise points |
+| a geometry column | the rows' own points, lines and areas | federal states, countries, rivers, lakes |
+| `meta.grid` (raster) | every cell as a coloured tile | NASA weather map |
+
+Everything below (colours, legend, tooltip, hidden guesses) works the same in
+all three; the points-only parts are marked.
+
+- **One marker per place** (points): rows with the same coordinates become one marker,
   so a station with 1 436 measurements is one box, not 1 436. At most 5 000
   places are drawn; the caption says how many were left out and how many rows
   had no coordinates.
-- **Marker by kind of place:** a **box** for a senseBox station
+- **Marker by kind of place** (points): a **box** for a senseBox station
   (openSenseMap), a **satellite** for a model/satellite grid cell (NASA POWER),
   a plain dot otherwise (Huwise; it can have thousands of places, so the dots
   are drawn on one canvas). The caption explains the icon ("Kästchen =
@@ -294,10 +387,31 @@ dataset card and the column table. Built with **Leaflet 1.9.4** and
 - **Tooltip** on hover (or tap): place name, kind of place, the chosen
   statistic for **every** measurement (the coloured one first, in bold), and
   for the coloured one its range and number of values.
-- **"Zahlen zeigen"** writes the value next to each marker (off by default;
-  numbers overlap where stations are close together).
-- **The area asked for** (openSenseMap area, Huwise dataset extent) is drawn
-  as a dashed rectangle.
+- **"Zahlen zeigen"** writes the value next to each marker or on each grid
+  cell (off by default; numbers overlap where stations are close together).
+  Not offered for lines and areas, which have no single spot for a number.
+- **The area asked for** (points: openSenseMap area, Huwise dataset extent) is
+  drawn as a dashed rectangle.
+- **Lines and areas:** areas are filled, with white borders; lines without a
+  value to show (rivers) are thin and dark, so a dense network stays
+  readable. Shapes are drawn on one canvas.
+- **Grid (NASA weather map):**
+  - the **outline** of the area as a dark line above the cells;
+  - **places for orientation** as black dots with names — big cities from
+    Natural Earth's city file, plus the places of the NASA point block
+    (Münster, Sylt, Zugspitze) so both blocks can be compared; a cell's tooltip
+    says "In dieser Zelle: Münster";
+  - **months:** a slider, **▶ Monate abspielen** (one month per second, stops at
+    the last) and **ganzes Jahr** (the per-cell summary as before). All months
+    share one colour scale, computed from all monthly values: otherwise each
+    month would be rescaled to its own spread and the seasons wouldn't show.
+    The legend says "Temperatur (Mittel) im Juli 2025".
+- **Legend title:** "Mittelwert je Ort" only where a place has several values;
+  a country or a city has one, and the title is just the measurement.
+- **Large numbers** in legend and labels are rounded to three significant
+  digits (13 925 228 → 13 900 000); the tooltip keeps the full value.
+- **Zoom in quarter steps**, so an area fills the map instead of jumping to the
+  next whole zoom level.
 - **Guesses stay hidden:** a column with an open guess is left out of the
   buttons, colours, labels and tooltips; a note says it appears after
   revealing. The map code only reads the columns it is given, so a hidden
@@ -381,7 +495,9 @@ useLoadRunner (hooks/)        for each load step whose params changed:
   └─ loadOperations[op](params, ctx)   blocks/index.ts
         ├─ load_huwise     → DataTable
         ├─ load_osem       → DataTable
-        └─ load_nasa_power → DataTable
+        ├─ load_nasa_power → DataTable
+        ├─ load_nasa_grid  → DataTable (one row per cell and month)
+        └─ load_natural_earth → DataTable (one row per shape)
   └─ store.loads[blockId] = loading | ready | error
 
 DatasetPanel / Python tab     show the strand from selectShownStrandId()
@@ -393,7 +509,8 @@ in `BlocklyWorkspace.tsx`): the root block of their stack is the load block,
 and its result in `store.loads` is the table they work on.
 
 Resetting a guess after new data: when a load block's settings change
-(its saved state, or the `DATASET`, `DOMAIN`, `MAX_ROWS` fields), the guess
+(its saved state, or the `DATASET`, `DOMAIN`, `MAX_ROWS`, `AREA`, `PARAMETER`,
+`YEAR` fields), the guess
 blocks below it are hidden and marked `awaitingNewData`. `refreshPredictions`
 waits until the load result in `store.loads` belongs to the *new* settings
 (same `key` as the step), then clears the guess only if its column is missing.
@@ -420,10 +537,25 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 - `toCode(params, { output })` takes the variable name for generated code.
 - `ExecContext.onProgress(done, total, unit)` says whether rows or stations are
   being counted.
-- `DatasetMeta.placeKind` (optional, new) says what a place in the rows
-  stands for: `'sensor-station'` (openSenseMap) or `'grid-cell'` (NASA POWER).
-  The map picks its marker from it rather than guessing from the source name.
-  Loaders that don't set it get plain dots.
+- `DatasetMeta.placeKind` (optional) says what a place in the rows stands for:
+  `'sensor-station'` (openSenseMap) or `'grid-cell'` (NASA POWER). The map
+  picks its marker from it rather than guessing from the source name. Loaders
+  that don't set it get plain dots.
+- **Shapes (new):** a column with `dataType: 'geometry'` and
+  `semanticType: 'geometry'` holds one **GeoJSON geometry** per row (RFC 7946,
+  coordinates `[longitude, latitude]`): Point, MultiPoint, LineString,
+  MultiLineString, Polygon or MultiPolygon (type `Geometry`). Plain objects,
+  so tables stay JSON. Huwise sends shapes wrapped in a Feature; the loader
+  keeps only the geometry. Helpers in `core/geometry.ts`: recognise a
+  geometry, point/line/area, vertex count, bounding box, point-in-area.
+- **Raster (new):** `DatasetMeta.grid = { cellSize: [lon, lat] }` means every
+  row is one cell of a regular grid and its latitude/longitude columns give
+  the cell centre (with a time column, one row per cell and time). Rows stay
+  rows, so summary, colours and guesses work unchanged; a real raster image
+  type (e.g. GeoTIFF) would be a separate step.
+- **For the map (new, optional):** `outline` (geometry + name of the area the
+  data is about), `landmarks` (places for orientation, not part of the data)
+  and `initialView` (what the map shows first when the data covers far more).
 
 ### Where things are
 
@@ -433,11 +565,14 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/core/plan.ts` | workspace → plan (framework-free, tested with fake blocks) |
 | `src/core/summary.ts` | column summary for the Daten tab (any `DataTable`) |
 | `src/core/names.ts` | text → valid, unique Python variable names |
-| `src/core/geo.ts` | rows → places for the map, values per place (mean, min, max, newest), colour classes + tests |
+| `src/core/geo.ts` | rows → places or shapes for the map, values per place (mean, min, max, newest), colour classes + tests |
+| `src/core/geometry.ts` | GeoJSON helpers: point/line/area, vertices, bounding box, point in area, cell touches area + tests |
 | `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code, one retry for temporary problems), `mapLimit` |
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
 | `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
+| `src/blocks/load_nasa_grid/` | NASA weather map: grid request, outline filter, `presets.ts` (areas, places for orientation), `outlines.json` |
+| `src/blocks/load_natural_earth/` | Natural Earth: `presets.ts` (datasets, files, columns, first view), mapping, Python |
 | `src/blocks/predict/` | guess block: definition (button, "Warum?" line), plan step, Python, `compare.ts` (real value, gap) + tests |
 | `src/blocks/fields/columnDropdown.ts` | column dropdown that keeps its value while data is loading; `setTableProvider` |
 | `src/blocks/setup.ts` | shared parts of blocks with a setup window (gear, open once, undoable changes) |
@@ -446,7 +581,7 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/theme.ts` | Zelos theme with hat-shaped load blocks |
 | `src/hooks/useLoadRunner.ts` | runs load steps (debounce, cancel, cache) |
 | `src/components/DatasetPanel.tsx` | Daten tab |
-| `src/components/MapPreview.tsx` | the map: markers and icons, measurement buttons, legend, tooltips |
+| `src/components/MapPreview.tsx` | the map: points, shapes or grid cells; icons, measurement buttons, month slider, outline, places, legend, tooltips |
 | `src/components/BlocklyWorkspace.tsx` | canvas, toolbox (incl. the "Blöcke" button on small screens), plan and code updates |
 | `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
 | `src/components/OsemSetupForm.tsx`, `NasaSetupForm.tsx` | the two setup forms |
@@ -468,7 +603,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 4. Add DE and EN strings.
 5. If the rows have coordinates, mark the columns as `latitude` and
    `longitude` (the map appears by itself), and set `meta.placeKind` if the
-   places are stations or grid cells.
+   places are stations or grid cells. Shapes go into a `geometry` column;
+   gridded data sets `meta.grid`.
 6. If it needs a setup window: use `gearField`, `attachGear` and
    `fireStateChange` from `src/blocks/setup.ts`, give the block a
    `setupConfigured` flag, and add a form to `BlockSetupDialog.tsx`.
@@ -500,9 +636,26 @@ pressure 47.
 3. Turn the date keys (`20250101`, `202501`) into ISO dates, drop the annual
    "month 13", and turn the fill value (`-999`) into missing values.
 
+### NASA weather map: how a load runs
+
+1. Check the settings (area, value, completed year from 1981).
+2. One request: `GET /api/temporal/monthly/regional?parameters=<one>&community=RE&latitude-min&latitude-max&longitude-min&longitude-max&start=<year>&end=<year>&format=JSON`
+   over the rectangle around the area.
+3. Read the cell size from the cell centres, keep the cells whose rectangle
+   touches the area's outline (a corner or the centre inside the area, or an
+   outline vertex inside the cell), and make one row per cell and month.
+
+### Natural Earth: how a load runs
+
+1. Fetch the dataset's file(s) from jsDelivr (pinned to v5.1.2), in parallel.
+2. One row per feature: the curated columns (first non-empty source property,
+   `-99` = missing) and the geometry. Shapes outside `within` (lakes: Europe)
+   are left out.
+3. Extent from all shapes; the first view from the dataset's preset.
+
 ## 4. What we learned about the APIs
 
-All three APIs allow direct browser requests (`Access-Control-Allow-Origin: *`),
+All sources used allow direct browser requests (`Access-Control-Allow-Origin: *`),
 so **no proxy is needed**.
 
 ### Huwise (Explore API v2.1)
@@ -512,6 +665,14 @@ so **no proxy is needed**.
 - The CSV export (`exports/csv`) uses `;` as delimiter; used by the Python code.
 - Field metadata (type, label, description, facet annotation) is good enough to
   guess semantic types; integer codes still look like numbers.
+- `geo_shape` values arrive as a GeoJSON **Feature** (`{type, geometry,
+  properties}`); Bremen, for example, is a MultiPolygon of 4 parts (Bremen and
+  Bremerhaven).
+- The public catalogue (hub.huwise.com, public.opendatasoft.com) has plenty of
+  areas — `georef-germany-land` (16), `-kreis` (400), `-gemeinde` (10 949),
+  all "Datenlizenz Deutschland – Namensnennung 2.0", credit "© GeoBasis-DE /
+  BKG" — but we found practically **no line datasets** (rivers, cycle paths,
+  railways) there.
 
 ### openSenseMap
 
@@ -573,11 +734,65 @@ Quirks found (covered by tests with recorded responses):
   location may be blocked**. No numeric rate limit is given.
 - NASA asks for a credit line naming the POWER project, the service version and
   the date accessed; no licence is stated. The dataset card includes it.
+- **Grid ("regional") requests:** `/api/temporal/monthly/regional` answers
+  with one GeoJSON point per grid cell (~80 KB for Germany, 0.8 s). Limits
+  found: **one parameter per request** ("A maximum of 1 parameters …"), and
+  **2° to 10°** in latitude and longitude ("Please provide at least a 2 degree
+  range …"). The third coordinate of each point is the cell's elevation in the
+  model.
+
+### Natural Earth (v5.1.2)
+
+- Public domain; files as GeoJSON in the project's GitHub repository. Served
+  via jsDelivr (`cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/…`),
+  a CDN that allows pinning a release; GitHub's raw file links aren't meant for
+  that.
+- Sizes vary a lot: countries (1:110 million) 0.8 MB, lakes 1:10 million 5 MB
+  + 1 MB (Europe), rivers in Europe 2.5 MB; railways and roads at 1:10 million
+  40–50 MB (not used).
+- **Labelling errors in `ne_10m_lakes`:** the outline at 8.49–8.85° E,
+  45.72–46.17° N (where Lago Maggiore is) is called "Lago di Como", and the one
+  at 11.86–12.00° E, 42.54–42.65° N (Lake Bolsena) "Lago di Bracciano". The
+  real Lake Como and Lake Bracciano are in `ne_10m_lakes_europe`. The loader
+  keeps the source as it is, so the map shows two "Comer" and two
+  "Braccianosee" (a test documents it).
+- The two lake files don't overlap otherwise: lakes with the same name in both
+  are different lakes or one of the errors above.
+
+### Map library and polygon size (test, 2026-10-26)
+
+Would Leaflet cope with polygons, or do we need Mapbox/MapLibre? Tested in
+Edge with the Huwise outlines (states 16, districts 400, municipalities
+10 949), each area coloured, at normal speed and with the CPU slowed 4× (as
+a stand-in for a school Chromebook):
+
+| Leaflet (canvas), CPU 4× slower | first picture | page frozen per zoom step |
+|---|---|---|
+| 16 states (72 000 vertices, 2.8 MB) | 0.7 s | 0.2–0.3 s |
+| 400 districts (426 000 vertices, 17 MB) | 3.7 s | 2–2.7 s |
+| 10 949 municipalities (1.38 M vertices, 58 MB / 25 MB compressed) | 12 s | 8–9 s |
+| municipalities simplified to 10 % (1.8 MB compressed) | 6 s | 1.2–2.1 s |
+| MapLibre, municipalities simplified to 3 % | 2.6 s | 0 s |
+
+- At normal speed Leaflet is fine for all levels once the shapes are
+  simplified (0.3–0.6 s first picture, ≤ 0.3 s per zoom).
+- **The data size matters more than the library:** reading 58 MB of GeoJSON
+  took 6 s on the slowed CPU before anything was drawn. Simplifying with
+  mapshaper (shared borders stay shared, no gaps) cuts download, reading and
+  drawing alike; 10 % of the points still looks right zoomed in on Münster.
+- MapLibre zooms without freezing, but its slowed-CPU numbers are optimistic
+  (only the main thread was slowed, MapLibre works in background threads).
+- Mapbox GL JS (v2+) is not open source, needs an account and token and is
+  billed per map load; MapLibre is its open-source continuation.
 
 ### Checked, not built
 
 - **Open-Meteo**: browser requests allowed, but returned 503 (overloaded)
   during the test.
+- **OpenStreetMap via Overpass** (for lines such as rivers and cycle paths in
+  Münster), 2026-10-26: the main server answered "at capacity" (HTTP 502),
+  two other public servers timed out after 90 s. Too unreliable for a block
+  students depend on; a curated file would avoid it.
 
 ## 5. Decisions taken
 
@@ -616,6 +831,19 @@ Quirks found (covered by tests with recorded responses):
   that can have thousands of places.
 - On small screens the **toolbox opens on demand** instead of taking a third
   of the canvas.
+- **Shapes are GeoJSON geometries in a column**, raster data are **rows per
+  grid cell** plus `meta.grid` (see "Shared data format").
+- **Stay on Leaflet**, not Mapbox (licence, cost, data protection); move to
+  MapLibre only if smooth zooming of very many shapes or real raster images
+  become a requirement (see the test above).
+- Lines from **Natural Earth**, not OpenStreetMap/Overpass, for now
+  (reliability); Natural Earth pinned to one version.
+- **Source data is kept as delivered**, including Natural Earth's mislabelled
+  lakes; fixes would be noted in the description, not made silently.
+- NASA weather map: **only cells touching the area**, outline and places drawn
+  on top, **one colour scale for all months** of the slider.
+- Outlines for the NASA map are **bundled** (25 KB, simplified), not fetched at
+  load time.
 
 ## 6. Limitations and known issues
 
@@ -641,7 +869,9 @@ Quirks found (covered by tests with recorded responses):
 
 - At most 10 000 rows (API limit for `records`); the export endpoint would allow
   more.
-- Polygons are dropped.
+- Shapes come through the normal 100-records-per-request route, unsimplified:
+  all 400 districts are ~17 MB and slow to load and draw on weak devices.
+- In Python (CSV export) shapes arrive as text, not as geometries.
 - Semantic types are guesses (name patterns, facet annotation, few distinct
   values); students can't correct them yet.
 
@@ -676,6 +906,32 @@ Quirks found (covered by tests with recorded responses):
   built in the language-free core.
 - Only one place per block; comparing places means one block per place.
 
+**NASA weather map block**
+
+- One value per block (API limit), three areas, monthly values of one year.
+- "Cell touches the area" is checked with corners, centre and outline vertices;
+  an outline edge cutting just the corner of a cell without a vertex in it
+  could be missed (rare with outline vertices a few km apart).
+- The places for orientation are a fixed list per area; the school or
+  openSenseMap stations can't be shown yet.
+- The month slider exists only for grid data, not for openSenseMap's
+  minute-by-minute values.
+- The generated Python code doesn't apply the outline filter, so it has more
+  rows than the app (all cells in the rectangle).
+- At Germany zoom the cells are a few pixels wide; picking a particular cell
+  needs zooming in.
+
+**World map data block (Natural Earth)**
+
+- Coarse: countries at 1:110 million, lakes and rivers at 1:10 million; very
+  small lakes are missing, many river sections have no name.
+- Rivers and lakes only for Europe; countries and cities world-wide.
+- Natural Earth's labelling errors (Lago Maggiore as "Lago di Como", Lake
+  Bolsena as "Lago di Bracciano") are shown as delivered.
+- Depends on jsDelivr being reachable.
+- The generated Python code doesn't limit the lakes to Europe, so it has more
+  rows than the app.
+
 **Predict-first block**
 
 - **Values are visible before a guess is placed.** A strand starts with
@@ -706,8 +962,10 @@ Quirks found (covered by tests with recorded responses):
 
 **Map**
 
-- **Points only.** Lines, polygons (Huwise `geo_shape` is still dropped) and
-  raster data need a decision on how geometries are stored in `DataTable`.
+- Gridded data are drawn as tiles; real raster images (e.g. GeoTIFF elevation
+  or land cover) aren't supported yet.
+- Very large shape datasets (thousands of detailed areas) get slow on weak
+  devices unless simplified first (see the test in section 4).
 - **OpenStreetMap's tile servers** are fine for a prototype, but their usage
   policy doesn't cover heavy use; a whole school using SPOCKLY needs another
   tile provider.
@@ -740,6 +998,8 @@ Quirks found (covered by tests with recorded responses):
 - While the toolbox is open on a phone, it covers the left part of the canvas;
   blocks underneath can't be reached until it closes.
 - "Erste Zeilen" still scrolls sideways (it's a real table with many columns).
+- With five load blocks the toolbox list is taller than the canvas; the last
+  blocks need scrolling.
 
 **Checked only partly**
 
@@ -750,7 +1010,7 @@ Quirks found (covered by tests with recorded responses):
 
 ## 7. Tests
 
-`npm test` runs 134 unit tests:
+`npm test` runs 160 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -758,9 +1018,14 @@ Quirks found (covered by tests with recorded responses):
   highest, newest), no values unless asked for (so hidden guesses stay
   hidden), colour classes (equal steps, a faulty −144 °C doesn't squeeze the
   others into one class, all-equal values);
+- `core/geometry`: recognising geometries, point/line/area, vertices, bounding
+  box, point in area (holes excluded), cell touches area (also with Bremen's
+  real outline), summary of a geometry column, one shape per row with the
+  label from a name column;
 - `core/http`: one retry for server errors, cut-off responses and network
   errors; no retry for 404/422/429; cancelling during the wait;
-- Huwise mapping and loading (paging, error codes, input validation);
+- Huwise mapping and loading (paging, error codes, input validation, shapes
+  kept as geometries — Bremen's MultiPolygon);
 - openSenseMap station selection, phenomena, area filter, paging past the
   10 000-value cap, table mapping (several measurements side by side, matched
   by timestamp, empty cells, mixed units, Pa → hPa), the hPa conversion in
@@ -769,6 +1034,14 @@ Quirks found (covered by tests with recorded responses):
   mocked `fetch`, tag list;
 - NASA POWER settings checks, request URL, date keys, fill values, monthly
   values without the annual value, dataset description, error handling;
+- NASA weather map: one row per cell and month (NRW: 26 × 12), cell size from
+  the data (0.5° × 0.625°), only cells touching NRW (and which four are
+  dropped), outline, places and credit, elevation, request URL, settings
+  checks, defaults for odd saved settings;
+- Natural Earth: countries with German names, measurements and years, `-99`
+  as missing, credit and extent across the 180° meridian; lakes from both
+  files, outside Europe left out, first view on the Alpine foreland, the
+  mislabelled Lago Maggiore kept as delivered; pinned file URLs;
 - guess block: real value (highest, lowest, mean, ignoring missing values) and
   the "too high / too low / close" comparison;
 - glossary: names and codes found (including openSenseMap spellings), no match
@@ -781,15 +1054,19 @@ over after another measurement is loaded), the "?" buttons (hover, click,
 keyboard, tap; cards still selectable), the map (all three loaders,
 measurement buttons, statistic switch, numbers, tooltips, an open guess
 hiding its column, dialogs above the map) and the small-screen layout (390,
-768 and 1100 px; "Blöcke" button) were checked with scripted browser runs,
-not with automated tests.
+768 and 1100 px; "Blöcke" button), the shapes and grid maps (all five
+loaders, NASA map for Germany and NRW, month slider and play button, a cell's
+places, lakes and rivers views) and the generated Python of the two new blocks
+(run in Pyodide: 2 880 grid rows, 177 countries) were checked with scripted
+browser runs, not with automated tests.
 
-The fixtures (`__fixtures__/`) are **real API responses** recorded on
-2026-10-06, 2026-10-07, 2026-10-13 and 2026-10-19, some trimmed; each folder has a README
-saying exactly what was requested. They contain public data: German federal
-states (Data licence Germany – attribution 2.0), OpenStreetMap drinking water
-points (ODbL), a few openSenseMap boxes and values, and NASA POWER values for
-Münster.
+The fixtures (`__fixtures__/`) are **real API responses and files** recorded on
+2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19 and 2026-10-26, some trimmed;
+each folder has a README saying exactly what was requested. They contain
+public data: German federal states incl. Bremen's outline (Data licence
+Germany – attribution 2.0), OpenStreetMap drinking water points (ODbL), a few
+openSenseMap boxes and values, NASA POWER values for Münster and a NASA grid
+for NRW, and Natural Earth countries and lakes (public domain).
 
 The UI was checked by hand and with scripted browser runs against the live APIs.
 There are no automated UI tests in the repo.
@@ -817,9 +1094,18 @@ There are no automated UI tests in the repo.
 - **Glossary texts:** right level for the age group? Which reference values
   help most — e.g. for particulate matter, the current EU limits, the stricter
   ones from 2030, or the WHO values? Teachers should review before use.
-- **Geometries in `DataTable`:** how should lines and polygons be stored (e.g.
-  a GeoJSON geometry column), and raster data? Needed before the map can show
-  more than points.
+- **Shapes and raster in `DataTable`:** confirm GeoJSON geometry columns and
+  rows-per-grid-cell (`meta.grid`) — they affect every later block. Do we
+  need real raster images (GeoTIFF, e.g. elevation or land cover) later?
+- **Natural Earth's mislabelled lakes:** keep them as delivered (now), or fix
+  the two labels with a note in the description?
+- **All municipalities / districts:** prepare simplified outline files once
+  (see the test in section 4)? Who maintains them?
+- **NASA weather map:** show "difference from normal" (warmer/colder than the
+  long-term average) as the next step? Needs checking whether NASA's
+  climatology service works for grids and which reference period it uses.
+- **Lines near Münster** (rivers, cycle paths): a curated OpenStreetMap file,
+  since Overpass was unreliable?
 - **Map tiles for classroom use:** which tile provider, and does it need a
   key or a proxy?
 - **Colour scale:** relative to the loaded data (now), or fixed scales per

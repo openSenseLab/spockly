@@ -34,7 +34,7 @@ describe('loadHuwise', () => {
     expect(progress).toEqual([16])
     const recordsUrl = new URL(String(fetchMock.mock.calls[1][0]))
     expect(recordsUrl.searchParams.get('limit')).toBe('100')
-    expect(recordsUrl.searchParams.get('select')).not.toContain('geo_shape')
+    expect(recordsUrl.searchParams.get('select')).toContain('geo_shape')
   })
 
   it('stops at maxRows and reports the total', async () => {
