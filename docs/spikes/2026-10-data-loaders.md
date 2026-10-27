@@ -1,8 +1,8 @@
-# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER, Natural Earth) and "predict first"
+# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER, Natural Earth, OpenStreetMap) and "predict first"
 
 Branch `spike/data-loaders`, October 2026. Not merged and not reviewed yet.
 
-This spike tries out the "load data" part of SPOCKLY: five load blocks for
+This spike tries out the "load data" part of SPOCKLY: six load blocks for
 real data sources — points, lines, areas (polygons) and gridded (raster)
 data, at local, regional and global scale — a side panel that shows what was
 loaded, and a Python view of the blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
@@ -32,7 +32,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 160 unit tests (Vitest)
+npm test         # 173 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -45,9 +45,13 @@ npm run lint
     federal state (raster).
   - **lade Weltkarten-Daten** loads countries, cities, lakes or rivers from
     Natural Earth (areas, points, lines).
+  - **lade OpenStreetMap-Daten** loads rivers, cycle paths, parks,
+    playgrounds, drinking water points or bus stops for Münster or one of six
+    other German cities from OpenStreetMap (live, ~40–60 s; a stored copy if
+    no server answers).
 
-  With five load blocks the list is taller than the canvas on many screens;
-  scroll it to reach the last two.
+  With six load blocks the list is taller than the canvas on many screens;
+  scroll it to reach the last ones.
 - The openSenseMap and NASA blocks open a **setup window** when dropped; the
   gear (⚙) on the block opens it again.
 - From **Schätzen & Prüfen**, snap **schätze …** under a load block, pick a
@@ -214,6 +218,64 @@ gets the same data.
   tangled (rivers) at full extent. The map starts on the Alpine foreland from
   Bodensee to Chiemsee (lakes) and on Germany (rivers); the caption says
   "Ausschnitt: … – herauszoomen, um alles zu sehen".
+
+### OpenStreetMap block
+
+`lade OpenStreetMap-Daten / Was: [Flüsse und Bäche ▾] / Wo: [Münster – Stadtbezirk Mitte ▾]`
+
+Live data from OpenStreetMap, the free world map made by volunteers, through
+the public **Overpass API**. Licence ODbL 1.0; the block shows the credit
+"© OpenStreetMap-Mitwirkende" and says in the description that what nobody
+has mapped is missing.
+
+| Topic | Shapes | OSM tags asked for | Columns besides name, OSM id and shape |
+|---|---|---|---|
+| Flüsse und Bäche | lines | `waterway` = river, stream, canal | kind |
+| Radwege | lines | see below | kind of path (`art`), surface, lit |
+| Parks | areas | `leisure=park` (ways only) | – |
+| Spielplätze | points | `leisure=playground` (nodes, and the centre of areas) | – |
+| Trinkwasserstellen | points | `amenity=drinking_water` | – |
+| Bushaltestellen | points | `highway=bus_stop` | shelter, bench |
+
+- **Areas:** Münster-Mitte and all of Münster (the openSenseMap block's
+  rectangles), and the whole of **Berlin, Dresden, Freiburg im Breisgau,
+  Köln, Leipzig and München**, as bounding rectangles from Nominatim
+  (2026-10-27). Hamburg and Bremen are left out: their rectangles reach far
+  into the sea (Neuwerk island, Bremerhaven). Rectangles include bits of the
+  neighbouring towns, as with openSenseMap. Students can compare cities, e.g.
+  7 drinking water points in Münster against 107 in Freiburg.
+- **Cycle paths** are mapped in several ways in OpenStreetMap, and in Münster
+  most of them are *not* separate `highway=cycleway` ways. Asking only for
+  those (the first version) gave 366 scattered pieces in Münster-Mitte that
+  looked broken. The query now takes four kinds, and a column `art` says
+  which one a way is (first match wins):
+
+  | `art` | Legend | Tags |
+  |---|---|---|
+  | `fahrradstrasse` | Fahrradstraße | `bicycle_road=yes` |
+  | `radweg` | eigener Radweg | `highway=cycleway` |
+  | `rad_und_fuss` | Rad- und Fußweg | `highway` = path, footway, track or bridleway with `bicycle=designated` |
+  | `an_der_strasse` | Radweg/-streifen an der Straße | a road with `cycleway`, `cycleway:both`, `:right` or `:left` = lane or track |
+
+  Münster-Mitte now has 2 157 lines, all of Münster 5 337, Berlin 29 943. The
+  generated Python works out `art` with the same rules.
+- **Map symbols** (see Map): a badge with a swing for playgrounds, a drop for
+  drinking water, a green "H" for bus stops (like the German stop sign), green
+  see-through areas with a tree for parks. Cycle paths are coloured by kind.
+- **Servers:** `overpass-api.de`, then `lz4.overpass-api.de`, then
+  `z.overpass-api.de`, up to 60 s each. The Daten tab says "Frage
+  OpenStreetMap: Server 1 von 3 … (das kann bis zu einer Minute dauern)".
+- **Stored copies:** if no server answers, the block loads a copy from
+  `public/data/osm/` (all six topics for the two Münster areas, recorded
+  2026-10-27, 7.8 MB, unchanged Overpass answers with a README). A notice says
+  it is a stored copy from 27.10.2026. **Other cities have no copy** (it would
+  make the app much bigger): the block then shows the copy for all of Münster
+  and says so — "… für Köln gibt es keine gespeicherte Kopie. Damit du
+  weiterarbeiten kannst, siehst du die gespeicherte Kopie für Münster – ganze
+  Stadt …". The title then names Münster too.
+- The data shows how complete OpenStreetMap is (e.g. only 7 drinking water
+  points in all of Münster), which is material for a lesson, but students may
+  take gaps for a bug.
 
 ### Predict-first block ("Schätzen & Prüfen")
 
@@ -395,6 +457,31 @@ all three; the points-only parts are marked.
 - **Lines and areas:** areas are filled, with white borders; lines without a
   value to show (rivers) are thin and dark, so a dense network stays
   readable. Shapes are drawn on one canvas.
+- **Shapes by kind (OpenStreetMap, new):** data without measurements can say
+  how it is drawn (`meta.mapStyle`):
+  - **a symbol** for points — a round badge with a swing (playgrounds), a drop
+    (drinking water) or an "H" (bus stops) — and a legend entry with the same
+    badge. Up to 150 points get symbols at any zoom; with more, zoomed out,
+    they are small dots in the symbol's colour and the caption says "näher
+    heranzoomen, um die Symbole zu sehen"; from zoom 14 (street level) the
+    symbols appear. Above 2 500 points it stays dots (thousands of icons make
+    the map sluggish). 1 500 bus stop icons at city zoom covered the whole
+    city, hence the switch.
+  - **an area colour**, see-through so streets still show (parks in green),
+    with a tree badge in the middle of each park at street level only;
+    zoomed out the trees hid the parks.
+  - **colours by category** for lines (cycle paths by `art`): the first four
+    categorical colours of the dataviz palette (blue, orange, aqua, yellow,
+    checked with its validator; aqua and yellow are below 3:1 contrast on the
+    light background, so the legend and tooltip name the kind). Lines are thin
+    zoomed out and thicker at street level. Ways matching no kind are grey,
+    "andere / nicht angegeben".
+- **Tooltips stay inside the map (new):** the map clips everything at its
+  frame, so a tooltip near an edge or corner was cut off. A tooltip that would
+  cross the frame now goes to the other side of its point, or is moved just
+  inside; its little arrow is hidden then, as it would point to the wrong
+  spot. Checked by hovering ~1 300 spots over 1 524 bus stops: 306 tooltips,
+  20 moved, none cut off.
 - **Grid (NASA weather map):**
   - the **outline** of the area as a dark line above the cells;
   - **places for orientation** as black dots with names — big cities from
@@ -470,6 +557,18 @@ plain text (no HTML).
     itself once a block has been dragged onto the canvas (the setup window
     still opens). Wider canvases keep the normal toolbox. Uses Blockly's own
     `Toolbox.setVisible`, so dragging and undo are unaffected.
+- **Block dropdown menus no longer cut off:** Blockly 13 draws its dropdown
+  menus inside the workspace box, and the box and its card hid anything that
+  stuck out — a menu opening upwards near the top, or the list of eight cities
+  on a phone, where the box is ~350 px wide. The box and card no longer clip
+  (the rounded corners come from the canvas and toolbox themselves), and menus
+  pick their side (up/down) by the visible screen instead of the workspace.
+  Blockly has no option for the latter and resets the limit every time a menu
+  opens; the only hook is `Blockly.DropDownDiv.TEST_ONLY.getBoundsInfo`, which
+  is replaced (guarded: if an update removes it, menus fall back to the
+  workspace box). Moving the menus out of the workspace with
+  `Blockly.common.setParentContainer` was tried and dropped: in Blockly 13 a
+  menu there closes the moment it opens.
 - Load blocks are drawn as hat blocks (Zelos renderer, theme with
   `hat: 'cap'`); the toolbox got some top spacing.
 - Vitest added (`npm test`).
@@ -497,7 +596,8 @@ useLoadRunner (hooks/)        for each load step whose params changed:
         ├─ load_osem       → DataTable
         ├─ load_nasa_power → DataTable
         ├─ load_nasa_grid  → DataTable (one row per cell and month)
-        └─ load_natural_earth → DataTable (one row per shape)
+        ├─ load_natural_earth → DataTable (one row per shape)
+        └─ load_osm        → DataTable (one row per OSM element; stored copy if no server answers)
   └─ store.loads[blockId] = loading | ready | error
 
 DatasetPanel / Python tab     show the strand from selectShownStrandId()
@@ -510,7 +610,7 @@ and its result in `store.loads` is the table they work on.
 
 Resetting a guess after new data: when a load block's settings change
 (its saved state, or the `DATASET`, `DOMAIN`, `MAX_ROWS`, `AREA`, `PARAMETER`,
-`YEAR` fields), the guess
+`YEAR`, `TOPIC` fields), the guess
 blocks below it are hidden and marked `awaitingNewData`. `refreshPredictions`
 waits until the load result in `store.loads` belongs to the *new* settings
 (same `key` as the step), then clears the guess only if its column is missing.
@@ -556,6 +656,13 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 - **For the map (new, optional):** `outline` (geometry + name of the area the
   data is about), `landmarks` (places for orientation, not part of the data)
   and `initialView` (what the map shows first when the data covers far more).
+- **`mapStyle` (new, optional):** how the map draws shapes that no
+  measurement colours: `symbol` (`playground`, `drinking-water`,
+  `bus-stop`, `tree`), `color`, `label` for the legend, or
+  `categories` (a column plus value → label and colour, in legend order).
+  Used by the OpenStreetMap block; a measurement, once there is one, takes
+  over the colours as before.
+- `ExecContext.onProgress` units: `'rows' | 'stations' | 'servers'`.
 
 ### Where things are
 
@@ -573,6 +680,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
 | `src/blocks/load_nasa_grid/` | NASA weather map: grid request, outline filter, `presets.ts` (areas, places for orientation), `outlines.json` |
 | `src/blocks/load_natural_earth/` | Natural Earth: `presets.ts` (datasets, files, columns, first view), mapping, Python |
+| `src/blocks/load_osm/` | OpenStreetMap: `presets.ts` (topics with queries, columns, kinds and map symbols; cities; servers; snapshot date), mapping, servers in turn + stored copy, Python, tests, fixture |
+| `public/data/osm/` | stored OpenStreetMap copies for the two Münster areas, with a README (source, date, licence, how to update) |
 | `src/blocks/predict/` | guess block: definition (button, "Warum?" line), plan step, Python, `compare.ts` (real value, gap) + tests |
 | `src/blocks/fields/columnDropdown.ts` | column dropdown that keeps its value while data is loading; `setTableProvider` |
 | `src/blocks/setup.ts` | shared parts of blocks with a setup window (gear, open once, undoable changes) |
@@ -581,7 +690,7 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/theme.ts` | Zelos theme with hat-shaped load blocks |
 | `src/hooks/useLoadRunner.ts` | runs load steps (debounce, cancel, cache) |
 | `src/components/DatasetPanel.tsx` | Daten tab |
-| `src/components/MapPreview.tsx` | the map: points, shapes or grid cells; icons, measurement buttons, month slider, outline, places, legend, tooltips |
+| `src/components/MapPreview.tsx` | the map: points, shapes or grid cells; icons and symbols, colours by kind, measurement buttons, month slider, outline, places, legend, tooltips that stay inside |
 | `src/components/BlocklyWorkspace.tsx` | canvas, toolbox (incl. the "Blöcke" button on small screens), plan and code updates |
 | `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
 | `src/components/OsemSetupForm.tsx`, `NasaSetupForm.tsx` | the two setup forms |
@@ -652,6 +761,21 @@ pressure 47.
    `-99` = missing) and the geometry. Shapes outside `within` (lakes: Europe)
    are left out.
 3. Extent from all shapes; the first view from the dataset's preset.
+
+### OpenStreetMap: how a load runs
+
+1. Build the Overpass query for the topic and the area's rectangle
+   (`[out:json][timeout:60]`, `out geom` for lines and areas, `out center`
+   for playgrounds).
+2. `GET <server>/api/interpreter?data=<query>` on the three servers in turn,
+   each for at most 60 s (`AbortSignal.timeout`, combined with the block's own
+   cancel signal). A cancelled load stops instead of asking the next server.
+3. If none answered: `GET /data/osm/<topic>-<area>.json` (the Münster copy for
+   other cities), marked as a stored copy.
+4. One row per element: name, the topic's tag columns, the derived `art` for
+   cycle paths, OSM id (`way/123`) and the shape (nodes and centres → points;
+   ways → lines, or areas for closed ways of an area topic). `updated` is the
+   OSM data timestamp from the answer.
 
 ## 4. What we learned about the APIs
 
@@ -759,6 +883,37 @@ Quirks found (covered by tests with recorded responses):
 - The two lake files don't overlap otherwise: lakes with the same name in both
   are different lakes or one of the errors above.
 
+### OpenStreetMap via Overpass (2026-10-26/27)
+
+- Allows browser requests; no key. **Busy and unpredictable:** on 2026-10-26
+  the main server answered "at capacity" (HTTP 502) at once, and two other
+  public servers (`overpass.private.coffee`, `overpass.kumi.systems`) timed
+  out after 90 s. The main server's other hosts `lz4.` and `z.` answered
+  after **~40 s** in the queue. While recording the stored copies, all three
+  refused one request, and the same request a minute later worked; the wider
+  cycle path query once timed out after 120 s before the next server answered
+  in 46 s.
+- Live loads in the app (Edge): 39–62 s per topic, Berlin's cycle paths
+  (29 943 lines) the slowest. Size: all of Münster's cycle paths 4.7 MB,
+  rivers 1.6 MB.
+- Element counts per city (whole-city rectangles, `out count`):
+
+  | City | rivers | cycle paths | parks | playgrounds | drinking water | bus stops |
+  |---|---|---|---|---|---|---|
+  | Münster | 1 854 | 5 338 | 202 | 579 | 7 | 1 524 |
+  | Köln | 2 047 | 10 182 | 447 | 2 219 | 51 | 3 290 |
+  | München | 1 180 | 12 644 | 1 099 | 3 808 | 141 | 1 315 |
+  | Leipzig | 1 195 | 7 177 | 528 | 1 154 | 34 | 1 599 |
+  | Freiburg | 5 232 | 4 174 | 424 | 546 | 107 | 903 |
+  | Dresden | 3 456 | 4 587 | 566 | 1 476 | 28 | 2 258 |
+  | Berlin | 1 982 | 29 945 | 2 784 | 6 228 | 289 | 7 996 |
+
+- **overpass turbo** (overpass-turbo.eu) is not an API but a web page for
+  writing Overpass queries and seeing the result on a map; it sends them to
+  the same servers. Useful for trying a new topic's query (`{bbox}` there is
+  `{{bbox}}`), and perhaps later for students who want to see the query
+  behind their data.
+
 ### Map library and polygon size (test, 2026-10-26)
 
 Would Leaflet cope with polygons, or do we need Mapbox/MapLibre? Tested in
@@ -789,10 +944,14 @@ a stand-in for a school Chromebook):
 
 - **Open-Meteo**: browser requests allowed, but returned 503 (overloaded)
   during the test.
-- **OpenStreetMap via Overpass** (for lines such as rivers and cycle paths in
-  Münster), 2026-10-26: the main server answered "at capacity" (HTTP 502),
-  two other public servers timed out after 90 s. Too unreliable for a block
-  students depend on; a curated file would avoid it.
+- **More data with place and time** (2026-10-27, browser access checked only;
+  licences, history and limits still to check per source): GBIF species
+  sightings (67 598 records in Münster in 2024 alone), Pegelonline water
+  levels (e.g. gauge "MÜNSTER OW"), Bright Sky (DWD weather stations), USGS
+  earthquakes (global, last month), Our World in Data CSV (per country and
+  year, could be joined with Natural Earth countries) and World Bank (works,
+  but ~6 s). UBA air quality allows no browser requests after its redirect, so
+  it would need a proxy.
 
 ## 5. Decisions taken
 
@@ -836,8 +995,15 @@ a stand-in for a school Chromebook):
 - **Stay on Leaflet**, not Mapbox (licence, cost, data protection); move to
   MapLibre only if smooth zooming of very many shapes or real raster images
   become a requirement (see the test above).
-- Lines from **Natural Earth**, not OpenStreetMap/Overpass, for now
-  (reliability); Natural Earth pinned to one version.
+- Lines from **Natural Earth** (pinned to one version) for Europe, and from
+  **OpenStreetMap live** for cities, with **stored copies as fallback** so a
+  class isn't stuck when Overpass is full.
+- OpenStreetMap: **stored copies only for Münster**; other cities fall back to
+  the Münster copy with a notice, to keep the app small.
+- Cycle paths: **all four ways of mapping them**, with the kind as a column,
+  rather than only separate cycleways.
+- Point symbols **only when they fit** (few points, or zoomed in to street
+  level); dots otherwise.
 - **Source data is kept as delivered**, including Natural Earth's mislabelled
   lakes; fixes would be noted in the description, not made silently.
 - NASA weather map: **only cells touching the area**, outline and places drawn
@@ -932,6 +1098,24 @@ a stand-in for a school Chromebook):
 - The generated Python code doesn't limit the lakes to Europe, so it has more
   rows than the app.
 
+**OpenStreetMap block**
+
+- Live loads take ~40–60 s, and longer when Overpass is busy; with 30 students
+  asking at once it will be slower still (not tested).
+- Stored copies exist only for Münster (2026-10-27) and get older; they need
+  re-recording now and then (`public/data/osm/README.md`). For other cities,
+  a failed load shows Münster.
+- Areas are rectangles, not the city boundary.
+- Parks: only parks mapped as one closed way; parks made of several parts
+  (relations) are missing (the description says so).
+- Cycle path kinds: a road with a cycle lane counts as one line, though it may
+  have a lane on one side only; `cycleway=shared_lane` and similar are not
+  included. Values of `belag` and `beleuchtet` are raw OSM values
+  (`asphalt`, `yes`).
+- Berlin's 30 000 cycle path lines take ~60 s and are heavy for weak devices.
+- The generated Python asks the servers in turn but has no stored-copy
+  fallback.
+
 **Predict-first block**
 
 - **Values are visible before a guess is placed.** A strand starts with
@@ -978,6 +1162,7 @@ a stand-in for a school Chromebook):
   where each measurement was taken; a station with a slightly different
   recorded position can appear just outside the dashed area.
 - No map for the Python view yet; the map exists only in the app.
+- A moved tooltip loses its little arrow.
 
 **Python view**
 
@@ -998,8 +1183,10 @@ a stand-in for a school Chromebook):
 - While the toolbox is open on a phone, it covers the left part of the canvas;
   blocks underneath can't be reached until it closes.
 - "Erste Zeilen" still scrolls sideways (it's a real table with many columns).
-- With five load blocks the toolbox list is taller than the canvas; the last
+- With six load blocks the toolbox list is taller than the canvas; the last
   blocks need scrolling.
+- Block dropdown menus rely on Blockly's internal `TEST_ONLY.getBoundsInfo`
+  (see Other changes); a Blockly update may need a new look at them.
 
 **Checked only partly**
 
@@ -1010,7 +1197,7 @@ a stand-in for a school Chromebook):
 
 ## 7. Tests
 
-`npm test` runs 160 unit tests:
+`npm test` runs 173 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -1042,6 +1229,13 @@ a stand-in for a school Chromebook):
   as missing, credit and extent across the 180° meridian; lakes from both
   files, outside Europe left out, first view on the Alpine foreland, the
   mislabelled Lago Maggiore kept as delivered; pinned file URLs;
+- OpenStreetMap: one row per way with name, kind and OSM id, licence and
+  credit, point/line/area from nodes, centres and ways (a closed cycle path
+  stays a line), servers asked in turn after a 502, stored copy with notice
+  when none answers, the Münster copy for Köln with its notice, cancelling
+  stops at the first server, query in Overpass order, defaults for odd saved
+  settings; cycle path kinds from tags, `art` column and categories, the
+  same rules in the Python code; symbols for points;
 - guess block: real value (highest, lowest, mean, ignoring missing values) and
   the "too high / too low / close" comparison;
 - glossary: names and codes found (including openSenseMap spellings), no match
@@ -1057,14 +1251,19 @@ hiding its column, dialogs above the map) and the small-screen layout (390,
 768 and 1100 px; "Blöcke" button), the shapes and grid maps (all five
 loaders, NASA map for Germany and NRW, month slider and play button, a cell's
 places, lakes and rivers views) and the generated Python of the two new blocks
-(run in Pyodide: 2 880 grid rows, 177 countries) were checked with scripted
-browser runs, not with automated tests.
+(run in Pyodide: 2 880 grid rows, 177 countries), the OpenStreetMap block
+(live: playgrounds, Freiburg drinking water, parks, cycle paths in Münster and
+Berlin; with Overpass blocked: stored copy and the Münster stand-in for Köln;
+symbols, dots and street-level switch), tooltips at the map's edges, and the
+block dropdown menus at 420 and 1600 px with blocks near the top and left
+edge were checked with scripted browser runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses and files** recorded on
-2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19 and 2026-10-26, some trimmed;
+2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19, 2026-10-26 and 2026-10-27, some trimmed;
 each folder has a README saying exactly what was requested. They contain
 public data: German federal states incl. Bremen's outline (Data licence
-Germany – attribution 2.0), OpenStreetMap drinking water points (ODbL), a few
+Germany – attribution 2.0), OpenStreetMap drinking water points and five
+river sections in Münster (ODbL), a few
 openSenseMap boxes and values, NASA POWER values for Münster and a NASA grid
 for NRW, and Natural Earth countries and lakes (public domain).
 
@@ -1104,8 +1303,13 @@ There are no automated UI tests in the repo.
 - **NASA weather map:** show "difference from normal" (warmer/colder than the
   long-term average) as the next step? Needs checking whether NASA's
   climatology service works for grids and which reference period it uses.
-- **Lines near Münster** (rivers, cycle paths): a curated OpenStreetMap file,
-  since Overpass was unreliable?
+- **OpenStreetMap in class:** does Overpass hold up with a whole class, or do
+  we need our own Overpass instance or a caching proxy? Who refreshes the
+  stored copies, and should other cities get copies too (size)?
+- **City boundaries** instead of rectangles (Overpass `area` queries are
+  heavier; boundaries would have to be bundled or fetched)?
+- **Next spatio-temporal sources** (GBIF, Pegelonline, Bright Sky/DWD, USGS,
+  Our World in Data + countries): which first?
 - **Map tiles for classroom use:** which tile provider, and does it need a
   key or a proxy?
 - **Colour scale:** relative to the loaded data (now), or fixed scales per

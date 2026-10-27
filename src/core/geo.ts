@@ -131,6 +131,8 @@ export interface MapShape {
   /** Always 1: every row is its own shape. */
   rows: number
   values: Record<string, PlaceValues>
+  /** The row's value in the category column the map colours by, if any. */
+  category?: string
 }
 
 export interface MapShapes {
@@ -145,7 +147,7 @@ export interface MapShapes {
  * mean, lowest, highest and newest are all the same. Null without a geometry
  * column. Like mapPointsOf, only `measures` are read.
  */
-export function mapShapesOf(table: DataTable, measures: readonly string[] = []): MapShapes | null {
+export function mapShapesOf(table: DataTable, measures: readonly string[] = [], categoryColumn?: string): MapShapes | null {
   const shape = table.columns.find((c) => c.semanticType === 'geometry')?.name
   if (!shape) return null
   const name = labelColumn(table)
@@ -163,7 +165,8 @@ export function mapShapesOf(table: DataTable, measures: readonly string[] = []):
       if (isValue(v)) values[measure] = { count: 1, mean: v, min: v, max: v, latest: v }
     }
     const label = name && row[name] !== null && row[name] !== undefined ? String(row[name]) : undefined
-    shapes.push({ geometry, label, rows: 1, values })
+    const category = categoryColumn && row[categoryColumn] != null ? String(row[categoryColumn]) : undefined
+    shapes.push({ geometry, label, rows: 1, values, category })
   }
   return { shapes, withoutShape }
 }

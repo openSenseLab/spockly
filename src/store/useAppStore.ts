@@ -8,7 +8,7 @@ type WorkspaceMetrics = {
 }
 
 export type LoadState =
-  | { key: string; status: 'loading'; progress?: { done: number; total: number; unit: 'rows' | 'stations' } }
+  | { key: string; status: 'loading'; progress?: { done: number; total: number; unit: 'rows' | 'stations' | 'servers' } }
   | { key: string; status: 'ready'; table: DataTable }
   | { key: string; status: 'error'; errorCode: string }
 

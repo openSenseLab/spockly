@@ -9,6 +9,8 @@ import './load_natural_earth/definition'
 import './load_natural_earth/python'
 import './load_nasa_grid/definition'
 import './load_nasa_grid/python'
+import './load_osm/definition'
+import './load_osm/python'
 import './predict/definition'
 import './predict/python'
 
@@ -21,6 +23,9 @@ import { normalizeParams as normalizeNasaParams } from './load_nasa_power/mappin
 import { loadNaturalEarthOperation, type LoadNaturalEarthParams } from './load_natural_earth/operation'
 import { normalizeGridParams } from './load_nasa_grid/mapping'
 import { loadNasaGridOperation, today } from './load_nasa_grid/operation'
+import { normalizeOsmParams } from './load_osm/mapping'
+import { loadOsmOperation } from './load_osm/operation'
+import { OSM_TOPICS } from './load_osm/presets'
 
 export { LOAD_HUWISE } from './load_huwise/definition'
 export { loadHuwiseToStep } from './load_huwise/generator'
@@ -40,6 +45,8 @@ export { LOAD_NATURAL_EARTH } from './load_natural_earth/definition'
 export { loadNaturalEarthToStep } from './load_natural_earth/generator'
 export { LOAD_NASA_GRID } from './load_nasa_grid/definition'
 export { loadNasaGridToStep } from './load_nasa_grid/generator'
+export { LOAD_OSM } from './load_osm/definition'
+export { loadOsmToStep } from './load_osm/generator'
 export { PREDICT, refreshPrediction, resetPrediction, setRevealed, type PredictBlock } from './predict/definition'
 export { predictToStep } from './predict/generator'
 export { setTableProvider } from './fields/columnDropdown'
@@ -52,6 +59,7 @@ import { osemPythonBase } from './load_osem/python'
 import { nasaPythonBase } from './load_nasa_power/python'
 import { naturalEarthPythonBase } from './load_natural_earth/python'
 import { nasaGridPythonBase } from './load_nasa_grid/python'
+import { osmPythonBase } from './load_osm/python'
 
 /** Text a data block's Python variable name is made from, by block type. */
 export const pythonBaseNames: Record<string, (block: Blockly.Block) => string> = {
@@ -60,6 +68,7 @@ export const pythonBaseNames: Record<string, (block: Blockly.Block) => string> =
   load_nasa_power: nasaPythonBase,
   load_natural_earth: naturalEarthPythonBase,
   load_nasa_grid: nasaGridPythonBase,
+  load_osm: osmPythonBase,
 }
 
 /** Load operations by op name; the runner looks them up here. */
@@ -75,4 +84,5 @@ export const loadOperations: Record<
   load_natural_earth: (params, ctx) =>
     loadNaturalEarthOperation.execute(null, params as unknown as LoadNaturalEarthParams, ctx),
   load_nasa_grid: (params, ctx) => loadNasaGridOperation.execute(null, normalizeGridParams(params, today()), ctx),
+  load_osm: (params, ctx) => loadOsmOperation.execute(null, normalizeOsmParams(params, OSM_TOPICS), ctx),
 }

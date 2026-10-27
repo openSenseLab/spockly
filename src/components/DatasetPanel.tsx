@@ -272,6 +272,13 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
         </Flex>
       </Box>
 
+      {/* What the loader wants students to know, e.g. "this is a stored copy". */}
+      {meta.knownIssues?.map((issue, i) => (
+        <Callout.Root key={i} color="amber" size="1">
+          <Callout.Text>{pick(issue)}</Callout.Text>
+        </Callout.Root>
+      ))}
+
       {loaded < total && (
         <Callout.Root color="amber" size="1">
           <Callout.Text>{t('dataset.partial')}</Callout.Text>
@@ -387,10 +394,17 @@ export function DatasetPanel() {
       <Flex direction="column" gap="2">
         <Text size="2">
           {load.progress
-            ? t(load.progress.unit === 'stations' ? 'dataset.loadingStations' : 'dataset.loadingRows', {
-                done: formatNumber(load.progress.done),
-                total: formatNumber(load.progress.total),
-              })
+            ? t(
+                load.progress.unit === 'servers'
+                  ? 'dataset.loadingServers'
+                  : load.progress.unit === 'stations'
+                    ? 'dataset.loadingStations'
+                    : 'dataset.loadingRows',
+                {
+                  done: formatNumber(load.progress.done),
+                  total: formatNumber(load.progress.total),
+                },
+              )
             : t('dataset.loading')}
         </Text>
         <Progress

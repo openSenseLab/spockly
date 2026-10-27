@@ -38,6 +38,20 @@ export interface ColumnMeta {
   description?: LocalizedText
 }
 
+/** Map symbols for points: what the place is. */
+export type MapSymbol = 'playground' | 'drinking-water' | 'bus-stop' | 'tree'
+
+export interface MapStyle {
+  /** Icon for points, and on the middle of areas. */
+  symbol?: MapSymbol
+  /** What the symbol stands for, for the legend (e.g. "Spielplatz"). */
+  label?: LocalizedText
+  /** Colour of the icon badge and of the areas (hex: drawn on a canvas). */
+  color?: string
+  /** Colour by the values of a category column, in legend order; other values are grey. */
+  categories?: { column: string; entries: { value: string; label: LocalizedText; color: string }[] }
+}
+
 export interface DatasetMeta {
   id: string
   title: LocalizedText
@@ -67,6 +81,8 @@ export interface DatasetMeta {
   landmarks?: { label: LocalizedText; lat: number; lon: number }[]
   /** What the map shows first when the data covers far more (e.g. Germany out of Europe). */
   initialView?: { bbox: [minLon: number, minLat: number, maxLon: number, maxLat: number]; label: LocalizedText }
+  /** How the map draws shapes that no measurement colours (e.g. OpenStreetMap features). */
+  mapStyle?: MapStyle
   temporalExtent?: [startIso: string, endIso: string]
   /** Number of records the source holds; may exceed the rows actually loaded. */
   totalRecords?: number
@@ -110,8 +126,8 @@ export interface Warning {
 
 export interface ExecContext {
   signal?: AbortSignal
-  /** `unit` says what is being counted, for the progress message. */
-  onProgress?: (done: number, total: number, unit?: 'rows' | 'stations') => void
+  /** `unit` says what is being counted, for the progress message ("servers": which server is being asked). */
+  onProgress?: (done: number, total: number, unit?: 'rows' | 'stations' | 'servers') => void
 }
 
 export interface OperationDef<P = Record<string, unknown>> {

@@ -222,9 +222,30 @@
   min-height: 0;
   width: 100%;
   border-radius: 18px;
-  overflow: hidden;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
   border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/*
+ * Blockly opens its dropdown menus inside the workspace box. Nothing around
+ * them may cut them off, or a menu near an edge is only half visible; the
+ * rounded corners come from the canvas and the toolbox themselves instead.
+ */
+.workspace-card {
+  overflow: visible;
+  contain: none;
+}
+
+.blockly-workspace .injectionDiv {
+  overflow: visible;
+}
+
+.blockly-workspace .blocklySvg {
+  border-radius: 17px;
+}
+
+.blockly-workspace .blocklyToolbox {
+  border-radius: 17px 0 0 17px;
 }
 
 .python-preview,
@@ -410,7 +431,8 @@
   box-shadow: none;
 }
 
-.leaflet-tooltip.map-landmark::before {
+.leaflet-tooltip.map-landmark::before,
+.leaflet-tooltip.map-tooltip-moved::before {
   display: none;
 }
 

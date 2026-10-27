@@ -12,6 +12,8 @@ import {
   loadNaturalEarthToStep,
   LOAD_NASA_GRID,
   loadNasaGridToStep,
+  LOAD_OSM,
+  loadOsmToStep,
   loadNasaPowerToStep,
   LOAD_OSEM,
   loadHuwiseToStep,
@@ -48,7 +50,7 @@ const LOAD_WARNING_ID = "load";
 const PLAN_WARNING_ID = "plan";
 const PREDICT_WARNING_ID = "predict";
 /** Fields of load blocks that change which data is loaded (the API blocks use their saved state). */
-const LOAD_FIELDS = new Set(["DATASET", "DOMAIN", "MAX_ROWS", "AREA", "PARAMETER", "YEAR"]);
+const LOAD_FIELDS = new Set(["DATASET", "DOMAIN", "MAX_ROWS", "AREA", "PARAMETER", "YEAR", "TOPIC"]);
 
 /** Blocks below a load block work on the data that block loaded. */
 setTableProvider((block) => {
@@ -66,6 +68,7 @@ const toolbox = {
       contents: [
         { kind: "block", type: LOAD_HUWISE },
         { kind: "block", type: LOAD_OSEM },
+        { kind: "block", type: LOAD_OSM },
         { kind: "block", type: LOAD_NASA_POWER },
         { kind: "block", type: LOAD_NASA_GRID },
         { kind: "block", type: LOAD_NATURAL_EARTH },
@@ -88,9 +91,10 @@ const generators: Record<string, StepGenerator> = {
   [LOAD_NASA_POWER]: (block) => loadNasaPowerToStep(block as Blockly.Block),
   [LOAD_NATURAL_EARTH]: (block) => loadNaturalEarthToStep(block as Blockly.Block),
   [LOAD_NASA_GRID]: (block) => loadNasaGridToStep(block as Blockly.Block),
+  [LOAD_OSM]: (block) => loadOsmToStep(block as Blockly.Block),
   [PREDICT]: (block) => predictToStep(block as Blockly.Block),
 };
-const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER, LOAD_NATURAL_EARTH, LOAD_NASA_GRID]);
+const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER, LOAD_NATURAL_EARTH, LOAD_NASA_GRID, LOAD_OSM]);
 
 type BlocklyWorkspaceProps = {
   workspaceVersion: number;
@@ -262,6 +266,24 @@ const showToolbox = (workspace: Blockly.WorkspaceSvg, visible: boolean) => {
   toolbox.setVisible(visible);
   Blockly.svgResize(workspace);
 };
+
+/**
+ * Dropdown menus stay inside the visible screen rather than inside the
+ * workspace box, which on a phone is narrower and shorter than a menu like
+ * the list of cities (App.css lets them stick out of the box). Blockly sets
+ * the workspace as the limit every time a menu opens and offers no option for
+ * this, only its internal getBoundsInfo, so that is replaced here (page
+ * coordinates, like Blockly's own). If a Blockly update removes it, menus
+ * simply go back to the workspace box.
+ */
+const dropDownInternals = Blockly.DropDownDiv.TEST_ONLY as { getBoundsInfo?: () => unknown } | undefined;
+if (typeof dropDownInternals?.getBoundsInfo === "function") {
+  dropDownInternals.getBoundsInfo = () => {
+    const [left, top] = [window.scrollX, window.scrollY];
+    const [width, height] = [document.documentElement.clientWidth, document.documentElement.clientHeight];
+    return { left, top, right: left + width, bottom: top + height, width, height };
+  };
+}
 
 export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
   const blocklyRef = useRef<HTMLDivElement | null>(null);

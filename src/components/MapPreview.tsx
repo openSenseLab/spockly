@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css'
 
 import { classLimits, classOf, mapPointsOf, mapShapesOf, type MapPoint, type PlaceStat } from '../core/geo'
 import { boundsOf, shapeKind, type ShapeKind } from '../core/geometry'
-import type { ColumnMeta, DataTable, DatasetMeta, Geometry } from '../core/types'
+import type { ColumnMeta, DataTable, DatasetMeta, Geometry, MapStyle, MapSymbol } from '../core/types'
 import { glossaryForColumn } from '../glossary'
 import { formatDate, formatNumber, lang, pick, t } from '../i18n'
 import { GlossaryInfo } from './GlossaryInfo'
@@ -34,13 +34,26 @@ const MAX_TIME_STEPS = 60
 const PLAY_STEP_MS = 1100
 /** Zoom for a single point: shows the town and its surroundings. */
 const SINGLE_POINT_ZOOM = 9
+/** Above this many points, plain dots instead of icons: thousands of icons make the map sluggish. */
+const MAX_SYMBOLS = 2500
+/** Up to this many, icons at any zoom; more only from SYMBOL_ZOOM on (street level), else they cover the city. */
+const FEW_SYMBOLS = 150
+const SYMBOL_ZOOM = 14
 
 const STATS: PlaceStat[] = ['mean', 'max', 'min', 'latest']
 
 type PlaceKind = NonNullable<DatasetMeta['placeKind']>
 
 /** Anything drawn on the map: a place (point or grid cell) or a shape, with its values. */
-type MapItem = { label?: string; rows: number; values: MapPoint['values']; geometry?: Geometry; lat?: number; lon?: number }
+type MapItem = {
+  label?: string
+  rows: number
+  values: MapPoint['values']
+  geometry?: Geometry
+  lat?: number
+  lon?: number
+  category?: string
+}
 
 /** Points from latitude/longitude, shapes from a geometry column, or the cells of a grid. */
 type MapMode = 'points' | 'shapes' | 'grid'
@@ -98,7 +111,45 @@ const satelliteSvg = (fill: string, ink: string) => `
   </g>
 </svg>`
 
+/** What a place is, drawn in white on a round badge (OpenStreetMap features). */
+const SYMBOL_PATHS: Record<MapSymbol, string> = {
+  // A swing: frame, ropes and seat.
+  playground:
+    '<path d="M7.5 21.5 11 8.5h6l3.5 13" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<path d="M12.5 8.5v7.5M15.5 8.5v7.5" stroke="#fff" stroke-width="1.3"/>' +
+    '<rect x="11.3" y="15.6" width="5.4" height="1.9" rx="0.9" fill="#fff"/>',
+  // A drop of water.
+  'drinking-water': '<path d="M14 6.5c-2.6 3.6-5.2 7-5.2 10.1a5.2 5.2 0 0 0 10.4 0c0-3.1-2.6-6.5-5.2-10.1z" fill="#fff"/>',
+  // The "H" of a German bus stop sign.
+  'bus-stop': '<path d="M10.3 8.5v11M17.7 8.5v11M10.3 14h7.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>',
+  // A tree: crown and trunk.
+  tree: '<circle cx="14" cy="11.5" r="5.3" fill="#fff"/><path d="M14 15.5v6.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>',
+}
+
+const symbolSvg = (symbol: MapSymbol, fill: string, size: number) => `
+<svg viewBox="0 0 28 28" width="${size}" height="${size}" aria-hidden="true">
+  <circle cx="14" cy="14" r="12.5" fill="${fill}" stroke="${INK_LIGHT}" stroke-width="1.8"/>
+  ${SYMBOL_PATHS[symbol]}
+</svg>`
+
 const iconCache = new Map<string, L.DivIcon>()
+
+function symbolIcon(symbol: MapSymbol, fill: string, size = 24): L.DivIcon {
+  const key = `symbol|${symbol}|${fill}|${size}`
+  let icon = iconCache.get(key)
+  if (!icon) {
+    icon = L.divIcon({
+      className: 'map-icon',
+      // Only our own constants go into this markup.
+      html: symbolSvg(symbol, fill, size),
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      tooltipAnchor: [size / 2, 0],
+    })
+    iconCache.set(key, icon)
+  }
+  return icon
+}
 
 function iconFor(kind: PlaceKind, fill: string): L.DivIcon {
   const key = `${kind}|${fill}`
@@ -172,6 +223,43 @@ function tooltipFor(
   return box
 }
 
+/** Space kept between a tooltip and the map's edge, and between it and the point it belongs to. */
+const EDGE_GAP = 6
+const POINT_GAP = 12
+
+/**
+ * A tooltip that stays inside the map. The map clips everything at its frame,
+ * so a tooltip near an edge or corner would be cut off: it goes to the other
+ * side of its point instead, or is moved just inside the frame.
+ */
+const InsideTooltip = L.Tooltip.extend({
+  _updatePosition(this: L.Tooltip & { _map?: L.Map; _container?: HTMLElement; _latlng?: L.LatLng }) {
+    ;(L.Tooltip.prototype as unknown as { _updatePosition: () => void })._updatePosition.call(this)
+    const map = this._map
+    const box = this._container
+    if (!map || !box || !this._latlng) return
+    const size = map.getSize()
+    const [width, height] = [box.offsetWidth, box.offsetHeight]
+    const anchor = map.latLngToContainerPoint(this._latlng)
+    let { x, y } = map.layerPointToContainerPoint(L.DomUtil.getPosition(box))
+    const [startX, startY] = [x, y]
+    // Sideways: rather the other side of the point than over it.
+    if (x + width > size.x - EDGE_GAP) x = anchor.x - POINT_GAP - width
+    if (x < EDGE_GAP) x = anchor.x + POINT_GAP
+    x = Math.max(EDGE_GAP, Math.min(x, size.x - EDGE_GAP - width))
+    y = Math.max(EDGE_GAP, Math.min(y, size.y - EDGE_GAP - height))
+    if (x === startX && y === startY) {
+      box.classList.remove('map-tooltip-moved')
+      return
+    }
+    // Its little arrow would point to the wrong place now.
+    box.classList.add('map-tooltip-moved')
+    L.DomUtil.setPosition(box, map.containerPointToLayerPoint([x, y]))
+  },
+}) as unknown as new (options?: L.TooltipOptions) => L.Tooltip
+
+const tooltip = (content: HTMLElement, options: L.TooltipOptions = {}) => new InsideTooltip(options).setContent(content)
+
 // ---- Legend ----
 
 /** "unter 11,2", "11,2 bis 12,4", …, "ab 14,8" */
@@ -237,6 +325,43 @@ function Legend({
   )
 }
 
+const NO_STYLE: MapStyle = {}
+
+const categoryOfItem = (style: MapStyle, item: MapItem) => style.categories?.entries.find((e) => e.value === item.category)
+
+/** Legend for shapes drawn by their kind (OpenStreetMap features): the categories, or the one symbol. */
+function StyleLegend({ style, swatch, missing }: { style: MapStyle; swatch: Swatch; missing: boolean }) {
+  const categories = style.categories
+  if (categories) {
+    return (
+      <div className="map-legend" role="group" aria-label={t('map.legendKinds')}>
+        <Flex gap="3" wrap="wrap">
+          {[...categories.entries.map((e) => [e.color, pick(e.label) ?? e.value] as const), ...(missing ? [[NO_VALUE_COLOR, t('map.otherKind')] as const] : [])].map(
+            ([color, label]) => (
+              <Flex key={label} align="center" gap="1">
+                <span className={`map-legend-swatch ${swatch}`} style={{ background: color }} />
+                <Text size="1" color="gray">
+                  {label}
+                </Text>
+              </Flex>
+            ),
+          )}
+        </Flex>
+      </div>
+    )
+  }
+  if (!style.symbol || !style.label) return null
+  return (
+    <Flex className="map-legend" align="center" gap="1">
+      {/* Only our own constants go into this markup. */}
+      <span className="map-icon" dangerouslySetInnerHTML={{ __html: symbolSvg(style.symbol, style.color ?? SINGLE_COLOR, 18) }} />
+      <Text size="1" color="gray">
+        {pick(style.label)}
+      </Text>
+    </Flex>
+  )
+}
+
 // ---- Map ----
 
 const SHAPE_COUNT: Record<ShapeKind, [many: string, one: string]> = {
@@ -275,6 +400,8 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
   /** Grid data: one month on the map, or null for the whole period summed up per cell. */
   const [month, setMonth] = useState<string | null>(null)
   const [playing, setPlaying] = useState(false)
+  /** Zoomed in to street level: room for icons. */
+  const [streetLevel, setStreetLevel] = useState(false)
   const monthRef = useRef<string | null>(null)
 
   const grid = table.meta.grid
@@ -284,7 +411,9 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
   const measures = useMemo(() => table.columns.filter((c) => c.semanticType === 'measurement'), [table])
   const allowed = useMemo(() => measures.filter((c) => !hidden.has(c.name)), [measures, hidden])
   const measure = useMemo(() => allowed.find((c) => c.name === chosen) ?? allowed[0], [allowed, chosen])
-  const { outline, landmarks, initialView } = table.meta
+  const { outline, landmarks, initialView, mapStyle } = table.meta
+  const style = mapStyle ?? NO_STYLE
+  const categoryColumn = style.categories?.column
 
   // Grids over time (e.g. 12 months): a slider shows one month at a time.
   const timeColumn = table.columns.find((c) => c.semanticType === 'timestamp')?.name
@@ -303,12 +432,12 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
   const found = useMemo(() => {
     const names = allowed.map((c) => c.name)
     if (mode === 'shapes') {
-      const result = mapShapesOf(shown, names)
+      const result = mapShapesOf(shown, names, categoryColumn)
       return result && { items: result.shapes as MapItem[], withoutPlace: result.withoutShape, leftOut: 0 }
     }
     const result = mapPointsOf(shown, names)
     return result && { items: result.points as MapItem[], withoutPlace: result.withoutPlace, leftOut: result.leftOut }
-  }, [shown, allowed, mode])
+  }, [shown, allowed, mode, categoryColumn])
   const items = useMemo(() => found?.items ?? [], [found])
 
   const values = useMemo(
@@ -423,6 +552,10 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
       }
     }
 
+    const onZoom = () => setStreetLevel(map.getZoom() >= SYMBOL_ZOOM)
+    map.on('zoomend', onZoom)
+    onZoom()
+
     mapRef.current = map
     // The tab may be hidden or resized; Leaflet needs to know its new size.
     const observer = new ResizeObserver(() => map.invalidateSize())
@@ -439,9 +572,11 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     const map = mapRef.current
     if (!map) return
     const layer = L.layerGroup().addTo(map)
+    const categoryOf = (item: MapItem) => categoryOfItem(style, item)
     const colorOf = (item: MapItem) => {
       const value = measure ? item.values[measure.name]?.[stat] : undefined
-      if (!measure) return SINGLE_COLOR
+      if (!measure && style.categories) return categoryOf(item)?.color ?? NO_VALUE_COLOR
+      if (!measure) return style.color ?? SINGLE_COLOR
       if (value === undefined) return NO_VALUE_COLOR
       return limits.length ? CLASS_COLORS[classOf(value, limits)] : SINGLE_COLOR
     }
@@ -454,36 +589,64 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
         : []
     const tooltipOf = (item: MapItem) => {
       const inCell = placesIn(item)
+      const category = categoryOf(item)
+      const extra = inCell.length ? [t('map.inCell', { places: inCell.join(', ') })] : []
+      if (style.categories) extra.push(category ? (pick(category.label) ?? category.value) : t('map.otherKind'))
       return tooltipFor(item, allowed, measure, stat, kind, {
         heading: shownMonth ? `${formatDate(shownMonth)}:` : undefined,
-        extra: inCell.length ? [t('map.inCell', { places: inCell.join(', ') })] : [],
+        extra,
       })
     }
 
     if (mode === 'shapes') {
+      // Icons for points (playgrounds, bus stops, …) unless there are thousands; a value colours dots instead.
+      const symbol = !measure && style.symbol
+      const iconsFor = (kind: ShapeKind) => {
+        const n = items.filter((i) => shapeKind(i.geometry!) === kind).length
+        return n <= FEW_SYMBOLS || (streetLevel && n <= MAX_SYMBOLS)
+      }
+      const pointIcons = symbol && iconsFor('point')
       // One GeoJSON layer for all shapes (drawn on one canvas); each feature knows its row.
       const features = items.map((item, i) => ({ type: 'Feature' as const, geometry: item.geometry!, properties: { i } }))
       L.geoJSON({ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection, {
         style: (feature) => {
           const item = items[feature?.properties.i]
           const color = colorOf(item)
-          // Lines without a value to show (rivers) are thin and dark, so a dense network stays readable.
-          return shapeKind(item.geometry!) === 'line'
-            ? measure
-              ? { color, weight: 1.5, opacity: 0.95 }
-              : { color: LINE_COLOR, weight: 1.1, opacity: 0.85 }
-            : { fillColor: color, fillOpacity: 0.75, color: '#ffffff', weight: 0.8 }
+          if (shapeKind(item.geometry!) === 'line') {
+            if (measure) return { color, weight: 1.5, opacity: 0.95 }
+            // Lines by kind (cycle paths) a bit stronger, so the colours can be told apart.
+            if (style.categories) return { color, weight: streetLevel ? 3 : 1.6, opacity: 0.95 }
+            // Lines without a value to show (rivers) are thin and dark, so a dense network stays readable.
+            return { color: LINE_COLOR, weight: 1.1, opacity: 0.85 }
+          }
+          // Areas of one kind (parks): their own colour, see-through so the streets below still show.
+          if (!measure && style.color) return { fillColor: color, fillOpacity: 0.45, color, weight: 1 }
+          return { fillColor: color, fillOpacity: 0.75, color: '#ffffff', weight: 0.8 }
         },
         pointToLayer: (feature, latlng) =>
-          L.circleMarker(latlng, {
-            radius: 6,
-            color: '#ffffff',
-            weight: 1.5,
-            fillColor: colorOf(items[feature.properties.i]),
-            fillOpacity: 0.95,
-          }),
-        onEachFeature: (feature, shapeLayer) => shapeLayer.bindTooltip(tooltipOf(items[feature.properties.i]), { sticky: true }),
+          pointIcons && symbol
+            ? L.marker(latlng, { icon: symbolIcon(symbol, colorOf(items[feature.properties.i])), keyboard: true })
+            : L.circleMarker(latlng, {
+                // Zoomed out, a symbol's many points are small dots in its colour.
+                radius: symbol ? 3.5 : 6,
+                color: '#ffffff',
+                weight: symbol ? 1 : 1.5,
+                fillColor: colorOf(items[feature.properties.i]),
+                fillOpacity: 0.95,
+              }),
+        onEachFeature: (feature, shapeLayer) => shapeLayer.bindTooltip(tooltip(tooltipOf(items[feature.properties.i]), { sticky: true })),
       }).addTo(layer)
+      // A small symbol in the middle of each area (a tree on a park), so it reads as more than a coloured patch.
+      // Only at street level: zoomed out, the trees would hide the parks themselves.
+      if (symbol && streetLevel && iconsFor('area')) {
+        for (const item of items) {
+          if (shapeKind(item.geometry!) !== 'area') continue
+          const [w, s, e, n] = boundsOf([item.geometry!])!
+          L.marker([(s + n) / 2, (w + e) / 2], { icon: symbolIcon(symbol, colorOf(item), 18), keyboard: false })
+            .bindTooltip(tooltip(tooltipOf(item)))
+            .addTo(layer)
+        }
+      }
     } else {
       for (const item of items) {
         const color = colorOf(item)
@@ -505,7 +668,7 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
           // Plain dots (drawn on one canvas) for datasets that can have thousands of places.
           mark = L.circleMarker(at, { radius: 7, color: '#ffffff', weight: 1.5, fillColor: color, fillOpacity: 0.95 })
         }
-        mark.bindTooltip(tooltipOf(item), { sticky: mode === 'grid' }).addTo(layer)
+        mark.bindTooltip(tooltip(tooltipOf(item), { sticky: mode === 'grid' })).addTo(layer)
         const value = measure ? item.values[measure.name]?.[stat] : undefined
         if (numbers && value !== undefined) {
           const label = document.createElement('span')
@@ -528,7 +691,7 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
       layer.remove()
     }
     // `view` is listed so the marks are drawn again on a newly created map.
-  }, [items, allowed, measure, stat, limits, numbers, kind, mode, grid, view, landmarks, shownMonth])
+  }, [items, allowed, measure, stat, limits, numbers, kind, mode, grid, view, landmarks, shownMonth, style, streetLevel])
 
   if (!found) return null
   if (items.length === 0) {
@@ -559,6 +722,7 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     outline && t('map.outlineNote', { area: pick(outline.label) ?? '' }),
     landmarks?.length && t('map.landmarksNote'),
     initialView && t('map.initialView', { area: pick(initialView.label) ?? '' }),
+    !measure && style.symbol && !streetLevel && items.length > FEW_SYMBOLS && t('map.zoomForSymbols'),
   ].filter(Boolean)
 
   const missing = !!measure && items.some((p) => !p.values[measure.name])
@@ -681,7 +845,10 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
           🔒 {t(allowed.length ? 'map.someHiddenForGuess' : 'map.hiddenForGuess')}
         </Text>
       )}
-      {measures.length === 0 && (
+      {!measure && mapStyle && (
+        <StyleLegend style={mapStyle} swatch={swatch} missing={!!mapStyle.categories && items.some((i) => !categoryOfItem(mapStyle, i))} />
+      )}
+      {measures.length === 0 && !mapStyle?.categories && (
         <Text size="1" color="gray">
           {t('map.noMeasurements')}
         </Text>
