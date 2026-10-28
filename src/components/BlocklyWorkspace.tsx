@@ -14,6 +14,10 @@ import {
   loadNasaGridToStep,
   LOAD_OSM,
   loadOsmToStep,
+  LOAD_URL,
+  loadUrlToStep,
+  LOAD_FILE,
+  loadFileToStep,
   loadNasaPowerToStep,
   LOAD_OSEM,
   loadHuwiseToStep,
@@ -66,6 +70,8 @@ const toolbox = {
       name: t("toolbox.loadData"),
       categorystyle: "load_category",
       contents: [
+        { kind: "block", type: LOAD_FILE },
+        { kind: "block", type: LOAD_URL },
         { kind: "block", type: LOAD_HUWISE },
         { kind: "block", type: LOAD_OSEM },
         { kind: "block", type: LOAD_OSM },
@@ -92,9 +98,20 @@ const generators: Record<string, StepGenerator> = {
   [LOAD_NATURAL_EARTH]: (block) => loadNaturalEarthToStep(block as Blockly.Block),
   [LOAD_NASA_GRID]: (block) => loadNasaGridToStep(block as Blockly.Block),
   [LOAD_OSM]: (block) => loadOsmToStep(block as Blockly.Block),
+  [LOAD_URL]: (block) => loadUrlToStep(block as Blockly.Block),
+  [LOAD_FILE]: (block) => loadFileToStep(block as Blockly.Block),
   [PREDICT]: (block) => predictToStep(block as Blockly.Block),
 };
-const hatTypes = new Set([LOAD_HUWISE, LOAD_OSEM, LOAD_NASA_POWER, LOAD_NATURAL_EARTH, LOAD_NASA_GRID, LOAD_OSM]);
+const hatTypes = new Set([
+  LOAD_HUWISE,
+  LOAD_OSEM,
+  LOAD_NASA_POWER,
+  LOAD_NATURAL_EARTH,
+  LOAD_NASA_GRID,
+  LOAD_OSM,
+  LOAD_URL,
+  LOAD_FILE,
+]);
 
 type BlocklyWorkspaceProps = {
   workspaceVersion: number;

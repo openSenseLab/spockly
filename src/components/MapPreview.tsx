@@ -39,6 +39,10 @@ const MAX_SYMBOLS = 2500
 /** Up to this many, icons at any zoom; more only from SYMBOL_ZOOM on (street level), else they cover the city. */
 const FEW_SYMBOLS = 150
 const SYMBOL_ZOOM = 14
+/** Areas narrower than this (in pixels) also get a dot, so they can be seen at all. */
+const MIN_AREA_PX = 3
+/** Edge of areas and of the dots for small areas. */
+const AREA_EDGE = INK_DARK
 
 const STATS: PlaceStat[] = ['mean', 'max', 'min', 'latest']
 
@@ -402,6 +406,8 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
   const [playing, setPlaying] = useState(false)
   /** Zoomed in to street level: room for icons. */
   const [streetLevel, setStreetLevel] = useState(false)
+  /** How many areas are too small to see at this zoom and are shown as dots. */
+  const [tinyAreas, setTinyAreas] = useState(0)
   const monthRef = useRef<string | null>(null)
 
   const grid = table.meta.grid
@@ -504,6 +510,9 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     // The panel scrolls; the wheel should scroll it, not zoom the map.
     // zoomSnap 0.25: an area fills the map instead of jumping to the next whole zoom level.
     const map = L.map(element.current, { preferCanvas: true, scrollWheelZoom: false, zoomSnap: 0.25 })
+    // After a click into the map, the wheel zooms it (until the pointer leaves it); before, it scrolls the panel.
+    map.on('mousedown', () => map.scrollWheelZoom.enable())
+    map.on('mouseout', () => map.scrollWheelZoom.disable())
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -572,6 +581,7 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     const map = mapRef.current
     if (!map) return
     const layer = L.layerGroup().addTo(map)
+    let placeDots: (() => void) | null = null
     const categoryOf = (item: MapItem) => categoryOfItem(style, item)
     const colorOf = (item: MapItem) => {
       const value = measure ? item.values[measure.name]?.[stat] : undefined
@@ -621,7 +631,8 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
           }
           // Areas of one kind (parks): their own colour, see-through so the streets below still show.
           if (!measure && style.color) return { fillColor: color, fillOpacity: 0.45, color, weight: 1 }
-          return { fillColor: color, fillOpacity: 0.75, color: '#ffffff', weight: 0.8 }
+          // A thin dark edge: white edges vanish on the light-blue sea of the tiles (lakes) and on small areas.
+          return { fillColor: color, fillOpacity: 0.75, color: AREA_EDGE, weight: 0.7, opacity: 0.6 }
         },
         pointToLayer: (feature, latlng) =>
           pointIcons && symbol
@@ -646,6 +657,29 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
             .bindTooltip(tooltip(tooltipOf(item)))
             .addTo(layer)
         }
+      }
+      // Areas only a few pixels wide at this zoom (most of the world's lakes, zoomed out) get a dot
+      // in their colour, so they don't seem to be missing. Updated on every zoom.
+      const areas = items.flatMap((item) =>
+        shapeKind(item.geometry!) === 'area' ? [{ item, bounds: boundsOf([item.geometry!])! }] : [],
+      )
+      if (areas.length && !symbol) {
+        const dots = L.layerGroup().addTo(layer)
+        placeDots = () => {
+          dots.clearLayers()
+          let tiny = 0
+          for (const { item, bounds: [w, s, e, n] } of areas) {
+            const [a, b] = [map.latLngToContainerPoint([s, w]), map.latLngToContainerPoint([n, e])]
+            if (Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) >= MIN_AREA_PX) continue
+            tiny++
+            L.circleMarker([(s + n) / 2, (w + e) / 2], { radius: 2.5, color: AREA_EDGE, weight: 0.6, fillColor: colorOf(item), fillOpacity: 1 })
+              .bindTooltip(tooltip(tooltipOf(item)))
+              .addTo(dots)
+          }
+          setTinyAreas(tiny)
+        }
+        placeDots()
+        map.on('zoomend', placeDots)
       }
     } else {
       for (const item of items) {
@@ -688,6 +722,10 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
       }
     }
     return () => {
+      if (placeDots) {
+        map.off('zoomend', placeDots)
+        setTinyAreas(0)
+      }
       layer.remove()
     }
     // `view` is listed so the marks are drawn again on a newly created map.
@@ -723,6 +761,8 @@ export function MapPreview({ table, hidden }: { table: DataTable; hidden: Readon
     landmarks?.length && t('map.landmarksNote'),
     initialView && t('map.initialView', { area: pick(initialView.label) ?? '' }),
     !measure && style.symbol && !streetLevel && items.length > FEW_SYMBOLS && t('map.zoomForSymbols'),
+    tinyAreas > 0 && t('map.tinyAreas', { count: formatNumber(tinyAreas) }),
+    t('map.howToMove'),
   ].filter(Boolean)
 
   const missing = !!measure && items.some((p) => !p.values[measure.name])

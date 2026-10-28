@@ -8,6 +8,8 @@ type RunRequest = {
   type: "run";
   runId: number;
   code: string;
+  /** Files the student picked, by name; written to the working directory first. */
+  files?: Record<string, string>;
 };
 
 type WorkerResponse =
@@ -71,7 +73,7 @@ workerScope.onmessage = async ({ data }) => {
     return;
   }
 
-  const { code, runId } = data;
+  const { code, runId, files = {} } = data;
 
   workerScope.postMessage({ type: "status", runId, status: "loading" });
 
@@ -96,6 +98,10 @@ workerScope.onmessage = async ({ data }) => {
           value: `${value}\n`,
         }),
     });
+
+    for (const [name, text] of Object.entries(files)) {
+      pyodide.FS.writeFile(name, text);
+    }
 
     workerScope.postMessage({ type: "status", runId, status: "running" });
 

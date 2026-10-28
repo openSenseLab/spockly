@@ -1,11 +1,25 @@
 import { useEffect } from 'react'
 import { Dialog } from '@radix-ui/themes'
 
-import { LOAD_NASA_POWER, LOAD_OSEM, markSetupShown, setBlockSetupOpener, type NasaBlock, type OsemBlock, type SetupBlock } from '../blocks'
+import {
+  LOAD_FILE,
+  LOAD_NASA_POWER,
+  LOAD_OSEM,
+  LOAD_URL,
+  markSetupShown,
+  setBlockSetupOpener,
+  type FileBlock,
+  type NasaBlock,
+  type OsemBlock,
+  type SetupBlock,
+  type UrlBlock,
+} from '../blocks'
 import { useAppStore } from '../store/useAppStore'
 import { getActiveWorkspace } from './blockly/carryWorkspace'
+import { FileSetupForm } from './FileSetupForm'
 import { NasaSetupForm } from './NasaSetupForm'
 import { OsemSetupForm } from './OsemSetupForm'
+import { UrlSetupForm } from './UrlSetupForm'
 
 /** The setup window of API load blocks; picks the form by block type. */
 export function BlockSetupDialog() {
@@ -30,6 +44,10 @@ export function BlockSetupDialog() {
       <OsemSetupForm key={block.id} block={block as OsemBlock} onDone={close} />
     ) : block?.type === LOAD_NASA_POWER ? (
       <NasaSetupForm key={block.id} block={block as NasaBlock} onDone={close} />
+    ) : block?.type === LOAD_URL ? (
+      <UrlSetupForm key={block.id} block={block as UrlBlock} onDone={close} />
+    ) : block?.type === LOAD_FILE ? (
+      <FileSetupForm key={block.id} block={block as FileBlock} onDone={close} />
     ) : null
 
   return (

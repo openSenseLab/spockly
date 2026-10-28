@@ -10,6 +10,7 @@ import {
 } from '@radix-ui/themes'
 
 import './App.css'
+import { pythonFiles } from './blocks'
 import { BlocklyWorkspace } from './components/BlocklyWorkspace'
 import { DatasetPanel } from './components/DatasetPanel'
 import { LanguageSwitch } from './components/LanguageSwitch'
@@ -148,7 +149,7 @@ function App() {
                   <Button
                     type="button"
                     color={isBusy ? 'red' : 'grass'}
-                    onClick={() => (isBusy ? stop() : run(shownCode))}
+                    onClick={() => (isBusy ? stop() : run(shownCode, pythonFiles()))}
                   >
                     {runButtonLabel}
                   </Button>

@@ -1,5 +1,7 @@
 import * as Blockly from "blockly";
 
+import { saveFilesForReload } from "../../blocks/load_file/store";
+
 /**
  * Keeps the blocks when the language switch reloads the page.
  * sessionStorage: survives the reload, but not closing the tab.
@@ -26,6 +28,7 @@ export function setActiveWorkspace(workspace: Blockly.WorkspaceSvg | null) {
 export const getActiveWorkspace = () => activeWorkspace;
 
 export function saveWorkspaceForReload() {
+  saveFilesForReload();
   if (!activeWorkspace) return;
   try {
     const state = Blockly.serialization.workspaces.save(activeWorkspace);

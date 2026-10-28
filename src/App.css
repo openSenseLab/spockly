@@ -173,8 +173,39 @@
   white-space: nowrap;
 }
 
+/*
+ * The rows scroll inside one box of limited height, both ways, so its
+ * sideways scrollbar is always in view (not only once scrolled to the end of
+ * the table); the column names stay on top. Radix's own scroll area inside
+ * the table is switched off, or there would be two of each scrollbar.
+ */
 .preview-scroll {
-  overflow-x: auto;
+  max-height: min(55vh, 420px);
+  overflow: auto;
+  border-radius: var(--radius-3);
+}
+
+.preview-table .rt-ScrollAreaRoot,
+.preview-table .rt-ScrollAreaViewport,
+.preview-table .rt-TableRootTable {
+  overflow: visible !important;
+}
+
+.preview-table .rt-ScrollAreaScrollbar {
+  display: none;
+}
+
+/* As wide as its columns, so the table's border goes around all of them (not through the middle). */
+.preview-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.preview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-panel-solid);
 }
 
 .preview-table td,
@@ -443,4 +474,18 @@
 
 .map-time-label {
   min-width: 72px;
+}
+
+/* Where a file can be dropped in the "eigene Datei" setup window. */
+.file-drop {
+  padding: 20px 16px;
+  border: 2px dashed var(--gray-a7);
+  border-radius: var(--radius-3);
+  background: var(--gray-a2);
+  text-align: center;
+}
+
+.file-drop.dragging {
+  border-color: var(--accent-9);
+  background: var(--accent-a3);
 }

@@ -1,10 +1,11 @@
-# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER, Natural Earth, OpenStreetMap) and "predict first"
+# Spike: loading data from APIs (Huwise, openSenseMap, NASA POWER, Natural Earth, OpenStreetMap), own files and web addresses, and "predict first"
 
 Branch `spike/data-loaders`, October 2026. Not merged and not reviewed yet.
 
 This spike tries out the "load data" part of SPOCKLY: six load blocks for
 real data sources — points, lines, areas (polygons) and gridded (raster)
-data, at local, regional and global scale — a side panel that shows what was
+data, at local, regional and global scale — plus two blocks for students' own
+data (a file from their device, or any web address), a side panel that shows what was
 loaded, and a Python view of the blocks. It also adds a first teaching block on top of loaded data: **"schätze …"**,
 where students guess a value before they see it, then compare and explain.
 Measured quantities that students may not know (relative humidity, PM10, UV
@@ -32,12 +33,16 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 173 unit tests (Vitest)
+npm test         # 206 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
 
 - Open the toolbox category **Daten laden** and drag a block onto the canvas:
+  - **lade eigene Datei** loads a CSV, JSON or GeoJSON file from the device
+    (it stays in the browser).
+  - **lade Daten von einer Webadresse** loads CSV, JSON or GeoJSON from any
+    address that allows browser access; six examples to pick from.
   - **lade Datensatz** loads a Huwise dataset (default: German federal states).
   - **lade openSenseMap-Daten** loads sensor measurements.
   - **lade NASA-Wetterdaten** loads weather and solar data for a place.
@@ -50,10 +55,10 @@ npm run lint
     other German cities from OpenStreetMap (live, ~40–60 s; a stored copy if
     no server answers).
 
-  With six load blocks the list is taller than the canvas on many screens;
+  With eight load blocks the list is taller than the canvas on many screens;
   scroll it to reach the last ones.
-- The openSenseMap and NASA blocks open a **setup window** when dropped; the
-  gear (⚙) on the block opens it again.
+- The file, web address, openSenseMap and NASA blocks open a **setup window**
+  when dropped; the gear (⚙) on the block opens it again.
 - From **Schätzen & Prüfen**, snap **schätze …** under a load block, pick a
   column, type a guess and click **Auflösen**.
 - Point at a **"?"** (setup windows, Daten tab) to read what a measured
@@ -63,7 +68,8 @@ npm run lint
   Pyodide (the first run downloads pandas, ~10–40 s).
 - In the Daten tab, the **Karte** shows points, lines, areas or grid cells; the
   buttons above it pick the measurement they are coloured by. For the NASA
-  weather map, **▶ Monate abspielen** steps through the months.
+  weather map, **▶ Monate abspielen** steps through the months. Drag the map
+  to move it; after a click into it, the mouse wheel zooms.
 - **Deutsch | English** switch at the top right; `?lang=en` also works.
 - On a phone (or any canvas narrower than 600 px) the toolbox is hidden; the
   **☰ Blöcke** button above the canvas opens it.
@@ -277,6 +283,91 @@ has mapped is missing.
   points in all of Münster), which is material for a lesson, but students may
   take gaps for a bug.
 
+### Own file block
+
+`lade eigene Datei ⚙ / Datei: Messung Klasse 9b.csv / Format: CSV (;)`
+
+- **Setup window:** drop a file or **Datei wählen …** (CSV, TSV, TXT, JSON,
+  GeoJSON, up to 30 MB). It shows what was read: format, rows, columns and
+  the guessed kind of each column (Zeit, Messwert, Kategorie, Breitengrad …);
+  for CSV, the detected delimiter can be changed.
+- **German spreadsheet exports work:** `;` as delimiter, decimal commas
+  (`12,5`, `1.234,5`), dates like `01.10.2026` or `01.10.2026 14:05`, a
+  byte order mark at the start.
+- **The file stays in the browser.** It is kept in memory only, never
+  uploaded, and the window says so. The saved workspace keeps just its name;
+  after closing the tab the block says "Die Datei ist nicht mehr da … Wähl sie
+  über das Zahnrad noch einmal aus." Files up to 4 MB in total survive the
+  reload of a language switch (sessionStorage, gone with the tab).
+- **Python:** before **Code ausführen**, the app writes the picked files into
+  Pyodide's working folder under a safe name, so the code simply reads
+  `pd.read_csv("Messung_Klasse_9b.csv", sep=";", decimal=",")`.
+
+### Web address block
+
+`lade Daten von einer Webadresse ⚙ / Adresse: earthquake.usgs.gov/…/2.5_week.geojson / Format: GeoJSON`
+
+- **Setup window:** pick an example or type an address, then **Prüfen**. The
+  address is loaded once and the window shows what was read, as for files.
+  **Übernehmen** is only possible after a successful check: the block keeps
+  how the answer was read (format, delimiter, where the records are), so the
+  app and the Python code read it the same way. A link opens the address in
+  the browser; another points to geojson.xyz for more map data to try.
+- **Examples** (all checked to allow browser requests, 2026-10-28):
+
+  | Example | Source | Format | What |
+  |---|---|---|---|
+  | Erdbeben weltweit, letzte 7 Tage | USGS | GeoJSON | quakes from magnitude 2.5 (365 on the day) |
+  | Wasserstand in Münster, letzte 3 Tage | PEGELONLINE | JSON | one value per minute, gauge MÜNSTER OW (Dortmund-Ems-Kanal), ~4 300 rows |
+  | Pegel an Bundeswasserstraßen | PEGELONLINE | JSON | 786 gauges with position, waterway, kilometre |
+  | Wetter in Münster, 20.–27. Oktober 2026 | Bright Sky (DWD data) | JSON | hourly values |
+  | Flüsse der Welt | Natural Earth 3.3.0 via geojson.xyz | GeoJSON | 1 618 river lines |
+  | CO₂-Ausstoß pro Kopf, je Land und Jahr | Our World in Data | CSV | 26 509 rows |
+
+- **Only https addresses** (the app runs on https, browsers block `http://`
+  from there).
+- **Messages** for what goes wrong: the address can't be loaded (wrong,
+  offline, or the server doesn't allow browser requests — CORS — and the
+  message says that then only a server of our own helps); 404; login or key
+  needed; a web page instead of data; broken JSON; no table data; larger
+  than 30 MB (refused before downloading when the server says the size).
+- Every dataset from a web address carries the note "Die Lizenz dieser Daten
+  kennt SPOCKLY nicht. Schau bei der Quelle nach …"; the examples link to
+  their source's page.
+
+### Reading data of unknown shape (both blocks)
+
+`core/tabular.ts` turns text into a `DataTable`:
+
+- **Format:** JSON if the content type or file name says so or the text starts
+  with `{` or `[`, CSV otherwise. CSV delimiter: the one of `;`, `,`, tab that
+  splits the first lines into the same, largest number of fields. Quotes,
+  doubled quotes and line breaks inside quotes are handled; empty column names
+  become `spalte_3`, repeated ones `name_2`.
+- **Records in JSON:** the features of GeoJSON (properties plus a `geometry`
+  column); a list of objects; or the longest list of objects inside an object
+  (Bright Sky: `weather`, not `sources`). Nested objects become columns
+  joined with `_` (`water_longname`), like pandas' `json_normalize`; lists of
+  plain values become text ("a, b").
+- **Kind of each column, guessed from its values:**
+  - geometries → shape column; `true`/`false` → yes/no;
+  - numbers (decimal point, or decimal comma if any value has one) →
+    measurement, or latitude/longitude by name (`lat`, `breite`, `*_lon` …)
+    and range, or identifier by name (`id`, `code`, `nr`, `plz`, `number` …);
+    ids written as text stay text (`"27800040"`), and values with a leading
+    zero (postcodes) stay text;
+  - whole milliseconds since 1970 in a column named like a time (USGS
+    `time`) → dates; `year`/`jahr` with whole numbers → years;
+  - ISO dates and German dates → dates (stored as ISO);
+  - other text → category if values repeat (≤ 20 different), else text.
+  - "NA", "NaN", "null", "-" count as missing in number and date columns only
+    ("NA" is also Namibia).
+- **At most 50 000 rows** (more than the 10 000 of other blocks: the CO₂ example
+  has 26 509); a note says how many were left out.
+- The Python code reads the text the same way: `pd.read_csv(…, sep=…,
+  decimal=",")` for `;` files, `pd.json_normalize(daten["weather"], sep="_")`
+  for JSON, properties plus geometry for GeoJSON.
+
 ### Predict-first block ("Schätzen & Prüfen")
 
 ```
@@ -373,7 +464,8 @@ the same field.
 
 ### Setup window (shared)
 
-Both API blocks with many settings use the same mechanism: the window opens
+All blocks with a setup window (openSenseMap, NASA POWER, own file, web
+address) use the same mechanism: the window opens
 by itself once, when the block is dropped from the toolbox (not when the drag
 starts), and later through the gear. Changing settings is a normal Blockly
 change, so it can be undone with Ctrl+Z.
@@ -393,8 +485,14 @@ Shows the selected strand, or the one edited last:
 - the first 20 rows, missing values shown as "–", shapes as e.g. "Fläche
   (22 Eckpunkte)" instead of their coordinates. When they are wider than the
   panel, a hint says "Seitlich wischen oder scrollen, um alle Spalten zu sehen →"
-  (Radix shows the sideways scrollbar only on mouse hover, so touch users
-  otherwise see no sign of more columns);
+  (touch screens show no scrollbars, so nothing else hints at more columns).
+  **The rows scroll in one box of at most 420 px**, up/down and sideways, with
+  the column names staying on top. Before, the table was as tall as its 20
+  rows, so its sideways scrollbar only appeared once scrolled to the very end;
+  a first fix that limited the height of Radix's nested scroll layers showed
+  two vertical scrollbars, and the table's border then ran through the middle
+  of a wide table. Now Radix's own scroll area is switched off for this table
+  and its box is as wide as its columns;
 - progress while loading ("Lade Zeilen: 300 von 1 000", "Lade Stationen: 5 von 9").
 
 When the panel is narrower than 520 px (a phone, or the side panel next to the
@@ -454,9 +552,16 @@ all three; the points-only parts are marked.
   Not offered for lines and areas, which have no single spot for a number.
 - **The area asked for** (points: openSenseMap area, Huwise dataset extent) is
   drawn as a dashed rectangle.
-- **Lines and areas:** areas are filled, with white borders; lines without a
+- **Lines and areas:** areas are filled, with a thin dark edge; lines without a
   value to show (rivers) are thin and dark, so a dense network stays
-  readable. Shapes are drawn on one canvas.
+  readable. Shapes are drawn on one canvas. The edges used to be white, which
+  disappears on the light-blue sea of the tiles: Natural Earth's world lakes
+  loaded from a web address looked like an empty map.
+- **Areas too small to see** at the current zoom (under 3 px) also get a small
+  dot in their colour, updated on every zoom; the caption says "360 kleine
+  Flächen als Punkte – heranzoomen für die Umrisse". World lakes at world
+  zoom: 360 of 398 are dots; on the country map, 36 of 177 (small states and
+  islands).
 - **Shapes by kind (OpenStreetMap, new):** data without measurements can say
   how it is drawn (`meta.mapStyle`):
   - **a symbol** for points — a round badge with a swing (playgrounds), a drop
@@ -503,8 +608,11 @@ all three; the points-only parts are marked.
   buttons, colours, labels and tooltips; a note says it appears after
   revealing. The map code only reads the columns it is given, so a hidden
   value can't reach it by accident.
-- The mouse wheel scrolls the panel, not the map; +/− zoom. Leaflet's layers
-  are kept inside the map, so dialogs and popovers stay on top.
+- **Moving the map:** drag it with the mouse. The mouse wheel scrolls the
+  panel, until the student clicks into the map: then it zooms the map, until
+  the pointer leaves it. The caption says so ("Karte mit der Maus ziehen; nach
+  einem Klick in die Karte zoomt das Mausrad"); +/− zoom as well. Leaflet's
+  layers are kept inside the map, so dialogs and popovers stay on top.
 
 Station names are typed in by openSenseMap users, so tooltips are built as
 plain text (no HTML).
@@ -569,6 +677,10 @@ plain text (no HTML).
   workspace box). Moving the menus out of the workspace with
   `Blockly.common.setParentContainer` was tried and dropped: in Blockly 13 a
   menu there closes the moment it opens.
+- **`getText`** next to `getJson` in `core/http.ts`: any text with its content
+  type, the same error codes and one retry, and a size limit.
+- **Python runs get the picked files:** the run message to the Python worker
+  carries the files, which are written into Pyodide's file system first.
 - Load blocks are drawn as hat blocks (Zelos renderer, theme with
   `hat: 'cap'`); the toolbox got some top spacing.
 - Vitest added (`npm test`).
@@ -597,7 +709,9 @@ useLoadRunner (hooks/)        for each load step whose params changed:
         ├─ load_nasa_power → DataTable
         ├─ load_nasa_grid  → DataTable (one row per cell and month)
         ├─ load_natural_earth → DataTable (one row per shape)
-        └─ load_osm        → DataTable (one row per OSM element; stored copy if no server answers)
+        ├─ load_osm        → DataTable (one row per OSM element; stored copy if no server answers)
+        ├─ load_url        → DataTable (text read by core/tabular)
+        └─ load_file       → DataTable (file from the in-memory store, read by core/tabular)
   └─ store.loads[blockId] = loading | ready | error
 
 DatasetPanel / Python tab     show the strand from selectShownStrandId()
@@ -674,13 +788,17 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/core/names.ts` | text → valid, unique Python variable names |
 | `src/core/geo.ts` | rows → places or shapes for the map, values per place (mean, min, max, newest), colour classes + tests |
 | `src/core/geometry.ts` | GeoJSON helpers: point/line/area, vertices, bounding box, point in area, cell touches area + tests |
-| `src/core/http.ts` | `getJson` (HTTP/network errors → `LoadError` with i18n code, one retry for temporary problems), `mapLimit` |
+| `src/core/http.ts` | `getJson` and `getText` (HTTP/network errors → `LoadError` with i18n code, one retry for temporary problems, size limit), `mapLimit` |
+| `src/core/tabular.ts` | CSV reading, records in JSON/GeoJSON, guessing column kinds, `toTable`, the matching Python reader + tests |
 | `src/blocks/load_huwise/` | block definition, plan step, API + mapping, Python, tests, fixtures |
 | `src/blocks/load_osem/` | same for openSenseMap, plus `presets.ts` (areas, periods) |
 | `src/blocks/load_nasa_power/` | same for NASA POWER, plus `presets.ts` (places, variables) |
 | `src/blocks/load_nasa_grid/` | NASA weather map: grid request, outline filter, `presets.ts` (areas, places for orientation), `outlines.json` |
 | `src/blocks/load_natural_earth/` | Natural Earth: `presets.ts` (datasets, files, columns, first view), mapping, Python |
 | `src/blocks/load_osm/` | OpenStreetMap: `presets.ts` (topics with queries, columns, kinds and map symbols; cities; servers; snapshot date), mapping, servers in turn + stored copy, Python, tests, fixture |
+| `src/blocks/load_url/` | web address block: `presets.ts` (examples), mapping (checks, table, licence note), operation (download, error messages, Python), tests and recorded answers |
+| `src/blocks/load_file/` | own file block: `store.ts` (files in memory, names for Python, carried across a language switch), mapping, operation, tests |
+| `src/components/UrlSetupForm.tsx`, `FileSetupForm.tsx`, `ReadPreview.tsx` | the two setup windows and their shared "what was read" preview |
 | `public/data/osm/` | stored OpenStreetMap copies for the two Münster areas, with a README (source, date, licence, how to update) |
 | `src/blocks/predict/` | guess block: definition (button, "Warum?" line), plan step, Python, `compare.ts` (real value, gap) + tests |
 | `src/blocks/fields/columnDropdown.ts` | column dropdown that keeps its value while data is loading; `setTableProvider` |
@@ -776,6 +894,15 @@ pressure 47.
    cycle paths, OSM id (`way/123`) and the shape (nodes and centres → points;
    ways → lines, or areas for closed ways of an area topic). `updated` is the
    OSM data timestamp from the answer.
+
+### Web address and own file: how a load runs
+
+1. Web address: `getText` (30 MB limit). Own file: the text from the in-memory
+   store, or "pick the file again" if it is gone.
+2. `readData` with the settings saved in the setup window (format, delimiter,
+   where the records are); if they no longer fit, it works them out again.
+3. `guessTable`: kind of each column, values converted (numbers, ISO dates,
+   geometries), at most 50 000 rows; `toTable` adds the notes.
 
 ## 4. What we learned about the APIs
 
@@ -914,6 +1041,21 @@ Quirks found (covered by tests with recorded responses):
   `{{bbox}}`), and perhaps later for students who want to see the query
   behind their data.
 
+### Web addresses (2026-10-28)
+
+- Allow browser requests (`Access-Control-Allow-Origin: *`): USGS earthquake
+  feeds (0.1 s, 257 KB for a week), PEGELONLINE (0.1–0.3 s; 7 days of minute
+  values are ~10 000 rows, hence 3 days in the example), Bright Sky (0.4 s),
+  Our World in Data grapher CSV (0.5 s, 801 KB), the Natural Earth 3.3.0 files
+  behind geojson.xyz (`d2ad6b4ur7yvpq.cloudfront.net`, 1 s for 1.4 MB).
+- Don't: Wikipedia pages, and (earlier) the UBA air quality API. A browser only
+  says "failed to fetch" for those, the same as for a wrong address or being
+  offline, so the message has to name all three.
+- USGS times are milliseconds since 1970; Our World in Data names columns in
+  English with units in the name (`CO₂ emissions per capita`).
+- geojson.xyz itself could not be opened from the development machine
+  (connection timeout); its file server worked.
+
 ### Map library and polygon size (test, 2026-10-26)
 
 Would Leaflet cope with polygons, or do we need Mapbox/MapLibre? Tested in
@@ -944,7 +1086,8 @@ a stand-in for a school Chromebook):
 
 - **Open-Meteo**: browser requests allowed, but returned 503 (overloaded)
   during the test.
-- **More data with place and time** (2026-10-27, browser access checked only;
+- **More data with place and time** (2026-10-27; four of these are now examples
+  of the web address block, see above; browser access checked only;
   licences, history and limits still to check per source): GBIF species
   sightings (67 598 records in Münster in 2024 alone), Pegelonline water
   levels (e.g. gauge "MÜNSTER OW"), Bright Sky (DWD weather stations), USGS
@@ -998,6 +1141,15 @@ a stand-in for a school Chromebook):
 - Lines from **Natural Earth** (pinned to one version) for Europe, and from
   **OpenStreetMap live** for cities, with **stored copies as fallback** so a
   class isn't stuck when Overpass is full.
+- Students' own data: **a file block and a web address block**, both reading
+  CSV, JSON and GeoJSON with the same code; **files never leave the browser**
+  and are not saved with the workspace.
+- Web addresses: **checked once in the setup window** before they can be used,
+  and the way they were read is saved with the block (same reading in Python).
+- Column kinds are **guessed from the values**; the panel says so. Ids stay
+  text.
+- **Only https** addresses; **no proxy** for sites that don't allow browser
+  requests (for now).
 - OpenStreetMap: **stored copies only for Münster**; other cities fall back to
   the Münster copy with a notice, to keep the app small.
 - Cycle paths: **all four ways of mapping them**, with the kind as a column,
@@ -1116,6 +1268,29 @@ a stand-in for a school Chromebook):
 - The generated Python asks the servers in turn but has no stored-copy
   fallback.
 
+**Own file and web address blocks**
+
+- **Licences unknown:** SPOCKLY can't know the licence of an own file or
+  address; the examples' licences aren't checked yet either. A general note is
+  shown.
+- **Sites without browser access (CORS) can't be loaded**; only a server of our
+  own would help.
+- **Guesses can be wrong**, and students can't correct them yet: e.g. Natural
+  Earth's `scalerank` and `strokeweig` are taken as measurements and colour
+  the map, though one is a display rank and the other a line thickness.
+- Files are gone after closing the tab; a saved workspace with a file block
+  needs the file again. Large files (over 4 MB in total) are not carried
+  across a language switch.
+- The web address examples change (earthquakes, water levels) or are fixed
+  past periods (weather); a saved workspace may load different data later.
+- Natural Earth 3.3.0 via geojson.xyz is older than the 5.1.2 of the world map
+  block; names and borders can differ.
+- Python: lists inside JSON records stay lists in Python but are text in the
+  app; a JSON file that is only a list of plain values (`[1, 2, 3]`) would fail
+  in Python. CSV files are read without date parsing in Python.
+- Only the first sheet-like table of a file: no Excel files (save as CSV
+  first), no multiple tables, no header row other than the first line.
+
 **Predict-first block**
 
 - **Values are visible before a guess is placed.** A strand starts with
@@ -1182,8 +1357,9 @@ a stand-in for a school Chromebook):
 
 - While the toolbox is open on a phone, it covers the left part of the canvas;
   blocks underneath can't be reached until it closes.
-- "Erste Zeilen" still scrolls sideways (it's a real table with many columns).
-- With six load blocks the toolbox list is taller than the canvas; the last
+- "Erste Zeilen" still scrolls sideways (it's a real table with many columns),
+  now within its own box.
+- With eight load blocks the toolbox list is taller than the canvas; the last
   blocks need scrolling.
 - Block dropdown menus rely on Blockly's internal `TEST_ONLY.getBoundsInfo`
   (see Other changes); a Blockly update may need a new look at them.
@@ -1197,7 +1373,7 @@ a stand-in for a school Chromebook):
 
 ## 7. Tests
 
-`npm test` runs 173 unit tests:
+`npm test` runs 206 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -1236,6 +1412,21 @@ a stand-in for a school Chromebook):
   stops at the first server, query in Overpass order, defaults for odd saved
   settings; cycle path kinds from tags, `art` column and categories, the
   same rules in the Python code; symbols for points;
+- `core/tabular`: German spreadsheet export (`;`, decimal comma, byte order
+  mark), quotes and line breaks in quoted fields, delimiter detection, empty
+  and repeated column names; GeoJSON features, the longest list in an object,
+  nested objects as columns, plain lists and single objects; German numbers
+  and dates, coordinates, ids, years, categories and free text, postcodes and
+  "NA", milliseconds since 1970, geometries and booleans, the row limit;
+- web address block, with real answers recorded 2026-10-28 (USGS, Bright Sky,
+  PEGELONLINE, Our World in Data, trimmed): columns and kinds, the records
+  found in Bright Sky's answer, nested waterway, gauge numbers kept as text,
+  years as times, a web page instead of data, blocked address (CORS) and 404
+  messages, the size limit, https only, defaults for odd saved settings, short
+  addresses, the Python reader for CSV, JSON and GeoJSON;
+- own file block: the store (Python names, same file again, same name twice),
+  reading with saved settings, missing file and no file, GeoJSON files, the
+  Python line;
 - guess block: real value (highest, lowest, mean, ignoring missing values) and
   the "too high / too low / close" comparison;
 - glossary: names and codes found (including openSenseMap spellings), no match
@@ -1256,10 +1447,16 @@ places, lakes and rivers views) and the generated Python of the two new blocks
 Berlin; with Overpass blocked: stored copy and the Münster stand-in for Köln;
 symbols, dots and street-level switch), tooltips at the map's edges, and the
 block dropdown menus at 420 and 1600 px with blocks near the top and left
-edge were checked with scripted browser runs, not with automated tests.
+edge, the web address block (examples, map of earthquakes, 26 509 CO₂ rows,
+error messages for a web page, `http://` and a missing file), the own file
+block (German CSV, map, Python run reading the file in Pyodide, language
+switch), world lakes and rivers from geojson.xyz (dots for small areas, wheel
+zoom after a click, dragging), and the rows table (one scroll box at 420, 1000
+and 1600 px, header staying on top, border around all columns) were checked
+with scripted browser runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses and files** recorded on
-2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19, 2026-10-26 and 2026-10-27, some trimmed;
+2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19, 2026-10-26, 2026-10-27 and 2026-10-28, some trimmed;
 each folder has a README saying exactly what was requested. They contain
 public data: German federal states incl. Bremen's outline (Data licence
 Germany – attribution 2.0), OpenStreetMap drinking water points and five
@@ -1278,7 +1475,14 @@ There are no automated UI tests in the repo.
 - **When to add typed connections** — now, or with the first processing blocks?
 - **Curated openSenseMap snapshot** for "a few weeks of Münster": who creates
   and approves it?
-- **Next loaders**: generic API block, CSV upload.
+- **Correcting guessed column kinds:** should students be able to say "this
+  column is a time / an id, not a measurement"? It matters for maps and
+  guesses.
+- **Proxy for sites without browser access:** worth running one (and who
+  maintains it), or stick to services that allow it?
+- **Licences of the web address examples** need checking before classroom use.
+- **Saving own files with a workspace** (e.g. for teacher-prepared activities)
+  — and what that means for data protection.
 - Should the openSenseMap block also offer a fast **"current values"** mode
   (`/boxes/:box/sensors`)?
 - **NASA POWER in class:** test with a whole class whether repeated requests get

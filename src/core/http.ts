@@ -30,7 +30,8 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
   }
 }
 
-async function getJsonOnce<T>(url: string, signal?: AbortSignal): Promise<T> {
+/** fetch, with network and HTTP problems as LoadErrors. */
+async function request(url: string, signal?: AbortSignal): Promise<Response> {
   let res: Response
   try {
     res = await fetch(url, { signal })
@@ -44,6 +45,42 @@ async function getJsonOnce<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (res.status === 429) throw new LoadError('load.tooManyRequests', url)
   if (res.status >= 500) throw new LoadError('load.serverTrouble', `${res.status} ${url}`)
   if (!res.ok) throw new LoadError('load.failed', `${res.status} ${url}`)
+  return res
+}
+
+/**
+ * GET any text (CSV, JSON, …) with its content type; retried once like
+ * getJson. Answers announced as larger than `maxBytes` fail with
+ * load.tooBig before the download starts.
+ */
+export async function getText(
+  url: string,
+  signal?: AbortSignal,
+  maxBytes = Infinity,
+): Promise<{ text: string; contentType: string }> {
+  const once = async () => {
+    const res = await request(url, signal)
+    if (Number(res.headers.get('content-length') ?? 0) > maxBytes) throw new LoadError('load.tooBig', url)
+    try {
+      const text = await res.text()
+      if (text.length > maxBytes) throw new LoadError('load.tooBig', url)
+      return { text, contentType: res.headers.get('content-type') ?? '' }
+    } catch (error) {
+      if (signal?.aborted || error instanceof LoadError) throw error
+      throw new LoadError('load.serverTrouble', `${String(error)} ${url}`)
+    }
+  }
+  try {
+    return await once()
+  } catch (error) {
+    if (signal?.aborted || !isTransient(error)) throw error
+    await wait(RETRY_DELAY_MS, signal)
+    return once()
+  }
+}
+
+async function getJsonOnce<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await request(url, signal)
   try {
     return (await res.json()) as T
   } catch (error) {

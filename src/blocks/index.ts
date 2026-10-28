@@ -11,6 +11,10 @@ import './load_nasa_grid/definition'
 import './load_nasa_grid/python'
 import './load_osm/definition'
 import './load_osm/python'
+import './load_url/definition'
+import './load_url/python'
+import './load_file/definition'
+import './load_file/python'
 import './predict/definition'
 import './predict/python'
 
@@ -26,6 +30,10 @@ import { loadNasaGridOperation, today } from './load_nasa_grid/operation'
 import { normalizeOsmParams } from './load_osm/mapping'
 import { loadOsmOperation } from './load_osm/operation'
 import { OSM_TOPICS } from './load_osm/presets'
+import { normalizeUrlParams } from './load_url/mapping'
+import { loadUrlOperation } from './load_url/operation'
+import { normalizeFileParams } from './load_file/mapping'
+import { loadFileOperation } from './load_file/operation'
 
 export { LOAD_HUWISE } from './load_huwise/definition'
 export { loadHuwiseToStep } from './load_huwise/generator'
@@ -47,6 +55,11 @@ export { LOAD_NASA_GRID } from './load_nasa_grid/definition'
 export { loadNasaGridToStep } from './load_nasa_grid/generator'
 export { LOAD_OSM } from './load_osm/definition'
 export { loadOsmToStep } from './load_osm/generator'
+export { LOAD_URL, setUrlParams, type UrlBlock } from './load_url/definition'
+export { loadUrlToStep } from './load_url/generator'
+export { LOAD_FILE, setFileParams, type FileBlock } from './load_file/definition'
+export { loadFileToStep } from './load_file/generator'
+export { pythonFiles, saveFilesForReload } from './load_file/store'
 export { PREDICT, refreshPrediction, resetPrediction, setRevealed, type PredictBlock } from './predict/definition'
 export { predictToStep } from './predict/generator'
 export { setTableProvider } from './fields/columnDropdown'
@@ -60,6 +73,8 @@ import { nasaPythonBase } from './load_nasa_power/python'
 import { naturalEarthPythonBase } from './load_natural_earth/python'
 import { nasaGridPythonBase } from './load_nasa_grid/python'
 import { osmPythonBase } from './load_osm/python'
+import { urlPythonBase } from './load_url/python'
+import { filePythonBase } from './load_file/python'
 
 /** Text a data block's Python variable name is made from, by block type. */
 export const pythonBaseNames: Record<string, (block: Blockly.Block) => string> = {
@@ -69,6 +84,8 @@ export const pythonBaseNames: Record<string, (block: Blockly.Block) => string> =
   load_natural_earth: naturalEarthPythonBase,
   load_nasa_grid: nasaGridPythonBase,
   load_osm: osmPythonBase,
+  load_url: urlPythonBase,
+  load_file: filePythonBase,
 }
 
 /** Load operations by op name; the runner looks them up here. */
@@ -85,4 +102,6 @@ export const loadOperations: Record<
     loadNaturalEarthOperation.execute(null, params as unknown as LoadNaturalEarthParams, ctx),
   load_nasa_grid: (params, ctx) => loadNasaGridOperation.execute(null, normalizeGridParams(params, today()), ctx),
   load_osm: (params, ctx) => loadOsmOperation.execute(null, normalizeOsmParams(params, OSM_TOPICS), ctx),
+  load_url: (params, ctx) => loadUrlOperation.execute(null, normalizeUrlParams(params), ctx),
+  load_file: (params, ctx) => loadFileOperation.execute(null, normalizeFileParams(params), ctx),
 }

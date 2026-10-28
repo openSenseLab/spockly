@@ -192,9 +192,7 @@ function useWiderThanBox(box: RefObject<HTMLElement | null>) {
     const element = box.current
     if (!element) return
     const check = () => {
-      // Radix scrolls the table inside its own viewport.
-      const viewport = element.querySelector('.rt-ScrollAreaViewport') ?? element
-      setWider(viewport.scrollWidth > viewport.clientWidth + 1)
+      setWider(element.scrollWidth > element.clientWidth + 1)
     }
     const observer = new ResizeObserver(check)
     observer.observe(element)
@@ -207,41 +205,44 @@ function useWiderThanBox(box: RefObject<HTMLElement | null>) {
 function RowsPreview({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const rows = table.rows.slice(0, PREVIEW_ROWS)
   const box = useRef<HTMLDivElement>(null)
-  // Radix shows the sideways scrollbar only on hover, so on touch screens nothing hints at more columns.
+  // On touch screens the scrollbars are hidden, so nothing else hints at more columns.
   const wider = useWiderThanBox(box)
   return (
-    <Box className="preview-scroll" ref={box}>
+    <Box>
       {wider && (
         <Text as="p" size="1" color="gray" mb="1">
           {t('dataset.scrollSideways')}
         </Text>
       )}
-      <Table.Root size="1" variant="surface" className="dataset-table preview-table">
-        <Table.Header>
-          <Table.Row>
-            {table.columns.map((column) => (
-              <Table.ColumnHeaderCell key={column.name}>
-                {pick(column.label) ?? column.name}
-              </Table.ColumnHeaderCell>
-            ))}
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {rows.map((row, index) => (
-            <Table.Row key={index}>
-              {table.columns.map((column) => {
-                const value = row[column.name]
-                const missing = value === null || value === undefined || value === ''
-                return (
-                  <Table.Cell key={column.name} className={missing ? 'cell-missing' : undefined}>
-                    {hidden.has(column.name) ? '?' : missing ? '–' : formatValue(value, column)}
-                  </Table.Cell>
-                )
-              })}
+      {/* One box scrolls the rows both ways, so its sideways scrollbar is always in view. */}
+      <Box className="preview-scroll" ref={box}>
+        <Table.Root size="1" variant="surface" className="dataset-table preview-table">
+          <Table.Header>
+            <Table.Row>
+              {table.columns.map((column) => (
+                <Table.ColumnHeaderCell key={column.name}>
+                  {pick(column.label) ?? column.name}
+                </Table.ColumnHeaderCell>
+              ))}
             </Table.Row>
-          ))}
-        </Table.Body>
-      </Table.Root>
+          </Table.Header>
+          <Table.Body>
+            {rows.map((row, index) => (
+              <Table.Row key={index}>
+                {table.columns.map((column) => {
+                  const value = row[column.name]
+                  const missing = value === null || value === undefined || value === ''
+                  return (
+                    <Table.Cell key={column.name} className={missing ? 'cell-missing' : undefined}>
+                      {hidden.has(column.name) ? '?' : missing ? '–' : formatValue(value, column)}
+                    </Table.Cell>
+                  )
+                })}
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Root>
+      </Box>
     </Box>
   )
 }

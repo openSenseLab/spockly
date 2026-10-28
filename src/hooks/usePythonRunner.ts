@@ -95,12 +95,12 @@ export function usePythonRunner() {
   }, []);
 
   const run = useCallback(
-    (code: string) => {
+    (code: string, files: Record<string, string> = {}) => {
       const runId = activeRunIdRef.current + 1;
       activeRunIdRef.current = runId;
       setOutput("");
       setStatus("loading");
-      getWorker().postMessage({ type: "run", runId, code });
+      getWorker().postMessage({ type: "run", runId, code, files });
     },
     [getWorker],
   );
