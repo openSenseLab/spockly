@@ -1,0 +1,101 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "EONET_16758",
+    "title": "Tropical Cyclone Iggy",
+    "description": null,
+    "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_16758/geojson",
+    "closed": "2026-01-07T00:00:00Z",
+    "date": "2025-12-31T12:00:00Z",
+    "magnitudeValue": 35,
+    "magnitudeUnit": "kts",
+    "categories": [
+     {
+      "id": "severeStorms",
+      "title": "Severe Storms"
+     }
+    ],
+    "sources": [
+     {
+      "id": "JTWC",
+      "url": "https://www.metoc.navy.mil/jtwc/products/sh1126.tcw"
+     }
+    ]
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     105.7,
+     -10.5
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "EONET_16758",
+    "title": "Tropical Cyclone Iggy",
+    "description": null,
+    "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_16758/geojson",
+    "closed": "2026-01-07T00:00:00Z",
+    "date": "2025-12-31T18:00:00Z",
+    "magnitudeValue": 35,
+    "magnitudeUnit": "kts",
+    "categories": [
+     {
+      "id": "severeStorms",
+      "title": "Severe Storms"
+     }
+    ],
+    "sources": [
+     {
+      "id": "JTWC",
+      "url": "https://www.metoc.navy.mil/jtwc/products/sh1126.tcw"
+     }
+    ]
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     107,
+     -11.5
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "EONET_16758",
+    "title": "Tropical Cyclone Iggy",
+    "description": null,
+    "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_16758/geojson",
+    "closed": "2026-01-07T00:00:00Z",
+    "date": "2026-01-01T00:00:00Z",
+    "magnitudeValue": 45,
+    "magnitudeUnit": "kts",
+    "categories": [
+     {
+      "id": "severeStorms",
+      "title": "Severe Storms"
+     }
+    ],
+    "sources": [
+     {
+      "id": "JTWC",
+      "url": "https://www.metoc.navy.mil/jtwc/products/sh1126.tcw"
+     }
+    ]
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     107.7,
+     -12.4
+    ]
+   }
+  }
+ ]
+}

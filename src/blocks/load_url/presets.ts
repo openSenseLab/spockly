@@ -12,9 +12,11 @@ export interface UrlExample {
 
 /**
  * Web addresses that are known to work from the browser (checked on
- * 2026-10-28: answers with Access-Control-Allow-Origin: *). Points, lines of
- * time and places, at local and global scale. Licences are not checked yet,
- * so the block shows its general licence note for these too.
+ * 2026-11-02: answers with Access-Control-Allow-Origin: *). Every example is
+ * spatio-temporal: each row has a place and a time, at local and global
+ * scale. Fixed periods where the source allows it, so lessons can be
+ * repeated. Licences are not checked yet, so the block shows its general
+ * licence note for these too.
  */
 export const URL_EXAMPLES: UrlExample[] = [
   {
@@ -28,44 +30,48 @@ export const URL_EXAMPLES: UrlExample[] = [
     source: { name: 'U.S. Geological Survey (USGS)', page: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php' },
   },
   {
-    id: 'pegel_muenster',
-    label: { de: 'Wasserstand in Münster, letzte 3 Tage', en: 'Water level in Münster, last 3 days' },
+    // The box reaches into neighbouring countries; 193 quakes, fewer than the limit of 1000, so the year is complete.
+    id: 'erdbeben_deutschland',
+    label: { de: 'Erdbeben in und um Deutschland, 2025', en: 'Earthquakes in and around Germany, 2025' },
     about: {
-      de: 'Ein Wert pro Minute vom Pegel MÜNSTER OW am Dortmund-Ems-Kanal.',
-      en: 'One value per minute from the gauge MÜNSTER OW on the Dortmund-Ems Canal.',
+      de: 'Jedes Beben ab Stärke 2 mit Ort, Zeit, Stärke, Tiefe und Region. Wo bebt es in Deutschland? (GeoJSON)',
+      en: 'Every quake from magnitude 2 with place, time, magnitude, depth and region. Where does the earth shake in Germany? (GeoJSON)',
     },
-    url: 'https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/M%C3%9CNSTER%20OW/W/measurements.json?start=P3D',
-    source: { name: 'PEGELONLINE (Wasserstraßen- und Schifffahrtsverwaltung des Bundes)', page: 'https://www.pegelonline.wsv.de' },
+    url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=json&minlat=47&maxlat=55.1&minlon=5.8&maxlon=15.1&start=2025-01-01&end=2025-12-31&minmag=2&limit=1000',
+    source: { name: 'EMSC – Euro-Mediterranean Seismological Centre', page: 'https://www.seismicportal.eu' },
   },
   {
-    id: 'pegelstationen',
-    label: { de: 'Pegel an Bundeswasserstraßen', en: 'Gauges on federal waterways' },
+    // 97 storms with 1935 positions; tracks of storms that began in 2025 run into January 2026.
+    id: 'wirbelstuerme_2025',
+    label: { de: 'Wirbelstürme weltweit, 2025', en: 'Tropical storms worldwide, 2025' },
     about: {
-      de: 'Alle Messstellen mit Lage, Gewässer und Kilometer (für die Karte).',
-      en: 'All gauging stations with location, waterway and kilometre (for the map).',
+      de: 'Die Zugbahn jedes Sturms: Position alle 6 Stunden mit Name, Zeit und Windgeschwindigkeit in Knoten. (GeoJSON)',
+      en: 'The track of every storm: its position every 6 hours with name, time and wind speed in knots. (GeoJSON)',
     },
-    url: 'https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json',
-    source: { name: 'PEGELONLINE (Wasserstraßen- und Schifffahrtsverwaltung des Bundes)', page: 'https://www.pegelonline.wsv.de' },
+    url: 'https://eonet.gsfc.nasa.gov/api/v3/events/geojson?category=severeStorms&status=all&start=2025-01-01&end=2025-12-31',
+    source: { name: 'NASA EONET – Earth Observatory Natural Event Tracker', page: 'https://eonet.gsfc.nasa.gov' },
   },
   {
-    id: 'wetter_muenster',
-    label: { de: 'Wetter in Münster, 20.–27. Oktober 2026', en: 'Weather in Münster, 20–27 October 2026' },
+    // 48 fires, June to August 2025.
+    id: 'waldbraende_europa_2025',
+    label: { de: 'Große Waldbrände in Europa, 2025', en: 'Large wildfires in Europe, 2025' },
     about: {
-      de: 'Stündliche Werte von Wetterstationen des Deutschen Wetterdienstes, über Bright Sky.',
-      en: 'Hourly values from German Weather Service stations, via Bright Sky.',
+      de: 'Jeder gemeldete große Brand mit Ort, Datum und verbrannter Fläche in Hektar. In welchen Monaten und Ländern brennt es? (GeoJSON)',
+      en: 'Every reported large fire with place, date and burnt area in hectares. In which months and countries does it burn? (GeoJSON)',
     },
-    url: 'https://api.brightsky.dev/weather?lat=51.96&lon=7.63&date=2026-10-20&last_date=2026-10-27',
-    source: { name: 'Bright Sky (Daten: Deutscher Wetterdienst)', page: 'https://brightsky.dev' },
+    url: 'https://eonet.gsfc.nasa.gov/api/v3/events/geojson?category=wildfires&status=all&start=2025-01-01&end=2025-12-31&bbox=-11,72,32,34',
+    source: { name: 'NASA EONET – Earth Observatory Natural Event Tracker', page: 'https://eonet.gsfc.nasa.gov' },
   },
   {
-    id: 'fluesse_welt',
-    label: { de: 'Flüsse der Welt', en: 'Rivers of the world' },
+    // 521 eruptions; a few are areas (polygons) instead of points.
+    id: 'vulkane_2016_2025',
+    label: { de: 'Vulkanausbrüche weltweit, 2016–2025', en: 'Volcanic eruptions worldwide, 2016–2025' },
     about: {
-      de: 'Große Flüsse und die Linien durch Seen als Linien, Maßstab 1:50 Mio. (GeoJSON, Natural Earth 3.3.0 über geojson.xyz).',
-      en: 'Major rivers and the lines through lakes, as lines, scale 1:50 million (GeoJSON, Natural Earth 3.3.0 via geojson.xyz).',
+      de: 'Jeder gemeldete Ausbruch mit Vulkan, Ort und Datum. Welche Vulkane brechen immer wieder aus? (GeoJSON)',
+      en: 'Every reported eruption with volcano, place and date. Which volcanoes erupt again and again? (GeoJSON)',
     },
-    url: 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_rivers_lake_centerlines_scale_rank.geojson',
-    source: { name: 'Natural Earth (über geojson.xyz)', page: 'https://geojson.xyz/' },
+    url: 'https://eonet.gsfc.nasa.gov/api/v3/events/geojson?category=volcanoes&status=all&start=2016-01-01&end=2025-12-31',
+    source: { name: 'NASA EONET – Earth Observatory Natural Event Tracker', page: 'https://eonet.gsfc.nasa.gov' },
   },
   {
     // GBIF's species key for Grus grus is 2474950 (species/match, 2026-11-02). One request
