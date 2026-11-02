@@ -322,7 +322,16 @@ has mapped is missing.
   | Pegel an Bundeswasserstraßen | PEGELONLINE | JSON | 786 gauges with position, waterway, kilometre |
   | Wetter in Münster, 20.–27. Oktober 2026 | Bright Sky (DWD data) | JSON | hourly values |
   | Flüsse der Welt | Natural Earth 3.3.0 via geojson.xyz | GeoJSON | 1 618 river lines |
-  | CO₂-Ausstoß pro Kopf, je Land und Jahr | Our World in Data | CSV | 26 509 rows |
+  | Kraniche in Münster, 2024 | GBIF (mostly iNaturalist, eBird) | JSON | 126 sightings with position, date and often the number of birds |
+
+  The first CSV example, CO₂ emissions per person by country and year (Our
+  World in Data, 26 509 rows), was dropped (2026-11-02): it has country names
+  and codes but no coordinates, so nothing can be shown on the map until a
+  block can join it with country outlines. The crane sightings are real
+  spatio-temporal data instead: one request returns the whole year (GBIF gives
+  at most 300 records per request; storks in Münster had 445, so they would
+  have been cut off in July), and they show two peaks, February–March and
+  October–November — colour the map by `month` to see them.
 
 - **Only https addresses** (the app runs on https, browsers block `http://`
   from there).
@@ -352,8 +361,10 @@ has mapped is missing.
 - **Kind of each column, guessed from its values:**
   - geometries → shape column; `true`/`false` → yes/no;
   - numbers (decimal point, or decimal comma if any value has one) →
-    measurement, or latitude/longitude by name (`lat`, `breite`, `*_lon` …)
-    and range, or identifier by name (`id`, `code`, `nr`, `plz`, `number` …);
+    measurement, or latitude/longitude by name (`lat`, `breite`, `*_lon`,
+    names ending in `latitude`/`longitude` such as GBIF's `decimalLatitude` …)
+    and range, or identifier by name (`id`, `code`, `nr`, `plz`, `number` …,
+    and camelCase ids such as `taxonKey`, `gbifID`, `stationCode`);
     ids written as text stay text (`"27800040"`), and values with a leading
     zero (postcodes) stay text;
   - whole milliseconds since 1970 in a column named like a time (USGS
@@ -362,8 +373,9 @@ has mapped is missing.
   - other text → category if values repeat (≤ 20 different), else text.
   - "NA", "NaN", "null", "-" count as missing in number and date columns only
     ("NA" is also Namibia).
-- **At most 50 000 rows** (more than the 10 000 of other blocks: the CO₂ example
-  has 26 509); a note says how many were left out.
+- **At most 50 000 rows** (more than the 10 000 of other blocks: a CSV per country
+  and year such as Our World in Data's CO₂ file has 26 509); a note says how many
+  were left out.
 - The Python code reads the text the same way: `pd.read_csv(…, sep=…,
   decimal=",")` for `;` files, `pd.json_normalize(daten["weather"], sep="_")`
   for JSON, properties plus geometry for GeoJSON.
@@ -1053,6 +1065,13 @@ Quirks found (covered by tests with recorded responses):
   offline, so the message has to name all three.
 - USGS times are milliseconds since 1970; Our World in Data names columns in
   English with units in the name (`CO₂ emissions per capita`).
+- **GBIF occurrence search** (2026-11-02): browser requests allowed, 0.5 s. At most
+  300 records per request, sorted by date, so a query with more results is cut
+  off at the start of the year (storks in Germany 2024: 19 940 records, the
+  first 300 all from January). Filters by species key (looked up with
+  `species/match`: common crane 2474950), rectangle, year. 95 fields per
+  record, 154 columns after flattening; licences differ per record (CC0, CC BY,
+  CC BY-NC).
 - geojson.xyz itself could not be opened from the development machine
   (connection timeout); its file server worked.
 
@@ -1419,7 +1438,9 @@ a stand-in for a school Chromebook):
   and dates, coordinates, ids, years, categories and free text, postcodes and
   "NA", milliseconds since 1970, geometries and booleans, the row limit;
 - web address block, with real answers recorded 2026-10-28 (USGS, Bright Sky,
-  PEGELONLINE, Our World in Data, trimmed): columns and kinds, the records
+  PEGELONLINE, Our World in Data, and GBIF recorded 2026-11-02, trimmed):
+  columns and kinds, GBIF's coordinates, dates, number of birds and camelCase
+  ids, the records
   found in Bright Sky's answer, nested waterway, gauge numbers kept as text,
   years as times, a web page instead of data, blocked address (CORS) and 404
   messages, the size limit, https only, defaults for odd saved settings, short
@@ -1448,6 +1469,7 @@ Berlin; with Overpass blocked: stored copy and the Münster stand-in for Köln;
 symbols, dots and street-level switch), tooltips at the map's edges, and the
 block dropdown menus at 420 and 1600 px with blocks near the top and left
 edge, the web address block (examples, map of earthquakes, 26 509 CO₂ rows,
+crane sightings coloured by number of birds and by month,
 error messages for a web page, `http://` and a missing file), the own file
 block (German CSV, map, Python run reading the file in Pyodide, language
 switch), world lakes and rivers from geojson.xyz (dots for small areas, wheel

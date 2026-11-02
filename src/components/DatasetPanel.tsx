@@ -14,12 +14,14 @@ import {
 
 import { isGeometry, shapeKind, vertexCount, type ShapeKind } from '../core/geometry'
 import { summarizeTable, type ColumnSummary } from '../core/summary'
+import { hasTimeSeries } from '../core/timeseries'
 import type { ColumnMeta, DataTable, Geometry, SemanticType } from '../core/types'
 import { formatDate, formatNumber, pick, t, type MessageKey } from '../i18n'
 import { glossaryForColumn } from '../glossary'
 import { selectShownStrandId, useAppStore } from '../store/useAppStore'
 import { GlossaryInfo } from './GlossaryInfo'
 import { MapPreview } from './MapPreview'
+import { TimeChart } from './TimeChart'
 
 const PREVIEW_ROWS = 20
 
@@ -128,60 +130,63 @@ function ColumnsTable({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const rowCount = table.rows.length
 
   return (
-    <Table.Root size="1" variant="surface" className="dataset-table columns-table">
-      <Table.Header>
-        <Table.Row>
-          <Table.ColumnHeaderCell>{t('column.name')}</Table.ColumnHeaderCell>
-          <Table.ColumnHeaderCell>{t('column.kind')}</Table.ColumnHeaderCell>
-          <Table.ColumnHeaderCell>{t('column.filled')}</Table.ColumnHeaderCell>
-          <Table.ColumnHeaderCell>{t('column.overview')}</Table.ColumnHeaderCell>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {summaries.map((summary) => {
-          const { column } = summary
-          const label = pick(column.label) ?? column.name
-          const description = pick(column.description)
-          const filledShare = rowCount ? (summary.filled / rowCount) * 100 : 0
-          return (
-            <Table.Row key={column.name}>
-              <Table.RowHeaderCell>
-                <Text weight="medium" title={description}>
-                  {label}
-                </Text>{' '}
-                <GlossaryInfo entry={glossaryForColumn(column)} />
-                {label !== column.name && (
-                  <Text as="div" size="1" color="gray" className="column-name">
-                    {column.name}
-                  </Text>
-                )}
-              </Table.RowHeaderCell>
-              <Table.Cell>
-                <Badge color={semanticColor[column.semanticType]} variant="soft">
-                  {t(`semantic.${column.semanticType}`)}
-                </Badge>
-              </Table.Cell>
-              <Table.Cell className="filled-cell" data-label={t('column.filled')}>
-                <Progress
-                  value={filledShare}
-                  size="1"
-                  color={summary.missing ? 'amber' : 'grass'}
-                  aria-label={t('column.filled')}
-                />
-                {summary.missing > 0 && (
-                  <Text as="div" size="1" color="amber">
-                    {t('column.missing', { count: formatNumber(summary.missing) })}
-                  </Text>
-                )}
-              </Table.Cell>
-              <Table.Cell className="overview-cell">
-                {hidden.has(column.name) ? <HiddenValue /> : <ColumnOverview summary={summary} />}
-              </Table.Cell>
-            </Table.Row>
-          )
-        })}
-      </Table.Body>
-    </Table.Root>
+    // Data like GBIF's has 150 columns: the table scrolls in its own box, so its sideways scrollbar stays in view.
+    <Box className="table-scroll">
+      <Table.Root size="1" variant="surface" className="dataset-table scroll-table columns-table">
+        <Table.Header>
+          <Table.Row>
+            <Table.ColumnHeaderCell>{t('column.name')}</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>{t('column.kind')}</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>{t('column.filled')}</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>{t('column.overview')}</Table.ColumnHeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {summaries.map((summary) => {
+            const { column } = summary
+            const label = pick(column.label) ?? column.name
+            const description = pick(column.description)
+            const filledShare = rowCount ? (summary.filled / rowCount) * 100 : 0
+            return (
+              <Table.Row key={column.name}>
+                <Table.RowHeaderCell>
+                  <Text weight="medium" title={description}>
+                    {label}
+                  </Text>{' '}
+                  <GlossaryInfo entry={glossaryForColumn(column)} />
+                  {label !== column.name && (
+                    <Text as="div" size="1" color="gray" className="column-name">
+                      {column.name}
+                    </Text>
+                  )}
+                </Table.RowHeaderCell>
+                <Table.Cell>
+                  <Badge color={semanticColor[column.semanticType]} variant="soft">
+                    {t(`semantic.${column.semanticType}`)}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell className="filled-cell" data-label={t('column.filled')}>
+                  <Progress
+                    value={filledShare}
+                    size="1"
+                    color={summary.missing ? 'amber' : 'grass'}
+                    aria-label={t('column.filled')}
+                  />
+                  {summary.missing > 0 && (
+                    <Text as="div" size="1" color="amber">
+                      {t('column.missing', { count: formatNumber(summary.missing) })}
+                    </Text>
+                  )}
+                </Table.Cell>
+                <Table.Cell className="overview-cell">
+                  {hidden.has(column.name) ? <HiddenValue /> : <ColumnOverview summary={summary} />}
+                </Table.Cell>
+              </Table.Row>
+            )
+          })}
+        </Table.Body>
+      </Table.Root>
+    </Box>
   )
 }
 
@@ -215,8 +220,8 @@ function RowsPreview({ table, hidden }: { table: DataTable; hidden: Hidden }) {
         </Text>
       )}
       {/* One box scrolls the rows both ways, so its sideways scrollbar is always in view. */}
-      <Box className="preview-scroll" ref={box}>
-        <Table.Root size="1" variant="surface" className="dataset-table preview-table">
+      <Box className="table-scroll" ref={box}>
+        <Table.Root size="1" variant="surface" className="dataset-table scroll-table preview-table">
           <Table.Header>
             <Table.Row>
               {table.columns.map((column) => (
@@ -256,6 +261,7 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
   const hasPlaces =
     table.columns.some((c) => c.semanticType === 'geometry') ||
     (table.columns.some((c) => c.semanticType === 'latitude') && table.columns.some((c) => c.semanticType === 'longitude'))
+  const hasTime = useMemo(() => hasTimeSeries(table), [table])
 
   return (
     <Flex direction="column" gap="3">
@@ -353,6 +359,15 @@ function DatasetCard({ table, hidden }: { table: DataTable; hidden: Hidden }) {
             {t('dataset.map')}
           </Heading>
           <MapPreview table={table} hidden={hidden} />
+        </>
+      )}
+
+      {hasTime && (
+        <>
+          <Heading size="3" mt="2">
+            {t('chart.title')}
+          </Heading>
+          <TimeChart table={table} hidden={hidden} />
         </>
       )}
 

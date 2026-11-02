@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import brightSky from './__fixtures__/brightsky-muenster-four-hours.json?raw'
+import gbif from './__fixtures__/gbif-kraniche-muenster-2024-three.json?raw'
 import owid from './__fixtures__/owid-co2-per-capita-germany-three.csv?raw'
 import stations from './__fixtures__/pegelonline-stations-two.json?raw'
 import usgs from './__fixtures__/usgs-2.5_week-three.geojson?raw'
@@ -9,6 +10,8 @@ import { loadUrl, loadUrlOperation } from './operation'
 import { URL_EXAMPLES } from './presets'
 
 const example = (id: string) => URL_EXAMPLES.find((e) => e.id === id)!.url
+/** An own address (not an example): CSV per country and year, no coordinates. */
+const OWID = 'https://ourworldindata.org/grapher/co-emissions-per-capita.csv'
 const kinds = (table: ReturnType<typeof toUrlTable>) => Object.fromEntries(table.columns.map((c) => [c.name, c.semanticType]))
 
 afterEach(() => vi.unstubAllGlobals())
@@ -42,7 +45,7 @@ describe('toUrlTable (real answers, recorded 2026-10-28)', () => {
   })
 
   it('reads Our World in Data CSV with years as times', () => {
-    const table = toUrlTable({ url: example('co2') }, owid, 'text/csv')
+    const table = toUrlTable({ url: OWID }, owid, 'text/csv')
     expect(table.rows.map((r) => [r.Year, r['CO₂ emissions per capita']])).toEqual([
       ['2022', 7.942359],
       ['2023', 7.022808],
@@ -50,6 +53,21 @@ describe('toUrlTable (real answers, recorded 2026-10-28)', () => {
     ])
     // Three rows of "Germany": a category here; with all 26 509 rows (~250 countries) it is text.
     expect(kinds(table)).toMatchObject({ Entity: 'category', Code: 'identifier', Year: 'timestamp', 'CO₂ emissions per capita': 'measurement' })
+  })
+
+  it('reads GBIF sightings: position from decimalLatitude/-Longitude, date, number of birds; ids are no measurements', () => {
+    const table = toUrlTable({ url: example('kraniche_muenster') }, gbif, 'application/json')
+    expect(table.rows).toHaveLength(3)
+    expect(table.rows[0]).toMatchObject({ eventDate: '2024-01-07', individualCount: 12, year: '2024' })
+    expect(kinds(table)).toMatchObject({
+      decimalLatitude: 'latitude',
+      decimalLongitude: 'longitude',
+      eventDate: 'timestamp',
+      individualCount: 'measurement',
+      key: 'identifier',
+      taxonKey: 'identifier',
+      gbifID: 'identifier',
+    })
   })
 
   it('says when an address gives a web page instead of data', () => {
@@ -63,8 +81,8 @@ describe('loadUrl', () => {
   it('asks the address and reads it with the settings from the setup window', async () => {
     const fetchMock = vi.fn(async () => new Response(owid, { headers: { 'Content-Type': 'text/csv' } }))
     vi.stubGlobal('fetch', fetchMock)
-    const table = await loadUrl({ url: example('co2'), read: { format: 'csv', delimiter: ',' } })
-    expect(fetchMock).toHaveBeenCalledWith(example('co2'), expect.anything())
+    const table = await loadUrl({ url: OWID, read: { format: 'csv', delimiter: ',' } })
+    expect(fetchMock).toHaveBeenCalledWith(OWID, expect.anything())
     expect(table.rows).toHaveLength(3)
   })
 
@@ -107,7 +125,7 @@ describe('settings and Python', () => {
   })
 
   it('read the answer in Python like the app does', () => {
-    const csv = loadUrlOperation.toCode!({ url: example('co2'), read: { format: 'csv', delimiter: ',' } }, { output: 'co2' }).python
+    const csv = loadUrlOperation.toCode!({ url: OWID, read: { format: 'csv', delimiter: ',' } }, { output: 'co2' }).python
     expect(csv).toContain('co2 = pd.read_csv(io.StringIO(text), sep=",")')
     const json = loadUrlOperation.toCode!({ url: example('wetter_muenster'), read: { format: 'json', path: ['weather'] } }).python
     expect(json).toContain('df = pd.json_normalize(daten["weather"], sep="_")')

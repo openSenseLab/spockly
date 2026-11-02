@@ -207,9 +207,13 @@ function readDates(values: unknown[]): (string | null)[] | null {
 
 const TIME_NAME = /(time|date|zeit|datum|updated|timestamp)/i
 const YEAR_NAME = /^(year|jahr)$/i
-const LAT_NAME = /^(lat|latitude|breite|breitengrad)$|_(lat|latitude)$/i
-const LON_NAME = /^(lon|lng|long|longitude|länge|laenge|längengrad)$|_(lon|lng|longitude)$/i
-const IDENTIFIER_NAME = /(^|_)(id|uid|uuid|code|key|nr|nummer|number|plz)(_|$)/i
+/** Also names ending in it, e.g. GBIF's decimalLatitude or geo_lat. */
+const LAT_NAME = /^(lat|breite|breitengrad)$|latitude$|_lat$/i
+const LON_NAME = /^(lon|lng|long|länge|laenge|längengrad)$|longitude$|_(lon|lng)$/i
+const IDENTIFIER_WORD = /(^|_)(id|uid|uuid|code|key|nr|nummer|number|plz)(_|$)/i
+/** camelCase ids: taxonKey, gbifID, stationCode (case matters: "monkey" is no id). */
+const IDENTIFIER_CAMEL = /[a-z](Id|ID|Key|Code|Number|Nr)$/
+const isIdentifierName = (name: string) => IDENTIFIER_WORD.test(name) || IDENTIFIER_CAMEL.test(name)
 /** A text column with at most this many distinct values counts as a category. */
 const MAX_CATEGORY_VALUES = 20
 
@@ -243,14 +247,14 @@ function guessColumn(name: string, values: unknown[]): Guess {
       return { column: { ...base, dataType: 'date', semanticType: 'timestamp' }, values: numbers.map((n) => (n === null ? null : String(n))) }
     }
     // Ids written as text in JSON ("number": "27800040") stay text: they are names, not quantities.
-    if (IDENTIFIER_NAME.test(name) && values.some((v) => typeof v === 'string') && !values.some((v) => typeof v === 'number')) {
+    if (isIdentifierName(name) && values.some((v) => typeof v === 'string') && !values.some((v) => typeof v === 'number')) {
       return { column: { ...base, dataType: 'string', semanticType: 'identifier' }, values: values.map((v) => (isBlank(v) ? null : String(v))) }
     }
     const within = (limit: number) => numbers.every((n) => n === null || Math.abs(n) <= limit)
     const semanticType: SemanticType =
       LAT_NAME.test(name) && within(90) ? 'latitude'
       : LON_NAME.test(name) && within(180) ? 'longitude'
-      : IDENTIFIER_NAME.test(name) ? 'identifier'
+      : isIdentifierName(name) ? 'identifier'
       : 'measurement'
     const unit = semanticType === 'latitude' || semanticType === 'longitude' ? '°' : undefined
     return { column: { ...base, dataType: 'number', semanticType, unit }, values: numbers }
@@ -263,7 +267,7 @@ function guessColumn(name: string, values: unknown[]): Guess {
   const filled = texts.filter((v): v is string => v !== null)
   const distinct = new Set(filled).size
   // Values must repeat on average, otherwise it's free text (or too sparse to tell).
-  const semanticType: SemanticType = IDENTIFIER_NAME.test(name)
+  const semanticType: SemanticType = isIdentifierName(name)
     ? 'identifier'
     : distinct > 0 && distinct <= MAX_CATEGORY_VALUES && distinct <= filled.length / 2
       ? 'category'

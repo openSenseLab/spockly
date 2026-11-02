@@ -8,5 +8,8 @@ Real answers from the example web addresses, recorded on 2026-10-28 and trimmed
   `weather` records; `sources` (3 stations) as delivered.
 - `pegelonline-stations-two.json` — https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json
   (PEGELONLINE), only the stations CELLE and MÜNSTER OW out of 786.
-- `owid-co2-per-capita-germany-three.csv` — https://ourworldindata.org/grapher/co-emissions-per-capita.csv
+- `gbif-kraniche-muenster-2024-three.json` (recorded 2026-11-02) — https://api.gbif.org/v1/occurrence/search?taxonKey=2474950&decimalLatitude=51.8401448,52.0600251&decimalLongitude=7.4737853,7.7743634&year=2024&hasCoordinate=true&limit=300
+  (GBIF, common crane sightings in Münster in 2024), the first 3 of 126 results;
+  `count`, `endOfRecords` etc. as delivered.
+- `owid-co2-per-capita-germany-three.csv` (no longer an example, used as an own CSV address) — https://ourworldindata.org/grapher/co-emissions-per-capita.csv
   (Our World in Data), the header and Germany's last 3 years out of 26 509 rows.

@@ -174,34 +174,38 @@
 }
 
 /*
- * The rows scroll inside one box of limited height, both ways, so its
- * sideways scrollbar is always in view (not only once scrolled to the end of
- * the table); the column names stay on top. Radix's own scroll area inside
- * the table is switched off, or there would be two of each scrollbar.
+ * Tables in the Daten tab (columns, first rows, chart values) scroll inside
+ * one box of limited height, both ways, so the sideways scrollbar is always
+ * in view (not only once scrolled to the end of the table); the header stays
+ * on top. Radix's own scroll area inside the table is switched off, or there
+ * would be two of each scrollbar.
  */
-.preview-scroll {
+.table-scroll {
   max-height: min(55vh, 420px);
   overflow: auto;
   border-radius: var(--radius-3);
 }
 
-.preview-table .rt-ScrollAreaRoot,
-.preview-table .rt-ScrollAreaViewport,
-.preview-table .rt-TableRootTable {
+.scroll-table .rt-ScrollAreaRoot,
+.scroll-table .rt-ScrollAreaViewport,
+.scroll-table .rt-TableRootTable {
   overflow: visible !important;
 }
 
-.preview-table .rt-ScrollAreaScrollbar {
+.scroll-table .rt-ScrollAreaScrollbar {
   display: none;
 }
 
-/* As wide as its columns, so the table's border goes around all of them (not through the middle). */
-.preview-table {
-  width: max-content;
+/*
+ * As wide as its columns need (text still wraps where it can), so the
+ * table's border goes around all of them, not through the middle.
+ */
+.scroll-table {
+  width: fit-content;
   min-width: 100%;
 }
 
-.preview-table th {
+.scroll-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -488,4 +492,73 @@
 .file-drop.dragging {
   border-color: var(--accent-9);
   background: var(--accent-a3);
+}
+
+/* Time chart: recessive hairline grid and ticks, the data is the only loud thing. */
+.time-chart {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.time-chart svg {
+  display: block;
+  outline-offset: 2px;
+}
+
+.chart-grid {
+  stroke: var(--gray-a4);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart-tick {
+  font-size: 11px;
+  fill: var(--gray-11);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-crosshair {
+  stroke: var(--gray-a9);
+  stroke-width: 1;
+}
+
+/* Dots carry a ring in the surface colour, so they stay legible on lines. */
+.chart-dot {
+  stroke: var(--color-panel-solid);
+  stroke-width: 2;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  padding: 6px 8px;
+  background: var(--color-panel-solid);
+  border: 1px solid var(--gray-a6);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-3);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chart-tooltip-time,
+.chart-tooltip-label {
+  color: var(--gray-11);
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Line keys (not boxes) for series in tooltip and legend. */
+.chart-key {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
 }

@@ -68,14 +68,16 @@ export const URL_EXAMPLES: UrlExample[] = [
     source: { name: 'Natural Earth (über geojson.xyz)', page: 'https://geojson.xyz/' },
   },
   {
-    id: 'co2',
-    label: { de: 'CO₂-Ausstoß pro Kopf, je Land und Jahr', en: 'CO₂ emissions per person, by country and year' },
+    // GBIF's species key for Grus grus is 2474950 (species/match, 2026-11-02). One request
+    // returns at most 300 records; Münster in 2024 has 126, so the year is complete.
+    id: 'kraniche_muenster',
+    label: { de: 'Kraniche in Münster, 2024', en: 'Common cranes in Münster, 2024' },
     about: {
-      de: 'Tonnen pro Person für jedes Land, über viele Jahrzehnte (CSV).',
-      en: 'Tonnes per person for every country, over many decades (CSV).',
+      de: 'Jede gemeldete Beobachtung mit Ort, Datum und oft der Zahl der Vögel. Wann im Jahr werden sie gesehen? (JSON, meist über iNaturalist und eBird gemeldet)',
+      en: 'Every reported sighting with place, date and often the number of birds. When in the year are they seen? (JSON, mostly reported via iNaturalist and eBird)',
     },
-    url: 'https://ourworldindata.org/grapher/co-emissions-per-capita.csv',
-    source: { name: 'Our World in Data', page: 'https://ourworldindata.org/grapher/co-emissions-per-capita' },
+    url: 'https://api.gbif.org/v1/occurrence/search?taxonKey=2474950&decimalLatitude=51.8401448,52.0600251&decimalLongitude=7.4737853,7.7743634&year=2024&hasCoordinate=true&limit=300',
+    source: { name: 'GBIF – Global Biodiversity Information Facility', page: 'https://www.gbif.org' },
   },
 ]
 

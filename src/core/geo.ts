@@ -52,7 +52,7 @@ interface Running {
 }
 
 /** The column that names a place or shape: one called "…name…", else the first text or category column. */
-function labelColumn(table: DataTable): string | undefined {
+export function labelColumn(table: DataTable): string | undefined {
   const texts = table.columns.filter((c) => c.semanticType === 'text' || c.semanticType === 'category')
   return (texts.find((c) => /(^|_)name/i.test(c.name)) ?? texts[0])?.name
 }
