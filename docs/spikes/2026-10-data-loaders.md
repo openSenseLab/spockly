@@ -11,7 +11,7 @@ where students guess a value before they see it, then compare and explain.
 Measured quantities that students may not know (relative humidity, PM10, UV
 index …) get a short, sourced explanation behind a **"?"** button. A **map**
 in the side panel shows where the data comes from and what was measured
-there. Along the way it lays down a first version of the shared data format, the plan
+there, and a **time chart** shows how it changes over time. Along the way it lays down a first version of the shared data format, the plan
 that blocks are compiled into, a registry of load operations, and a column
 dropdown that later processing blocks can reuse. This document records what
 was built, how it works, what we learned about the APIs, and what is still
@@ -33,7 +33,7 @@ missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 206 unit tests (Vitest)
+npm test         # 220 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -42,7 +42,8 @@ npm run lint
   - **lade eigene Datei** loads a CSV, JSON or GeoJSON file from the device
     (it stays in the browser).
   - **lade Daten von einer Webadresse** loads CSV, JSON or GeoJSON from any
-    address that allows browser access; six examples to pick from.
+    address that allows browser access; six examples to pick from, all with
+    a place and a time in every row.
   - **lade Datensatz** loads a Huwise dataset (default: German federal states).
   - **lade openSenseMap-Daten** loads sensor measurements.
   - **lade NASA-Wetterdaten** loads weather and solar data for a place.
@@ -70,6 +71,8 @@ npm run lint
   buttons above it pick the measurement they are coloured by. For the NASA
   weather map, **▶ Monate abspielen** steps through the months. Drag the map
   to move it; after a click into it, the mouse wheel zooms.
+- Below the map, **Zeitverlauf** shows data with a time column as a chart:
+  the number of rows or a measurement per hour, day, month or year.
 - **Deutsch | English** switch at the top right; `?lang=en` also works.
 - On a phone (or any canvas narrower than 600 px) the toolbox is hidden; the
   **☰ Blöcke** button above the canvas opens it.
@@ -313,16 +316,25 @@ has mapped is missing.
   how the answer was read (format, delimiter, where the records are), so the
   app and the Python code read it the same way. A link opens the address in
   the browser; another points to geojson.xyz for more map data to try.
-- **Examples** (all checked to allow browser requests, 2026-10-28):
+- **Examples**: all spatio-temporal (every row has a place and a time), at
+  local and global scale, with fixed periods where the source allows it so a
+  lesson can be repeated. All checked to allow browser requests (2026-11-02):
 
   | Example | Source | Format | What |
   |---|---|---|---|
   | Erdbeben weltweit, letzte 7 Tage | USGS | GeoJSON | quakes from magnitude 2.5 (365 on the day) |
-  | Wasserstand in Münster, letzte 3 Tage | PEGELONLINE | JSON | one value per minute, gauge MÜNSTER OW (Dortmund-Ems-Kanal), ~4 300 rows |
-  | Pegel an Bundeswasserstraßen | PEGELONLINE | JSON | 786 gauges with position, waterway, kilometre |
-  | Wetter in Münster, 20.–27. Oktober 2026 | Bright Sky (DWD data) | JSON | hourly values |
-  | Flüsse der Welt | Natural Earth 3.3.0 via geojson.xyz | GeoJSON | 1 618 river lines |
+  | Erdbeben in und um Deutschland, 2025 | EMSC | GeoJSON | 193 quakes from magnitude 2 with depth and region; clusters at the Upper Rhine, Swabian Jura and Vogtland |
+  | Wirbelstürme weltweit, 2025 | NASA EONET | GeoJSON | 97 storms, 1 935 track positions (almost all 6 hours apart) with name and wind speed in knots |
+  | Große Waldbrände in Europa, 2025 | NASA EONET | GeoJSON | 48 fires, June–August, 13 countries (in the title), burnt area in hectares |
+  | Vulkanausbrüche weltweit, 2016–2025 | NASA EONET | GeoJSON | 521 eruptions of 154 volcanoes (Bagana 15 times); 8 are areas |
   | Kraniche in Münster, 2024 | GBIF (mostly iNaturalist, eBird) | JSON | 126 sightings with position, date and often the number of birds |
+
+  Replaced on 2026-11-02 because they had only a place or only a time: the
+  water level in Münster (PEGELONLINE, one gauge, rows without coordinates),
+  the gauges on federal waterways (positions, no times), the weather in
+  Münster (Bright Sky: the hourly rows name a station, its position is in a
+  separate list) and the rivers of the world (Natural Earth via geojson.xyz,
+  no times). They still load when typed in as own addresses.
 
   The first CSV example, CO₂ emissions per person by country and year (Our
   World in Data, 26 509 rows), was dropped (2026-11-02): it has country names
@@ -333,6 +345,8 @@ has mapped is missing.
   have been cut off in July), and they show two peaks, February–March and
   October–November — colour the map by `month` to see them.
 
+- The EONET answers come with the content type `application/rss+xml` although
+  they are GeoJSON; the reader goes by the text (`{`) and reads them fine.
 - **Only https addresses** (the app runs on https, browsers block `http://`
   from there).
 - **Messages** for what goes wrong: the address can't be loaded (wrong,
@@ -494,12 +508,17 @@ Shows the selected strand, or the one edited last:
   overview (range and mean, time span, most frequent values, or for shapes
   "16 Flächen · 71.599 Eckpunkte insgesamt");
 - a **map** for data with coordinates or shapes (see below);
+- a **time chart** for data with a time column (see below);
 - the first 20 rows, missing values shown as "–", shapes as e.g. "Fläche
   (22 Eckpunkte)" instead of their coordinates. When they are wider than the
   panel, a hint says "Seitlich wischen oder scrollen, um alle Spalten zu sehen →"
   (touch screens show no scrollbars, so nothing else hints at more columns).
   **The rows scroll in one box of at most 420 px**, up/down and sideways, with
-  the column names staying on top. Before, the table was as tall as its 20
+  the column names staying on top. The column table and the time chart's
+  table view use the same box (`.table-scroll`, `.scroll-table`): with the
+  154 columns of the GBIF answer, the column table was so tall that its
+  sideways scrollbar only appeared at its end; now it scrolls in its own box
+  and wraps its text, so it fits the panel without scrolling sideways. Before, the table was as tall as its 20
   rows, so its sideways scrollbar only appeared once scrolled to the very end;
   a first fix that limited the height of Radix's nested scroll layers showed
   two vertical scrollbars, and the table's border then ran through the middle
@@ -628,6 +647,32 @@ all three; the points-only parts are marked.
 
 Station names are typed in by openSenseMap users, so tooltips are built as
 plain text (no HTML).
+
+### Time chart (Daten tab)
+
+Shown under the heading **Zeitverlauf** below the map for every dataset with
+a date or time column that has at least two different times. Drawn as SVG by
+the app itself (no chart library); the grouping is in `core/timeseries.ts`,
+free of the page, so a later chart block can reuse it.
+
+- **Zeigt:** "Anzahl der Zeilen" (sightings, quakes … per step, drawn as
+  columns) or one of the measurements (drawn as a line).
+- **Zeitspalte** (only with more than one): times of the event come first,
+  times about the record last (GBIF's `eventDate` before `lastCrawled`,
+  `modified`, `dateIdentified`).
+- **Zeitschritt:** every time point, hour, day, month or year. Only steps that
+  give 2 to 5 000 points are offered; "automatisch" takes the finest calendar
+  step with at most 200 points (cranes in 2024: months; a week of quakes:
+  hours). Empty steps stay in: 0 for a count, a gap in a line.
+- **Wert je Zeitschritt:** mean, highest or lowest value per step. Up to three
+  places (by coordinates, as on the map) get one line each, named by their
+  name column; more places are drawn as one line ("alle N Orte zusammen"),
+  with a light band from the lowest to the highest single value when the mean
+  is shown.
+- Times are grouped in local time, so a day is a day in Münster, not in UTC.
+- Pointing at the chart shows a line and the values of that step; the arrow
+  keys step through it. **als Tabelle** shows the same numbers as a table.
+- Notes say what is drawn and how many rows have no time.
 
 ### Python tab
 
@@ -820,6 +865,8 @@ semantic type such as measurement/category/timestamp/latitude, unit),
 | `src/blocks/theme.ts` | Zelos theme with hat-shaped load blocks |
 | `src/hooks/useLoadRunner.ts` | runs load steps (debounce, cancel, cache) |
 | `src/components/DatasetPanel.tsx` | Daten tab |
+| `src/core/timeseries.ts` | rows → values per time step (time columns ranked, steps offered, count/mean/max/min, lines per place, axis ticks) + tests |
+| `src/components/TimeChart.tsx` | the time chart and its table view |
 | `src/components/MapPreview.tsx` | the map: points, shapes or grid cells; icons and symbols, colours by kind, measurement buttons, month slider, outline, places, legend, tooltips that stay inside |
 | `src/components/BlocklyWorkspace.tsx` | canvas, toolbox (incl. the "Blöcke" button on small screens), plan and code updates |
 | `src/components/BlockSetupDialog.tsx` | setup window; picks the form by block type |
@@ -1072,6 +1119,25 @@ Quirks found (covered by tests with recorded responses):
   `species/match`: common crane 2474950), rectangle, year. 95 fields per
   record, 154 columns after flattening; licences differ per record (CC0, CC BY,
   CC BY-NC).
+- **EMSC** (seismicportal.eu, FDSN event service, 2026-11-02): browser
+  requests allowed; GeoJSON with `time`, `mag`, `depth`, `flynn_region`.
+  Filters by rectangle, period and magnitude; `limit` set to 1000 (193 quakes
+  from magnitude 2 in and around Germany in 2025, so complete). The rectangle
+  reaches into France, Switzerland, Austria and Czechia.
+- **NASA EONET** (v3, 2026-11-02): browser requests allowed; GeoJSON of natural
+  events by category (`severeStorms`, `wildfires`, `volcanoes`, sea ice …),
+  period and rectangle. Without `status=all` only events still open are
+  returned. Storms come as one point per track position, with wind speed in
+  `magnitudeValue`/`magnitudeUnit` (kts); fires with area in hectares, the
+  country only in the title. Wildfires worldwide are mostly US incidents, so
+  the example uses a European rectangle. 2 MB for a year of storms.
+- **Not used yet:** IBTrACS storm tracks (NOAA, browser access, but 11.8 MB and
+  a second line of units under the header that would need a "skip rows"
+  setting); Open-Meteo (browser access, several places in one request, but
+  values come as one list per variable and the CSV has two parts, which our
+  reader can't turn into rows yet); sensor.community (a snapshot of the last
+  hour, 8.7 MB, values in nested lists); iNaturalist (works, but GBIF already
+  includes its sightings).
 - geojson.xyz itself could not be opened from the development machine
   (connection timeout); its file server worked.
 
@@ -1167,6 +1233,10 @@ a stand-in for a school Chromebook):
   and the way they were read is saved with the block (same reading in Python).
 - Column kinds are **guessed from the values**; the panel says so. Ids stay
   text.
+- Web address examples are **only spatio-temporal** data (a place and a time
+  in every row), with fixed periods where possible.
+- The time chart is **drawn by the app** (SVG, no chart library), grouped in
+  local time, and its grouping lives in `core` for a later chart block.
 - **Only https** addresses; **no proxy** for sites that don't allow browser
   requests (for now).
 - OpenStreetMap: **stored copies only for Münster**; other cities fall back to
@@ -1378,6 +1448,10 @@ a stand-in for a school Chromebook):
   blocks underneath can't be reached until it closes.
 - "Erste Zeilen" still scrolls sideways (it's a real table with many columns),
   now within its own box.
+- The time chart shows one line for all places when there are more than three,
+  and places are told apart by coordinates: a storm moving along its track is
+  many places, not one. Following one storm or comparing chosen places needs
+  a filter or grouping block first.
 - With eight load blocks the toolbox list is taller than the canvas; the last
   blocks need scrolling.
 - Block dropdown menus rely on Blockly's internal `TEST_ONLY.getBoundsInfo`
@@ -1392,7 +1466,7 @@ a stand-in for a school Chromebook):
 
 ## 7. Tests
 
-`npm test` runs 206 unit tests:
+`npm test` runs 220 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -1437,8 +1511,14 @@ a stand-in for a school Chromebook):
   nested objects as columns, plain lists and single objects; German numbers
   and dates, coordinates, ids, years, categories and free text, postcodes and
   "NA", milliseconds since 1970, geometries and booleans, the row limit;
+- `core/timeseries`: ISO times at any precision as local time, step keys,
+  steps offered and the automatic step, counts per month with empty months,
+  mean with gaps and range, one line per place for up to three places, one
+  line for more, time columns ranked (GBIF), axis ticks;
 - web address block, with real answers recorded 2026-10-28 (USGS, Bright Sky,
-  PEGELONLINE, Our World in Data, and GBIF recorded 2026-11-02, trimmed):
+  PEGELONLINE, Our World in Data) and 2026-11-02 (GBIF, EMSC, NASA EONET
+  storms), trimmed: quakes in and around Germany, storm track points with
+  wind speed (sent as `application/rss+xml`),
   columns and kinds, GBIF's coordinates, dates, number of birds and camelCase
   ids, the records
   found in Bright Sky's answer, nested waterway, gauge numbers kept as text,
@@ -1473,12 +1553,15 @@ crane sightings coloured by number of birds and by month,
 error messages for a web page, `http://` and a missing file), the own file
 block (German CSV, map, Python run reading the file in Pyodide, language
 switch), world lakes and rivers from geojson.xyz (dots for small areas, wheel
-zoom after a click, dragging), and the rows table (one scroll box at 420, 1000
-and 1600 px, header staying on top, border around all columns) were checked
+zoom after a click, dragging), the rows and column tables (one scroll box each
+at 420, 1000 and 1600 px, header staying on top, border around all columns,
+154 GBIF columns), the time chart (cranes, earthquakes, PEGELONLINE water
+level, NASA POWER, NASA weather map) and all six web address examples (map and
+time chart each) were checked
 with scripted browser runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses and files** recorded on
-2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19, 2026-10-26, 2026-10-27 and 2026-10-28, some trimmed;
+2026-10-06, 2026-10-07, 2026-10-13, 2026-10-19, 2026-10-26, 2026-10-27, 2026-10-28 and 2026-11-02, some trimmed;
 each folder has a README saying exactly what was requested. They contain
 public data: German federal states incl. Bremen's outline (Data licence
 Germany – attribution 2.0), OpenStreetMap drinking water points and five
@@ -1534,8 +1617,12 @@ There are no automated UI tests in the repo.
   stored copies, and should other cities get copies too (size)?
 - **City boundaries** instead of rectangles (Overpass `area` queries are
   heavier; boundaries would have to be bundled or fetched)?
-- **Next spatio-temporal sources** (GBIF, Pegelonline, Bright Sky/DWD, USGS,
-  Our World in Data + countries): which first?
+- **Weather at several places over time** in the web address block: worth
+  teaching the reader Open-Meteo's "one list per variable" shape (in the app
+  and in Python), or leave weather to the NASA and openSenseMap blocks?
+- **Joining to get places:** PEGELONLINE water levels and Bright Sky weather
+  have their positions in a separate list or request; a join block would make
+  them spatio-temporal.
 - **Map tiles for classroom use:** which tile provider, and does it need a
   key or a proxy?
 - **Colour scale:** relative to the loaded data (now), or fixed scales per
