@@ -14,8 +14,8 @@ in the side panel shows where the data comes from and what was measured
 there, and a **time chart** shows how it changes over time. Along the way it lays down a first version of the shared data format, the plan
 that blocks are compiled into, a registry of load operations, and a column
 dropdown that later processing blocks can reuse. This document records what
-was built, how it works, what we learned about the APIs, and what is still
-missing.
+was built, how it works, what we learned about the APIs, how the block
+designs compare, and what is still missing.
 
 ## Contents
 
@@ -23,10 +23,11 @@ missing.
 2. [What was built](#2-what-was-built)
 3. [How it works](#3-how-it-works)
 4. [What we learned about the APIs](#4-what-we-learned-about-the-apis)
-5. [Decisions taken](#5-decisions-taken)
-6. [Limitations and known issues](#6-limitations-and-known-issues)
-7. [Tests](#7-tests)
-8. [Open questions](#8-open-questions)
+5. [Comparison of block designs](#5-comparison-of-block-designs)
+6. [Decisions taken](#6-decisions-taken)
+7. [Limitations and known issues](#7-limitations-and-known-issues)
+8. [Tests](#8-tests)
+9. [Open questions](#9-open-questions)
 
 ## 1. Try it
 
@@ -1181,7 +1182,86 @@ a stand-in for a school Chromebook):
   but ~6 s). UBA air quality allows no browser requests after its redirect, so
   it would need a proxy.
 
-## 5. Decisions taken
+## 5. Comparison of block designs
+
+The spike built eight load blocks in five different designs. They differ in
+how much the student decides, how much the app knows about the data, and how
+much work a new source is. This section compares them, so that later blocks
+can follow one of them on purpose.
+
+### The five designs
+
+| Design | Blocks | What the student does |
+|---|---|---|
+| **A. Presets in dropdowns** | OpenStreetMap, world map data (Natural Earth), NASA weather map | picks a topic, an area, perhaps a value and a year from short lists on the block; no setup window |
+| **B. Source block with a setup window** | openSenseMap, NASA POWER | sets area or place, time span and measurements in a window made for that service |
+| **C. Platform block** | Huwise | names a dataset on any portal of one platform (or pastes its link) |
+| **D. Web address** | lade Daten von einer Webadresse | types any address or picks an example, checks it, and the app works out how to read it |
+| **E. Own file** | lade eigene Datei | picks a CSV, JSON or GeoJSON file from the device |
+
+### Side by side
+
+| | A. Presets | B. Source + window | C. Platform | D. Web address | E. Own file |
+|---|---|---|---|---|---|
+| **Decisions for students** | 2–3 choices from short lists | 3–6 settings | 2 fields (dataset, portal) | 1 address, then check what was read | 1 file, then check what was read |
+| **What can go wrong** | almost nothing; a busy server | empty area or period ("no values"), rate limits | wrong id, private dataset | wrong address, server blocks browser requests (CORS), a web page instead of data, too large | wrong format, odd spreadsheet export |
+| **Reliable in class?** | best: fixed files (Natural Earth) or a stored copy when Overpass is busy (OSM) | depends on one service; NASA POWER untested with a whole class | depends on the portal | depends on a server we don't know; no fallback | yes, nothing is downloaded |
+| **What the app knows about the data** | everything: units, column kinds, labels, map symbols, first view | units, measurement names, "?" explanations, places | what the portal's metadata says (titles, types, shapes) | only what it can guess from the values; ids and times by name and pattern | the same guesses as D |
+| **Same data next lesson?** | yes (pinned files, fixed years) | yes with fixed dates (NASA); openSenseMap stations change | as long as the dataset stays | only for fixed periods (the examples use them); "last 7 days" changes | yes |
+| **Generated Python** | short, but not yet identical (NASA map without outline filter, lakes not limited to Europe, OSM without the stored copy) | longer: paging, unit fixes (Pa → hPa) | short: one request per page | short and generic: download, `pd.read_csv` or `json_normalize` | shortest: `pd.read_csv("datei.csv")` |
+| **Teaching focus** | the question, not the data source | choosing place, time and measurement on purpose | open-data portals exist and can be searched | how real data arrives: formats, addresses, what a "column" is | students' own measurements |
+| **New source costs** | a new preset entry (a query or a file and its columns) | a whole new block: request, paging, mapping, form, Python, tests (450–720 lines of code each for openSenseMap and NASA POWER, without tests and form) | nothing, if it is on the platform | nothing, if it allows browser requests | nothing |
+| **When an API changes** | one block breaks; stored copies keep working | one block breaks | one block breaks for all portals | the examples break; own addresses are the students' risk | nothing breaks |
+
+### What we learned
+
+- **The more the student decides, the less the app knows.** Presets and
+  source blocks can explain each measurement, draw the right symbol and choose
+  a good first view. The web address and file blocks have to guess: they get
+  the kinds of columns mostly right (dates, coordinates, ids), but no units,
+  no explanations, and sometimes a measurement that is really an id.
+- **Reliability comes from what we control.** The only blocks that still work
+  when a service is down are those with pinned files or stored copies
+  (Natural Earth, OpenStreetMap) and the file block. For a planned lesson that
+  matters more than freshness.
+- **Generic blocks are cheap to extend but hard to support.** A teacher can
+  use any address, but when it fails, the reason is often outside the app
+  (CORS, a login, a changed format), and the message can only say so.
+- **Setup windows pay off when settings depend on each other** (openSenseMap:
+  area → stations → measurements; NASA POWER: place → values → period).
+  For two or three independent choices, dropdowns on the block are quicker and
+  keep everything visible on the canvas.
+- **Each design shows students something different.** Presets hide the data
+  source; the web address block makes it the topic. Both are useful at
+  different stages.
+
+### Recommendation
+
+Keep several designs, each for a clear purpose, rather than pick one:
+
+1. **Presets (A) as the default for lessons and beginners.** New curated
+   sources (e.g. more spatio-temporal datasets) become preset entries with
+   pinned or stored data, so a lesson works the same every time and the app
+   can explain every column.
+2. **Source blocks with a window (B) only where the service needs choices that
+   depend on each other** and the data is central to the curriculum (sensor
+   data, weather). Each one is expensive to build and maintain.
+3. **Web address (D) and own file (E) for projects and older students**, once
+   they know what columns and formats are. Their examples should stay
+   spatio-temporal and use fixed periods.
+4. **The platform block (C)** fits where a school or city publishes on one
+   platform (Huwise portals); not worth repeating for other platforms unless a
+   partner uses one.
+5. **One shared core for all designs:** the same `DataTable` format, the same
+   reader (`core/tabular.ts`) for anything that comes as CSV/JSON/GeoJSON, the
+   same Daten tab, map and time chart. New sources then mostly mean new
+   presets, not new code.
+
+Open for the team: whether students should be able to **correct a guessed
+column kind** in D and E (see Open questions), which would close most of the
+gap in "what the app knows" between the generic and the curated blocks.
+
+## 6. Decisions taken
 
 - Configuration of API blocks happens in a **setup window**; results stay in
   the side panel.
@@ -1252,7 +1332,7 @@ a stand-in for a school Chromebook):
 - Outlines for the NASA map are **bundled** (25 KB, simplified), not fetched at
   load time.
 
-## 6. Limitations and known issues
+## 7. Limitations and known issues
 
 **Architecture**
 
@@ -1464,7 +1544,7 @@ a stand-in for a school Chromebook):
   "?" buttons, measurement cards, small-screen layout and the "Blöcke" button
   were checked in Edge's phone and tablet emulation only.
 
-## 7. Tests
+## 8. Tests
 
 `npm test` runs 220 unit tests:
 
@@ -1572,7 +1652,7 @@ for NRW, and Natural Earth countries and lakes (public domain).
 The UI was checked by hand and with scripted browser runs against the live APIs.
 There are no automated UI tests in the repo.
 
-## 8. Open questions
+## 9. Open questions
 
 - **Dates as ISO strings** in `DataTable` — confirm or change? It affects every
   loader.
