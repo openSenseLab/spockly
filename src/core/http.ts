@@ -121,3 +121,10 @@ export async function mapLimit<T, R>(
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
   return results
 }
+
+/**
+ * A file of the app (e.g. a stored copy in public/data) as a full address, for
+ * the generated Python: Pyodide runs in a worker, where a relative address
+ * would point next to the worker's script instead of the page.
+ */
+export const appUrl = (path: string) => (typeof location === 'undefined' ? path : new URL(path, location.href).href)

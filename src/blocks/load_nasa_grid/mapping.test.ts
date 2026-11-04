@@ -9,6 +9,8 @@ import {
   type LoadNasaGridParams,
   type PowerGridResponse,
 } from './mapping'
+import { loadNasaGridOperation } from './operation'
+import { AREA_PRESETS, MAX_SPAN, MIN_SPAN } from './presets'
 
 const params: LoadNasaGridParams = { area: 'nrw', parameter: 'T2M', year: 2024 }
 const table = toGridTable(params, nrw as PowerGridResponse, '2026-10-26')
@@ -77,6 +79,29 @@ describe('grid requests', () => {
     expect(checkGridParams({ ...params, year: 1980 }, '2026-10-26')).toBe('load.nasaTooEarly')
     expect(checkGridParams({ ...params, area: 'mars' }, '2026-10-26')).toBe('load.nasaUnknownPlace')
     expect(checkGridParams({ ...params, parameter: 'XYZ' }, '2026-10-26')).toBe('load.nasaNoVariables')
+  })
+
+  it('fit NASA POWER for every area, Germany and its neighbours: 2° to 10° each way, an outline and its source', () => {
+    expect(AREA_PRESETS.map((a) => a.id)).toEqual([
+      'deutschland', 'nrw', 'bayern', 'belgien', 'daenemark', 'luxemburg', 'niederlande', 'oesterreich', 'polen', 'schweiz', 'tschechien',
+    ])
+    for (const area of AREA_PRESETS) {
+      const [minLon, minLat, maxLon, maxLat] = area.bbox
+      for (const span of [maxLon - minLon, maxLat - minLat]) {
+        expect(span).toBeGreaterThanOrEqual(MIN_SPAN)
+        expect(span).toBeLessThanOrEqual(MAX_SPAN)
+      }
+      expect(['Polygon', 'MultiPolygon']).toContain(area.outline.type)
+      expect(area.outlineCredit).toMatch(area.id === 'deutschland' || area.id === 'nrw' || area.id === 'bayern' ? /GeoBasis-DE/ : /Natural Earth/)
+      expect(checkGridParams({ ...params, area: area.id }, '2026-10-26')).toBeNull()
+    }
+  })
+
+  it('keep only cells touching the outline in Python too, with the outline file the app uses', () => {
+    const code = loadNasaGridOperation.toCode!(params, { output: 'nrw' }).python
+    expect(code).toContain('umriss = json.load(open_url("')
+    expect(code).toContain('outlines.json"))["nrw"]')
+    expect(code).toContain('if not beruehrt(lon - d_lon / 2, lat - d_lat / 2, lon + d_lon / 2, lat + d_lat / 2):')
   })
 
   it('fall back to defaults for odd saved settings', () => {

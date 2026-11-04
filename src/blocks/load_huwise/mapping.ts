@@ -49,7 +49,7 @@ export interface HuwiseRecordsResponse {
 // ---- Helpers ----
 
 /** Fields we can't represent yet (attachments) are left out of the request. */
-const UNSUPPORTED_TYPES = new Set(['file', 'image'])
+export const UNSUPPORTED_TYPES = new Set(['file', 'image'])
 
 export const isSupportedField = (field: HuwiseField) => !UNSUPPORTED_TYPES.has(field.type)
 

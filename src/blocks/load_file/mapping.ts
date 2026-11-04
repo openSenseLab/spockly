@@ -1,6 +1,6 @@
 /** A picked file → DataTable, and the block's settings. No network access here. */
 import { LoadError } from '../../core/http'
-import { DELIMITERS, guessTable, readData, toTable, type ReadSettings } from '../../core/tabular'
+import { DELIMITERS, guessTable, isConversions, readData, toTable, type ReadSettings } from '../../core/tabular'
 import type { DataTable } from '../../core/types'
 import type { StoredFile } from './store'
 
@@ -27,7 +27,8 @@ const isReadSettings = (v: unknown): v is ReadSettings => {
     !!r &&
     (r.format === 'csv' || r.format === 'json' || r.format === 'geojson') &&
     (r.delimiter === undefined || DELIMITERS.includes(r.delimiter)) &&
-    (r.path === undefined || (Array.isArray(r.path) && r.path.every((k) => typeof k === 'string')))
+    (r.path === undefined || (Array.isArray(r.path) && r.path.every((k) => typeof k === 'string'))) &&
+    (r.convert === undefined || isConversions(r.convert))
   )
 }
 

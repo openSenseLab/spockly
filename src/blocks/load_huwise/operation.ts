@@ -2,6 +2,7 @@ import { getJson, LoadError } from '../../core/http'
 import type { DataTable, OperationDef } from '../../core/types'
 import {
   isSupportedField,
+  UNSUPPORTED_TYPES,
   isValidDatasetId,
   isValidDomain,
   toDataTable,
@@ -68,12 +69,32 @@ export const loadHuwiseOperation: OperationDef<LoadHuwiseParams> = {
   execute: (_input, params, ctx) => loadHuwise(params, ctx),
   // Runs in Pyodide: Python can't open network connections in the browser,
   // so the download goes through the browser via open_url.
+  // Like the app, it takes each column's type from the portal's description of the dataset.
   toCode: ({ domain, datasetId, maxRows }, { output = 'df' } = {}) => ({
     python:
+      `import json\n` +
       `import pandas as pd\n` +
       `from pyodide.http import open_url\n\n` +
-      `url = "https://${domain}/api/explore/v2.1/catalog/datasets/${datasetId}/exports/csv?limit=${maxRows}"\n` +
-      `${output} = pd.read_csv(open_url(url), sep=";")\n` +
+      `datensatz = "${apiBase(domain.trim().toLowerCase())}/catalog/datasets/${datasetId.trim()}"\n` +
+      `# Das Portal beschreibt jede Spalte: Name und Typ (Zahl, Datum, Punkt, Form …); Anhänge bleiben weg\n` +
+      `felder = [f for f in json.load(open_url(datensatz))["fields"] if f["type"] not in ${JSON.stringify([...UNSUPPORTED_TYPES])}]\n` +
+      `url = datensatz + "/exports/json?limit=${Math.max(1, Math.min(maxRows, MAX_ROWS))}&select=" + ",".join(f["name"] for f in felder)\n` +
+      `datensaetze = json.load(open_url(url))\n\n` +
+      `spalten = {}\n` +
+      `for f in felder:\n` +
+      `    werte = [d.get(f["name"]) for d in datensaetze]\n` +
+      `    if f["type"] == "geo_point_2d":  # ein Punkt → Breiten- und Längengrad\n` +
+      `        spalten[f["name"] + "_lat"] = [w["lat"] if w else None for w in werte]\n` +
+      `        spalten[f["name"] + "_lon"] = [w["lon"] if w else None for w in werte]\n` +
+      `    elif f["type"] == "geo_shape":  # eine Form: nur ihre Geometrie\n` +
+      `        spalten[f["name"]] = [w.get("geometry", w) if w else None for w in werte]\n` +
+      `    elif f["type"] in ("int", "double"):\n` +
+      `        spalten[f["name"]] = pd.to_numeric(pd.Series(werte, dtype="object"), errors="coerce")\n` +
+      `    elif f["type"] in ("date", "datetime"):\n` +
+      `        spalten[f["name"]] = pd.to_datetime(pd.Series(werte, dtype="object"), errors="coerce", utc=f["type"] == "datetime")\n` +
+      `    else:  # Listen (mehrere Werte) als Text\n` +
+      `        spalten[f["name"]] = [", ".join(map(str, w)) if isinstance(w, list) else w for w in werte]\n\n` +
+      `${output} = pd.DataFrame(spalten)\n` +
       `print(${output})`,
   }),
 }

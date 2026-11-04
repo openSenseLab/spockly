@@ -1,6 +1,6 @@
 /** Web address → DataTable, and the block's settings. No network access here. */
 import { LoadError } from '../../core/http'
-import { DELIMITERS, guessTable, readData, toTable, type ReadSettings } from '../../core/tabular'
+import { DELIMITERS, guessTable, isConversions, readData, toTable, type ReadSettings } from '../../core/tabular'
 import type { DataTable, LocalizedText } from '../../core/types'
 import { exampleFor, URL_EXAMPLES } from './presets'
 
@@ -46,7 +46,8 @@ const isReadSettings = (v: unknown): v is ReadSettings => {
     !!r &&
     (r.format === 'csv' || r.format === 'json' || r.format === 'geojson') &&
     (r.delimiter === undefined || DELIMITERS.includes(r.delimiter)) &&
-    (r.path === undefined || (Array.isArray(r.path) && r.path.every((k) => typeof k === 'string')))
+    (r.path === undefined || (Array.isArray(r.path) && r.path.every((k) => typeof k === 'string'))) &&
+    (r.convert === undefined || isConversions(r.convert))
   )
 }
 

@@ -1,7 +1,7 @@
-import { getJson, LoadError } from '../../core/http'
+import { appUrl, getJson, LoadError } from '../../core/http'
 import type { DataTable, ExecContext, OperationDef } from '../../core/types'
 import { toOsmTable, type LoadOsmParams, type OverpassResponse } from './mapping'
-import { osmArea, osmTopic, overpassQuery, OVERPASS_SERVERS, SERVER_TIMEOUT_MS, snapshotArea } from './presets'
+import { osmArea, osmTopic, overpassQuery, OVERPASS_SERVERS, SERVER_TIMEOUT_MS, SNAPSHOT_DATE, snapshotArea } from './presets'
 
 /** Stored copies (public/data/osm), one per topic and area. */
 export const snapshotUrl = ({ topic, area }: LoadOsmParams) => `${import.meta.env.BASE_URL}data/osm/${topic}-${area}.json`
@@ -47,12 +47,17 @@ export const loadOsmOperation: OperationDef<LoadOsmParams> = {
   kind: 'load',
   inferSchema: () => ({ columns: [], warnings: [] }),
   execute: (_input, params, ctx) => loadOsm(params, ctx),
-  // Runs in Pyodide: asks the servers in turn; the shapes stay as dicts in a "geometry" column.
+  // Runs in Pyodide: asks the servers in turn, else reads the app's stored copy (as the app does);
+  // the shapes stay as dicts in a "geometry" column.
   toCode: (params, { output = 'df' } = {}) => {
     const topic = osmTopic(params.topic)!
     const area = osmArea(params.area)!
     const derived = topic.derived
     const tags = JSON.stringify(Object.fromEntries(topic.columns.map((c) => [c.name, c.tag])))
+    // The same stored copy as the app: Münster's for cities without one of their own.
+    const stored = { topic: params.topic, area: snapshotArea(params.area) }
+    const copyOf = osmArea(stored.area)!.label.de
+    const recorded = SNAPSHOT_DATE.split('-').reverse().join('.')
     return {
       python:
         `import json\n` +
@@ -67,7 +72,10 @@ export const loadOsmOperation: OperationDef<LoadOsmParams> = {
         `        antwort = json.load(open_url(s + "?data=" + quote(abfrage)))\n` +
         `        break\n` +
         `    except Exception as fehler:\n` +
-        `        print("keine Antwort von", s, fehler)\n\n` +
+        `        print("keine Antwort von", s, fehler)\n` +
+        `if antwort is None:  # kein Server hat geantwortet: die gespeicherte Kopie, wie in SPOCKLY\n` +
+        `    print(${JSON.stringify(`Kein Server hat geantwortet – nehme die gespeicherte Kopie für ${copyOf} vom ${recorded}.`)})\n` +
+        `    antwort = json.load(open_url(${JSON.stringify(appUrl(snapshotUrl(stored)))}))\n\n` +
         (derived ? `def ${derived.name}(t):  # die Art, aus mehreren Tags\n${derived.python}\n` : '') +
         `spalten = ${tags}  # Spalte → OpenStreetMap-Tag\n` +
         `zeilen = []\n` +

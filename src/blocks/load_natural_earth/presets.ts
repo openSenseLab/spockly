@@ -38,8 +38,6 @@ export interface NeDataset {
   id: string
   /** One or more files; together they make the dataset (e.g. large lakes + smaller European ones). */
   files: string[]
-  /** Keep only shapes reaching into this rectangle (e.g. Europe out of a world file). */
-  within?: Bbox
   /** What the map shows first: detailed European data would look empty or tangled at full extent. */
   view?: { bbox: Bbox; label: LocalizedText }
   label: LocalizedText
@@ -100,21 +98,20 @@ export const NE_DATASETS: NeDataset[] = [
   },
   {
     id: 'lakes',
-    // The world file has the large lakes (Bodensee, Müritz), the European supplement
-    // the smaller ones (Chiemsee, Steinhuder Meer); neither alone shows Germany's lakes.
+    // The world file has the large lakes of the whole world (Bodensee, Müritz, Victoriasee), the European
+    // supplement smaller ones (Chiemsee, Steinhuder Meer); neither alone shows Germany's lakes.
     files: ['ne_10m_lakes', 'ne_10m_lakes_europe'],
-    within: [-25, 34, 45, 72],
     view: ALPINE_FORELAND,
-    label: { de: 'Seen in Europa', en: 'Lakes in Europe' },
+    label: { de: 'Seen der Welt', en: 'Lakes of the world' },
     scale: '1:10 000 000',
-    pythonName: 'seen_in_europa',
+    pythonName: 'seen_der_welt',
     columns: [
       name(['name_de', 'name']),
       { name: 'art', from: ['featurecla'], label: { de: 'Art', en: 'Kind' }, dataType: 'string', semanticType: 'category' },
     ],
     description: {
-      de: 'Seen und Stauseen in Europa als Flächen (Maßstab 1:10 Mio.). Sehr kleine Seen fehlen.',
-      en: 'Lakes and reservoirs in Europe as areas (scale 1:10 million). Very small lakes are missing.',
+      de: 'Seen und Stauseen der ganzen Welt als Flächen (Maßstab 1:10 Mio.), in Europa auch kleinere Seen aus einer Ergänzungsdatei. Sehr kleine Seen fehlen.',
+      en: 'Lakes and reservoirs of the whole world as areas (scale 1:10 million), in Europe also smaller lakes from a supplementary file. Very small lakes are missing.',
     },
   },
   {

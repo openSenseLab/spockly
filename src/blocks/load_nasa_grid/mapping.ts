@@ -6,7 +6,7 @@ import { containsPoint, rectTouches } from '../../core/geometry'
 import type { ColumnMeta, DataTable } from '../../core/types'
 import { dateKey, powerAttribution } from '../load_nasa_power/mapping'
 import { prettyUnit, VARIABLES, variable } from '../load_nasa_power/presets'
-import { areaPreset, AREA_PRESETS, MAX_SPAN, MIN_SPAN, OUTLINE_CREDIT } from './presets'
+import { areaPreset, AREA_PRESETS, MAX_SPAN, MIN_SPAN } from './presets'
 
 export const POWER_REGIONAL = 'https://power.larc.nasa.gov/api/temporal/monthly/regional'
 export const FIRST_YEAR = 1981
@@ -154,7 +154,7 @@ export function toGridTable(params: LoadNasaGridParams, response: PowerGridRespo
           "not from measuring stations; the elevation is the cell's mean elevation in the model.",
       },
       source: { name: 'NASA POWER', url: 'https://power.larc.nasa.gov' },
-      attribution: `${powerAttribution(response.header?.api?.version ?? '', accessed)} Umriss: ${OUTLINE_CREDIT}`,
+      attribution: `${powerAttribution(response.header?.api?.version ?? '', accessed)} Umriss: ${area.outlineCredit}`,
       collectedBy: 'NASA Langley Research Center',
       keywords: ['NASA POWER', label.de ?? code, area.label.de ?? area.id],
       spatialExtent: area.bbox,

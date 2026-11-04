@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import landMeta from './__fixtures__/georef-germany-land.meta.json'
 import landRecords from './__fixtures__/georef-germany-land.records.json'
-import { LoadError, loadHuwise } from './operation'
+import { LoadError, loadHuwise, loadHuwiseOperation } from './operation'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -85,5 +85,15 @@ describe('loadHuwise', () => {
       loadHuwise({ domain: 'hub.huwise.com', datasetId: '../catalog', maxRows: 10 }),
     ).rejects.toMatchObject({ code: 'load.invalidDataset' })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('Python code', () => {
+  it('takes the column types from the portal, like the app: points split, shapes as geometry, numbers and dates', () => {
+    const code = loadHuwiseOperation.toCode!({ domain: 'hub.huwise.com', datasetId: 'georef-germany-land', maxRows: 100 }, { output: 'laender' }).python
+    expect(code).toContain('datensatz = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/georef-germany-land"')
+    expect(code).toContain('url = datensatz + "/exports/json?limit=100&select="')
+    expect(code).toContain('spalten[f["name"] + "_lat"] = [w["lat"] if w else None for w in werte]')
+    expect(code).toContain('spalten[f["name"]] = [w.get("geometry", w) if w else None for w in werte]')
   })
 })

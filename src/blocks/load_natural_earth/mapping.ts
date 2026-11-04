@@ -1,7 +1,7 @@
 /** Natural Earth GeoJSON → the shared DataTable. No network access here. */
 import { boundsOf, toGeometry } from '../../core/geometry'
 import type { ColumnMeta, DataTable, Geometry } from '../../core/types'
-import { NE_BASE, NE_VERSION, type Bbox, type NeColumn, type NeDataset } from './presets'
+import { NE_BASE, NE_VERSION, type NeColumn, type NeDataset } from './presets'
 
 export interface NeFeatureCollection {
   type: 'FeatureCollection'
@@ -23,8 +23,6 @@ function valueOf(properties: Record<string, unknown>, column: NeColumn): unknown
   return String(raw)
 }
 
-const overlaps = (a: Bbox, b: Bbox) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
-
 /**
  * One row per feature of all the dataset's files, in file order. The two
  * lake files complement each other: lakes with the same name in both
@@ -37,7 +35,6 @@ export function toDataTable(dataset: NeDataset, collections: NeFeatureCollection
   for (const feature of collections.flatMap((c) => c.features)) {
     const geometry = toGeometry(feature.geometry)
     if (!geometry) continue
-    if (dataset.within && !overlaps(boundsOf([geometry])!, dataset.within)) continue
     const properties = feature.properties ?? {}
     const row: Record<string, unknown> = {}
     for (const column of dataset.columns) row[column.name] = valueOf(properties, column)

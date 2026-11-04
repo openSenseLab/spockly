@@ -1,6 +1,7 @@
 import { getJson, LoadError } from '../../core/http'
 import type { DataTable, ExecContext, OperationDef } from '../../core/types'
 import { checkParams, requestUrl, toDataTable, type LoadNasaParams, type PowerResponse } from './mapping'
+import { VARIABLES } from './presets'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -40,6 +41,13 @@ export const loadNasaPowerOperation: OperationDef<LoadNasaParams> = {
         (monthly ? `${output} = ${output}[~${output}.index.str.endswith("13")]  # Monat 13 = Jahreswert\n` : '') +
         `${output}.index = pd.to_datetime(${output}.index, format="${monthly ? '%Y%m' : '%Y%m%d'}")\n` +
         `${output} = ${output}.replace(antwort["header"]["fill_value"], float("nan"))  # fehlende Werte\n` +
+        `# Das Datum als Spalte, die Werte in der Reihenfolge der Liste, dazu der Gitterpunkt, den NASA verwendet hat\n` +
+        `${output} = ${output}.rename_axis("date").reset_index()\n` +
+        `lon, lat = antwort["geometry"]["coordinates"][:2]\n` +
+        `${output}["lat"] = lat\n` +
+        `${output}["lon"] = lon\n` +
+        `werte = [code for code in ${JSON.stringify(VARIABLES.map((v) => v.code))} if code in ${output}.columns]\n` +
+        `${output} = ${output}[["date"] + werte + ["lat", "lon"]]\n` +
         `print(${output})`,
     }
   },

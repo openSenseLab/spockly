@@ -324,7 +324,26 @@ export interface ReadSettings {
   delimiter?: Delimiter
   /** JSON only: where the records are, e.g. ["weather"]. */
   path?: string[]
+  /**
+   * What the app guessed and pandas doesn't do by itself, per column, for the
+   * Python code (see conversionsFor). Saved when the block is set up.
+   */
+  convert?: Record<string, Conversion>
 }
+
+/**
+ * Conversions the Python code needs to get the app's columns:
+ * - text: an id or postcode that looks like a number ("048149"), CSV only;
+ * - date / date-de: ISO or German dates written as text;
+ * - epoch-ms: milliseconds since 1970 (USGS "time");
+ * - year: a year number ("year": 2024);
+ * - number / bool: numbers or yes/no written as text ("240", "true").
+ */
+export type Conversion = 'text' | 'date' | 'date-de' | 'epoch-ms' | 'year' | 'number' | 'bool'
+const CONVERSIONS: Conversion[] = ['text', 'date', 'date-de', 'epoch-ms', 'year', 'number', 'bool']
+
+export const isConversions = (v: unknown): v is Record<string, Conversion> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) && Object.values(v).every((c) => CONVERSIONS.includes(c as Conversion))
 
 export interface ReadResult extends ReadSettings {
   fields: string[]
@@ -370,6 +389,41 @@ export function readData(text: string, hint: { settings?: ReadSettings; contentT
   return { format: found.kind, path: found.path, fields: found.fields, records: found.records }
 }
 
+/** Values pandas reads as a number in a CSV file (it doesn't know the app's leading-zero rule). */
+const CSV_NUMBER = /^[+-]?(\d+([.,]\d*)?|[.,]\d+)([eE][+-]?\d+)?$/
+/** Missing words pandas doesn't know by itself (it knows "", NA, n/a, NaN, null, None). */
+const UNKNOWN_TO_PANDAS = new Set(['-'])
+
+/**
+ * The columns whose type the app guessed differently from what pandas reads,
+ * and how the Python code converts them. Lists (JSON) are joined to text in
+ * the Python code for every column, so they aren't listed here.
+ */
+export function conversionsFor(read: ReadResult, maxRows = MAX_ROWS): Record<string, Conversion> {
+  const records = read.records.slice(0, maxRows)
+  const { columns } = guessTable(read.fields, records, maxRows)
+  const csv = read.format === 'csv'
+  const out: Record<string, Conversion> = {}
+  for (const column of columns) {
+    const all = records.map((r) => r[column.name])
+    const raw = all.filter((v) => !isBlank(v))
+    const asText = raw.some((v) => typeof v === 'string')
+    if (column.dataType === 'date') {
+      const numbers = raw.every((v) => typeof v === 'number' || (typeof v === 'string' && NUMBER_EN.test(v.trim())))
+      if (numbers) out[column.name] = YEAR_NAME.test(column.name) ? 'year' : 'epoch-ms'
+      else out[column.name] = raw.some((v) => typeof v === 'string' && DE_DATE.test(v.trim())) ? 'date-de' : 'date'
+    } else if (column.dataType === 'number') {
+      const unknownMissing = all.some((v) => typeof v === 'string' && UNKNOWN_TO_PANDAS.has(v.trim()))
+      if ((!csv && asText) || (csv && unknownMissing)) out[column.name] = 'number'
+    } else if (column.dataType === 'boolean') {
+      if (!csv && asText) out[column.name] = 'bool'
+    } else if (column.dataType === 'string' && csv) {
+      if (raw.length && raw.every((v) => typeof v === 'string' && CSV_NUMBER.test(v.trim()))) out[column.name] = 'text'
+    }
+  }
+  return out
+}
+
 /** Short description for the block and the setup window, e.g. "CSV (;)" or "JSON: weather". */
 export function formatText({ format, delimiter, path }: ReadSettings): string {
   if (format === 'csv') return `CSV (${delimiter === '\t' ? 'Tab' : (delimiter ?? ',')})`
@@ -384,21 +438,56 @@ export function formatText({ format, delimiter, path }: ReadSettings): string {
  * text) into the DataFrame `output`, read like the app reads it.
  */
 export function pythonReader(settings: ReadSettings, source: { file: string } | { text: string }, output: string): string {
-  const { format, delimiter, path = [] } = settings
+  const { format, delimiter, path = [], convert = {} } = settings
+  const columnsWith = (c: Conversion) => Object.keys(convert).filter((name) => convert[name] === c)
+  let read: string
   if (format === 'csv') {
     const from = 'file' in source ? JSON.stringify(source.file) : `io.StringIO(${source.text})`
     // A ";" file is a German spreadsheet: decimal comma.
     const decimal = delimiter === ';' ? ', decimal=","' : ''
-    return `${output} = pd.read_csv(${from}, sep=${JSON.stringify(delimiter ?? ',')}${decimal})`
+    // Ids and postcodes that look like numbers stay text ("048149" keeps its 0).
+    const text = columnsWith('text')
+    const dtype = text.length ? `, dtype={${text.map((name) => `${JSON.stringify(name)}: str`).join(', ')}}` : ''
+    read = `${output} = pd.read_csv(${from}, sep=${JSON.stringify(delimiter ?? ',')}${decimal}${dtype})`
+  } else {
+    const load = 'file' in source ? `json.load(open(${JSON.stringify(source.file)}, encoding="utf-8"))` : `json.loads(${source.text})`
+    read =
+      format === 'geojson'
+        ? `daten = ${load}\n` +
+          `merkmale = daten["features"]  # GeoJSON: ein Merkmal je Zeile\n` +
+          `${output} = pd.json_normalize([m["properties"] or {} for m in merkmale], sep="_")\n` +
+          `${output}["geometry"] = [m["geometry"] for m in merkmale]`
+        : `daten = ${load}\n${output} = pd.json_normalize(${pythonPath('daten', path)}, sep="_")`
+    // Lists become text, as in the app (flatten): [1, 2] → "1, 2", lists of objects → JSON, [] → missing.
+    read +=
+      `\n\ndef als_text(w):  # Listen wie in SPOCKLY: Werte mit Komma, Objekte als JSON\n` +
+      `    if not isinstance(w, list):\n` +
+      `        return w\n` +
+      `    if not w:\n` +
+      `        return None\n` +
+      `    if all(not isinstance(x, (dict, list)) for x in w):\n` +
+      `        return ", ".join(map(str, w))\n` +
+      `    return json.dumps(w, ensure_ascii=False, separators=(",", ":"))\n\n` +
+      `for spalte in ${output}.columns:\n` +
+      `    ${output}[spalte] = ${output}[spalte].map(als_text)`
   }
-  const load = 'file' in source ? `json.load(open(${JSON.stringify(source.file)}, encoding="utf-8"))` : `json.loads(${source.text})`
-  if (format === 'geojson') {
-    return (
-      `daten = ${load}\n` +
-      `merkmale = daten["features"]  # GeoJSON: ein Merkmal je Zeile\n` +
-      `${output} = pd.json_normalize([m["properties"] or {} for m in merkmale], sep="_")\n` +
-      `${output}["geometry"] = [m["geometry"] for m in merkmale]`
-    )
-  }
-  return `daten = ${load}\n${output} = pd.json_normalize(${pythonPath('daten', path)}, sep="_")`
+
+  // What the app guessed from the values, as steps of their own.
+  const steps: [Conversion, string, string][] = [
+    ['date', 'Datum und Uhrzeit (ISO)', 'pd.to_datetime(%, format="ISO8601", errors="coerce")'],
+    ['date-de', 'deutsches Datum (31.12.2025)', 'pd.to_datetime(%, format="mixed", dayfirst=True, errors="coerce")'],
+    ['epoch-ms', 'Millisekunden seit 1970', 'pd.to_datetime(%, unit="ms", utc=True)'],
+    ['year', 'Jahreszahl', 'pd.to_datetime(%.astype("Int64").astype("string"), format="%Y", errors="coerce")'],
+    ['number', 'Zahlen, als Text geschrieben', 'pd.to_numeric(%, errors="coerce")'],
+    ['bool', 'ja/nein, als Text geschrieben', '%.astype("string").str.lower().map({"true": True, "false": False})'],
+  ]
+  const lines = steps.flatMap(([conversion, what, call]) => {
+    const names = columnsWith(conversion)
+    if (names.length === 0) return []
+    return [
+      `for spalte in ${JSON.stringify(names)}:  # ${what}`,
+      `    ${output}[spalte] = ${call.replace('%', `${output}[spalte]`)}`,
+    ]
+  })
+  return lines.length ? `${read}\n# Wie SPOCKLY die Spalten liest:\n${lines.join('\n')}` : read
 }

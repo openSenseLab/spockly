@@ -157,4 +157,11 @@ describe('queries and settings', () => {
   it('fall back to defaults for odd saved settings', () => {
     expect(normalizeOsmParams({ topic: 'atlantis', area: 'mars' }, OSM_TOPICS)).toEqual({ topic: 'fluesse', area: 'muenster-mitte' })
   })
+
+  it('give the Python code the same stored copy as the app when no server answers (Münster for Köln)', () => {
+    const code = loadOsmOperation.toCode!({ topic: 'parks', area: 'koeln' }).python
+    expect(code).toContain('if antwort is None:')
+    expect(code).toContain(`antwort = json.load(open_url("${snapshotUrl({ topic: 'parks', area: 'muenster' })}"))`)
+    expect(code).toContain('die gespeicherte Kopie für Münster – ganze Stadt vom 27.10.2026')
+  })
 })

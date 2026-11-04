@@ -204,7 +204,7 @@ export const de = {
   'map.wholePeriod': 'ganzes Jahr',
   'map.legendAt': '{name} im {time}',
   'map.inCell': 'In dieser Zelle: {places}',
-  'map.outlineNote': 'dunkle Linie: Umriss von {area}',
+  'map.outlineNote': 'dunkle Linie: Umriss – {area}',
   'map.landmarksNote': 'schwarze Punkte: Orte zur Orientierung',
   'map.initialView': 'Ausschnitt: {area} – herauszoomen, um alles zu sehen',
   'map.gridCells': '{count} Rasterzellen von je {lat}° × {lon}°',

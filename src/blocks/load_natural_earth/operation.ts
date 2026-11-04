@@ -23,7 +23,7 @@ export const loadNaturalEarthOperation: OperationDef<LoadNaturalEarthParams> = {
   // The columns are fixed per dataset, but kept with the data for now like the other loaders.
   inferSchema: () => ({ columns: [], warnings: [] }),
   execute: (_input, params, ctx) => loadNaturalEarth(params, ctx),
-  // Runs in Pyodide: one GeoJSON file; the shapes stay as dicts in a "geometry" column.
+  // Runs in Pyodide: all of the dataset's GeoJSON files, every feature (like the app); the shapes stay as dicts in a "geometry" column.
   toCode: ({ dataset }, { output = 'df' } = {}) => {
     const preset = neDataset(dataset) ?? NE_DATASETS[0]
     const fields = JSON.stringify(Object.fromEntries(preset.columns.map((c) => [c.name, c.from])))

@@ -124,6 +124,18 @@ describe('Python code', () => {
   it('converts air pressure to hPa like the app does', () => {
     const { python } = loadOsemOperation.toCode!({ ...DEFAULT_PARAMS, phenomena: ['Luftdruck'] }, { output: 'df' })
     expect(python).toContain('faktor = {"hPa":1,"mbar":1,"Pa":0.01,"kPa":10}')
-    expect(python).toContain('float(wert["value"]) * umrechnung')
+    expect(python).toContain(`float(f"{float(wert['value']) * umrechnung:.12g}")`)
+  })
+
+  it('picks the stations like the app: in the area now, active in the period, the 50 most recent; pages past 10 000 values', () => {
+    const area = loadOsemOperation.toCode!(DEFAULT_PARAMS, { output: 'df' }).python
+    expect(area).toContain('w, s, o, n = [7.5897085,51.9205942,7.6647924,51.989764]')
+    expect(area).toContain('zeitpunkt(b["lastMeasurementAt"]) >= von')
+    expect(area).toContain('stationen = stationen[:50]')
+    expect(area).toContain('if len(seite) < 10000:')
+    expect(area).toContain('"station_id": box["_id"], "lat": ort[1], "lon": ort[0], "exposure": box.get("exposure")')
+    // A group has no area: every box of the group counts.
+    const group = loadOsemOperation.toCode!({ ...DEFAULT_PARAMS, source: { kind: 'tag', tag: 'ifgi' } }, { output: 'df' }).python
+    expect(group).not.toContain('w, s, o, n =')
   })
 })

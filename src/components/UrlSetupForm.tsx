@@ -6,7 +6,7 @@ import { checkUrl } from '../blocks/load_url/mapping'
 import { fetchUrlText } from '../blocks/load_url/operation'
 import { URL_EXAMPLES } from '../blocks/load_url/presets'
 import { LoadError } from '../core/http'
-import { readData, type Delimiter, type ReadResult } from '../core/tabular'
+import { conversionsFor, readData, type Delimiter, type ReadResult } from '../core/tabular'
 import { pick, t } from '../i18n'
 import { ReadPreview } from './ReadPreview'
 
@@ -62,7 +62,7 @@ export function UrlSetupForm({ block, onDone }: { block: UrlBlock; onDone: () =>
   const apply = () => {
     if (check.state !== 'ok') return
     const { format, delimiter, path } = check.read
-    setUrlParams(block, { url: url.trim(), read: { format, delimiter, path } })
+    setUrlParams(block, { url: url.trim(), read: { format, delimiter, path, convert: conversionsFor(check.read) } })
     onDone()
   }
   const chosenExample = URL_EXAMPLES.find((e) => e.url === url)?.id ?? ''

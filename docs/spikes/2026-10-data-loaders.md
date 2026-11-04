@@ -34,7 +34,7 @@ designs compare, and what is still missing.
 ```sh
 npm install
 npm run dev      # app at http://localhost:5173 (German by default)
-npm test         # 220 unit tests (Vitest)
+npm test         # 229 unit tests (Vitest)
 npm run build    # type check + production build
 npm run lint
 ```
@@ -167,8 +167,21 @@ cell, not station measurements, and includes NASA's requested credit line.
 Gridded data: one value for every cell of NASA POWER's grid over an area, for
 each month of one year. No setup window — three dropdowns.
 
-- **Areas:** Germany, North Rhine-Westphalia, Bavaria. NASA's grid request
-  needs 2° to 10° in each direction; all three fit.
+- **Areas:** Germany, North Rhine-Westphalia, Bavaria, and (since
+  2026-11-04) eight neighbouring countries: Belgium, Denmark, Luxembourg,
+  Netherlands, Austria, Poland, Switzerland, Czechia. NASA's grid request
+  needs **2° to 10° in each direction**:
+  - **France** is 14.3° wide and can't be asked for in one request, so it is
+    missing; Poland just fits (9.99°).
+  - Luxembourg, Belgium and Switzerland are less than 2° from north to south;
+    their rectangle is widened to 2° around the country, and the outline
+    filter keeps only their own cells.
+  - Cells kept (T2M 2024, checked live): Belgium 23 of 30, Denmark 41 of 72,
+    Luxembourg 4 of 12 (the country is smaller than one cell is wide),
+    Netherlands 28 of 36, Austria 50 of 72, Poland 159 of 176, Switzerland 26
+    of 28, Czechia 44 of 55.
+  - Each country has its capital and a few large cities as places for
+    orientation (Natural Earth populated places, v5.1.2).
 - **Values:** the same nine as the point block, **one at a time** (the grid
   request takes a single parameter).
 - **Year:** completed years from 1981 (monthly values exist only for those).
@@ -197,6 +210,14 @@ Namensnennung 2.0) asks to name the provider, the licence and the dataset, and
 to say when data was changed; the credit line does all four ("© GeoBasis-DE /
 BKG (2025) … Umrisse vereinfacht (Daten geändert)").
 
+The neighbouring countries' outlines come from **Natural Earth 5.1.2**
+(`ne_50m_admin_0_countries`, public domain), European parts only (the
+Netherlands' Caribbean islands are left out), rounded to 0.001°; the file grew
+to 52 KB. Each area names its outline's source in the credit line
+(`outlineCredit`). The two sources don't share borders: Germany's outline
+(BKG, detailed) and a neighbour's (Natural Earth, 1:50 million) don't match
+exactly along the border (the difference was not measured).
+
 ### World map data block (Natural Earth)
 
 `lade Weltkarten-Daten / [Länder der Welt ▾]`
@@ -211,7 +232,7 @@ gets the same data.
 |---|---|---|---|
 | Länder der Welt | `ne_110m_admin_0_countries` | 177 areas | continent, population and its year, GDP (Mio. US-$) and its year, income group, ISO code |
 | Große Städte der Welt | `ne_110m_populated_places` | 243 points | country, population of the urban area, kind (capital …) |
-| Seen in Europa | `ne_10m_lakes` + `ne_10m_lakes_europe` | 926 areas | kind (lake, reservoir) |
+| Seen der Welt | `ne_10m_lakes` + `ne_10m_lakes_europe` | 2 122 areas | kind (lake, reservoir) |
 | Flüsse in Europa | `ne_10m_rivers_europe` | 1 325 lines | kind |
 
 - German names where the file has them (`NAME_DE`, `name_de`), else the
@@ -221,11 +242,13 @@ gets the same data.
 - **The country values come from different years** (population 2014–2020, GDP
   2007–2019), so the years are columns of their own — something students can
   notice and discuss.
-- **Lakes:** the world file has the large lakes (Bodensee, Müritz), the
-  European file the smaller ones (Chiemsee, Steinhuder Meer); neither alone
-  shows Germany's lakes. Both are joined and limited to Europe.
-- **First view:** lakes and rivers cover Europe, which looks empty (lakes) or
-  tangled (rivers) at full extent. The map starts on the Alpine foreland from
+- **Lakes:** the world file has the large lakes of the whole world (Bodensee,
+  Müritz, Lake Victoria), the European file smaller ones (Chiemsee, Steinhuder
+  Meer); neither alone shows Germany's lakes. Both are joined: 1 355 + 767 =
+  2 122 lakes. Until 2026-11-04 they were limited to a rectangle around Europe
+  (926 lakes), which the Python code didn't do; now neither does.
+- **First view:** lakes cover the world and rivers Europe, which looks empty
+  (lakes) or tangled (rivers) at full extent. The map starts on the Alpine foreland from
   Bodensee to Chiemsee (lakes) and on Germany (rivers); the caption says
   "Ausschnitt: … – herauszoomen, um alles zu sehen".
 
@@ -686,7 +709,77 @@ free of the page, so a later chart block can reuse it.
   added, so moving blocks doesn't swap names.
 - The caption says which dataset the code belongs to and what it is called.
 - The generated code runs in Pyodide (downloads go through the browser with
-  `pyodide.http.open_url`).
+  `pyodide.http.open_url`). Files of the app itself (the NASA outlines, the
+  stored OpenStreetMap copies) are given to it as full addresses: Pyodide runs
+  in a worker, where a relative address would point next to the worker's
+  script (`appUrl` in `core/http.ts`).
+
+### Python code compared with the app (2026-11-04)
+
+The generated Python should give the same table as the app. Three loaders were
+fixed so it does:
+
+- **NASA weather map:** Python now keeps only the cells touching the area's
+  outline, with the same test as the app (`im_ring`, `im_gebiet`, `beruehrt`:
+  ray test, holes, corners/centre/outline points). It loads the outline file
+  the app uses from the app's address (Vite emits `outlines.json` as a file of
+  its own, 53 KB with the neighbouring countries). NRW 312, Germany 2 244, Bavaria 540 rows in both; before,
+  Python kept the whole rectangle.
+- **OpenStreetMap:** when no Overpass server answers, Python reads the same
+  stored copy as the app (Münster's for other cities) and prints which one.
+  With Overpass blocked: parks in Köln 202 rows, cycle paths in Münster-Mitte
+  2 157 rows in both.
+- **Natural Earth lakes:** the app no longer limits them to Europe (see the
+  world map data block): 2 122 rows in both.
+
+All other JSON and CSV loaders were then compared column by column: the app's
+load operation and the generated code (run in the app's Pyodide worker) for
+the same settings; column names, row count, types and the first three rows.
+The first comparison found:
+
+| Source | Rows | What differed |
+|---|---|---|
+| EMSC quakes, NASA EONET storms, fires, volcanoes, own GeoJSON | same | – |
+| NASA POWER (Münster, daily 2025) | same (365) | the date was the index, not a column; no `lat`/`lon` columns |
+| Huwise (federal states) | same (16) | `geo_point_2d` one column instead of `_lat`/`_lon`; `geo_shape` as JSON text; `year` a number; the code `lan_code` "13" the number 13 |
+| openSenseMap (Münster-Mitte, 1 day) | **app 7 900, Python 9 552** | no `station_id`, `lat`, `lon`, `exposure`; Python took every box the API returned and didn't page past 10 000 values per sensor |
+| USGS quakes | same (339) | `time`, `updated` stayed milliseconds since 1970 |
+| GBIF cranes | same (126) | empty lists stayed `[]`; "240" and "true" stayed text; `year` a number |
+| Own CSV (German export) | same | dates stayed text ("01.10.2026"); the postcode "048149" became 48149 |
+| Own JSON (nested) | same | lists stayed lists (app: "1, 2") |
+
+Everything the app *guesses* wasn't repeated in Python. Fixed on the same day:
+
+- **Web address and own file:** when the block is set up, the app also works
+  out which columns pandas would read differently (`conversionsFor` in
+  `core/tabular.ts`, next to the app's own guessing) and saves them with the
+  block (`read.convert`). The Python code then has one visible step per
+  kind, under "# Wie SPOCKLY die Spalten liest":
+  - ids and postcodes that look like numbers: `dtype={"PLZ": str}` (CSV);
+  - ISO dates: `pd.to_datetime(…, format="ISO8601")`; German dates:
+    `format="mixed", dayfirst=True`;
+  - milliseconds since 1970: `unit="ms"`; years: `format="%Y"`;
+  - numbers and yes/no written as text, and "-" for missing in CSV:
+    `pd.to_numeric`, `map({"true": True, "false": False})`;
+  - lists (JSON) become text as in the app: values joined with ", ", lists of
+    objects as JSON, empty lists missing (`als_text`).
+  Blocks saved before 2026-11-04 have no `convert` and keep the old code
+  until they are set up again.
+- **Huwise:** Python reads the portal's description of the dataset, like the
+  app, and converts by the declared types: points split into `_lat`/`_lon`,
+  shapes as geometry, numbers, dates, lists as text. It uses the JSON export
+  (one request) instead of the CSV export.
+- **NASA POWER:** the date is a column, values in the app's order, `lat` and
+  `lon` of the grid point NASA used.
+- **openSenseMap:** Python picks the stations as the app does (in the area
+  now, measured in the period, the 50 most recently active), pages past
+  10 000 values per sensor, and builds one row per station and time stamp
+  with the same columns.
+
+**Second comparison:** the same row counts and the same columns everywhere.
+Left: the column order of GBIF and nested JSON (pandas orders nested keys its
+own way), and openSenseMap rows can differ by a few because Python asks a
+little later than the app (the 24-hour window moves).
 
 ### Other changes
 
@@ -936,8 +1029,7 @@ pressure 47.
 
 1. Fetch the dataset's file(s) from jsDelivr (pinned to v5.1.2), in parallel.
 2. One row per feature: the curated columns (first non-empty source property,
-   `-99` = missing) and the geometry. Shapes outside `within` (lakes: Europe)
-   are left out.
+   `-99` = missing) and the geometry.
 3. Extent from all shapes; the first view from the dataset's preset.
 
 ### OpenStreetMap: how a load runs
@@ -1208,7 +1300,7 @@ can follow one of them on purpose.
 | **Reliable in class?** | best: fixed files (Natural Earth) or a stored copy when Overpass is busy (OSM) | depends on one service; NASA POWER untested with a whole class | depends on the portal | depends on a server we don't know; no fallback | yes, nothing is downloaded |
 | **What the app knows about the data** | everything: units, column kinds, labels, map symbols, first view | units, measurement names, "?" explanations, places | what the portal's metadata says (titles, types, shapes) | only what it can guess from the values; ids and times by name and pattern | the same guesses as D |
 | **Same data next lesson?** | yes (pinned files, fixed years) | yes with fixed dates (NASA); openSenseMap stations change | as long as the dataset stays | only for fixed periods (the examples use them); "last 7 days" changes | yes |
-| **Generated Python** | short, but not yet identical (NASA map without outline filter, lakes not limited to Europe, OSM without the stored copy) | longer: paging, unit fixes (Pa → hPa) | short: one request per page | short and generic: download, `pd.read_csv` or `json_normalize` | shortest: `pd.read_csv("datei.csv")` |
+| **Generated Python** | short; same rows as the app (outline filter and stored copy in Python too) | longer: paging, unit fixes (Pa → hPa) | short: one request per page | short and generic: download, `pd.read_csv` or `json_normalize` | shortest: `pd.read_csv("datei.csv")` |
 | **Teaching focus** | the question, not the data source | choosing place, time and measurement on purpose | open-data portals exist and can be searched | how real data arrives: formats, addresses, what a "column" is | students' own measurements |
 | **New source costs** | a new preset entry (a query or a file and its columns) | a whole new block: request, paging, mapping, form, Python, tests (450–720 lines of code each for openSenseMap and NASA POWER, without tests and form) | nothing, if it is on the platform | nothing, if it allows browser requests | nothing |
 | **When an API changes** | one block breaks; stored copies keep working | one block breaks | one block breaks for all portals | the examples break; own addresses are the students' risk | nothing breaks |
@@ -1311,6 +1403,9 @@ gap in "what the app knows" between the generic and the curated blocks.
   and are not saved with the workspace.
 - Web addresses: **checked once in the setup window** before they can be used,
   and the way they were read is saved with the block (same reading in Python).
+- **Python repeats the app's guesses** as visible steps (dates, ids as text,
+  numbers written as text, lists), saved with the block at setup, so the
+  generated code gives the same table as the app.
 - Column kinds are **guessed from the values**; the panel says so. Ids stay
   text.
 - Web address examples are **only spatio-temporal** data (a place and a time
@@ -1395,7 +1490,11 @@ gap in "what the app knows" between the generic and the curated blocks.
 
 **NASA weather map block**
 
-- One value per block (API limit), three areas, monthly values of one year.
+- One value per block (API limit), monthly values of one year.
+- Areas limited to 10° × 10° per request: no France, no larger regions (e.g.
+  Central Europe) without joining several requests.
+- Luxembourg has only 4 cells; small countries are coarse at about 55 × 45 km
+  per cell.
 - "Cell touches the area" is checked with corners, centre and outline vertices;
   an outline edge cutting just the corner of a cell without a vertex in it
   could be missed (rare with outline vertices a few km apart).
@@ -1403,8 +1502,6 @@ gap in "what the app knows" between the generic and the curated blocks.
   openSenseMap stations can't be shown yet.
 - The month slider exists only for grid data, not for openSenseMap's
   minute-by-minute values.
-- The generated Python code doesn't apply the outline filter, so it has more
-  rows than the app (all cells in the rectangle).
 - At Germany zoom the cells are a few pixels wide; picking a particular cell
   needs zooming in.
 
@@ -1412,12 +1509,10 @@ gap in "what the app knows" between the generic and the curated blocks.
 
 - Coarse: countries at 1:110 million, lakes and rivers at 1:10 million; very
   small lakes are missing, many river sections have no name.
-- Rivers and lakes only for Europe; countries and cities world-wide.
+- Rivers only for Europe; lakes, countries and cities world-wide.
 - Natural Earth's labelling errors (Lago Maggiore as "Lago di Como", Lake
   Bolsena as "Lago di Bracciano") are shown as delivered.
 - Depends on jsDelivr being reachable.
-- The generated Python code doesn't limit the lakes to Europe, so it has more
-  rows than the app.
 
 **OpenStreetMap block**
 
@@ -1434,8 +1529,6 @@ gap in "what the app knows" between the generic and the curated blocks.
   included. Values of `belag` and `beleuchtet` are raw OSM values
   (`asphalt`, `yes`).
 - Berlin's 30 000 cycle path lines take ~60 s and are heavy for weak devices.
-- The generated Python asks the servers in turn but has no stored-copy
-  fallback.
 
 **Own file and web address blocks**
 
@@ -1512,8 +1605,12 @@ gap in "what the app knows" between the generic and the curated blocks.
 
 - The code is Pyodide-specific (`open_url`) and won't run unchanged in a normal
   Python setup.
-- The openSenseMap code fetches every box in the area (including inactive
-  ones) and doesn't page past 10 000 values per sensor.
+- Web address and own file blocks set up before 2026-11-04 have no saved
+  conversions: their Python shows values as pandas reads them until the block
+  is set up again.
+- The conversions are worked out once, when the block is set up; if a live
+  source changes its columns later, new columns aren't converted.
+- Column order differs for GBIF and nested JSON.
 - In the whole-canvas view, helper variables (`url`, `zeilen`, `boxen`,
   `antwort`) are reused between blocks; they don't overwrite data, but may
   confuse readers.
@@ -1546,7 +1643,7 @@ gap in "what the app knows" between the generic and the curated blocks.
 
 ## 8. Tests
 
-`npm test` runs 220 unit tests:
+`npm test` runs 229 unit tests:
 
 - `core/plan`, `core/summary`, `core/names`;
 - `core/geo`: one place per coordinate, rows without coordinates, the
@@ -1573,10 +1670,11 @@ gap in "what the app knows" between the generic and the curated blocks.
 - NASA weather map: one row per cell and month (NRW: 26 × 12), cell size from
   the data (0.5° × 0.625°), only cells touching NRW (and which four are
   dropped), outline, places and credit, elevation, request URL, settings
-  checks, defaults for odd saved settings;
+  checks, defaults for odd saved settings, the outline filter in the
+  Python code;
 - Natural Earth: countries with German names, measurements and years, `-99`
   as missing, credit and extent across the 180° meridian; lakes from both
-  files, outside Europe left out, first view on the Alpine foreland, the
+  files, lakes outside Europe kept, first view on the Alpine foreland, the
   mislabelled Lago Maggiore kept as delivered; pinned file URLs;
 - OpenStreetMap: one row per way with name, kind and OSM id, licence and
   credit, point/line/area from nodes, centres and ways (a closed cycle path
@@ -1584,7 +1682,12 @@ gap in "what the app knows" between the generic and the curated blocks.
   when none answers, the Münster copy for Köln with its notice, cancelling
   stops at the first server, query in Overpass order, defaults for odd saved
   settings; cycle path kinds from tags, `art` column and categories, the
-  same rules in the Python code; symbols for points;
+  same rules in the Python code; symbols for points; the stored copy in the
+  Python code (Münster's for Köln);
+- Python code: conversions for a German spreadsheet export and for JSON
+  (milliseconds, years, numbers and yes/no as text, ids kept as text), none
+  for old blocks; Huwise types from the portal; NASA POWER date and grid
+  point; openSenseMap station selection and paging;
 - `core/tabular`: German spreadsheet export (`;`, decimal comma, byte order
   mark), quotes and line breaks in quoted fields, delimiter detection, empty
   and repeated column names; GeoJSON features, the longest list in an object,
@@ -1637,7 +1740,9 @@ zoom after a click, dragging), the rows and column tables (one scroll box each
 at 420, 1000 and 1600 px, header staying on top, border around all columns,
 154 GBIF columns), the time chart (cranes, earthquakes, PEGELONLINE water
 level, NASA POWER, NASA weather map) and all six web address examples (map and
-time chart each) were checked
+time chart each), and the generated Python against the app (NASA weather map
+for NRW, Germany and Bavaria; OpenStreetMap with Overpass blocked; world
+lakes; all JSON and CSV loaders column by column, 2026-11-04) were checked
 with scripted browser runs, not with automated tests.
 
 The fixtures (`__fixtures__/`) are **real API responses and files** recorded on

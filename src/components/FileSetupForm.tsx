@@ -4,7 +4,7 @@ import { Box, Button, Callout, Dialog, Flex, Text } from '@radix-ui/themes'
 import { setFileParams, type FileBlock } from '../blocks'
 import { FILE_TYPES, MAX_FILE_BYTES } from '../blocks/load_file/mapping'
 import { addFile, getFile } from '../blocks/load_file/store'
-import { readData, type Delimiter, type ReadResult } from '../core/tabular'
+import { conversionsFor, readData, type Delimiter, type ReadResult } from '../core/tabular'
 import { formatNumber, t } from '../i18n'
 import { ReadPreview } from './ReadPreview'
 
@@ -52,7 +52,7 @@ export function FileSetupForm({ block, onDone }: { block: FileBlock; onDone: () 
     if (picked.state !== 'ok') return
     const { id, file } = addFile(picked.name, picked.text)
     const { format, delimiter, path } = picked.read
-    setFileParams(block, { fileId: id, name: picked.name, file, read: { format, delimiter, path } })
+    setFileParams(block, { fileId: id, name: picked.name, file, read: { format, delimiter, path, convert: conversionsFor(picked.read) } })
     onDone()
   }
 

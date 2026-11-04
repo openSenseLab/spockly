@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectDelimiter, guessTable, parseCsv, pythonPath, recordsFromJson, toTable } from './tabular'
+import { conversionsFor, detectDelimiter, guessTable, parseCsv, pythonPath, pythonReader, readData, recordsFromJson, toTable } from './tabular'
 
 // Hand-made inputs in the shapes spreadsheets and web services produce.
 
@@ -129,5 +129,37 @@ describe('guessTable', () => {
     expect(table.rows).toHaveLength(3)
     expect(table.meta.totalRecords).toBe(5)
     expect(table.meta.knownIssues?.[0].de).toBe('Nur die ersten 3 von 5 Zeilen wurden geladen.')
+  })
+})
+
+describe('conversionsFor and the Python reader', () => {
+  it('lists what pandas reads differently in a German spreadsheet export: dates, postcodes, "-" for missing', () => {
+    const csv = 'Datum;PLZ;Temperatur;Ort\n01.10.2026;048149;12,5;Schulhof\n02.10.2026;048151;-;Park\n'
+    const read = readData(csv, { name: 'messung.csv' })
+    const convert = conversionsFor(read)
+    expect(convert).toEqual({ Datum: 'date-de', PLZ: 'text', Temperatur: 'number' })
+    const code = pythonReader({ ...read, convert }, { file: 'messung.csv' }, 'messung')
+    expect(code).toContain('messung = pd.read_csv("messung.csv", sep=";", decimal=",", dtype={"PLZ": str})')
+    expect(code).toContain('for spalte in ["Datum"]:  # deutsches Datum (31.12.2025)')
+    expect(code).toContain('    messung[spalte] = pd.to_datetime(messung[spalte], format="mixed", dayfirst=True, errors="coerce")')
+    expect(code).toContain('for spalte in ["Temperatur"]:  # Zahlen, als Text geschrieben')
+  })
+
+  it('in JSON: milliseconds since 1970, years, numbers and yes/no written as text; ids stay text', () => {
+    const json = JSON.stringify([
+      { time: 1793794370864, year: 2024, crawl_attempt: '240', flipped: 'true', number: '27800040', when: '2024-01-07T10:00:00Z' },
+      { time: 1793794565933, year: 2025, crawl_attempt: '12', flipped: 'false', number: '27800041', when: '2024-02-01T09:30:00Z' },
+    ])
+    const read = readData(json)
+    expect(conversionsFor(read)).toEqual({ time: 'epoch-ms', year: 'year', crawl_attempt: 'number', flipped: 'bool', when: 'date' })
+    const code = pythonReader({ ...read, convert: conversionsFor(read) }, { text: 'text' }, 'df')
+    expect(code).toContain('df[spalte] = pd.to_datetime(df[spalte], unit="ms", utc=True)')
+    expect(code).toContain('df[spalte] = pd.to_datetime(df[spalte].astype("Int64").astype("string"), format="%Y", errors="coerce")')
+    // Lists become text as in the app.
+    expect(code).toContain('return json.dumps(w, ensure_ascii=False, separators=(",", ":"))')
+  })
+
+  it('adds nothing for blocks saved before conversions existed', () => {
+    expect(pythonReader({ format: 'csv', delimiter: ';' }, { file: 'a.csv' }, 'a')).toBe('a = pd.read_csv("a.csv", sep=";", decimal=",")')
   })
 })

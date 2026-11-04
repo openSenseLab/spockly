@@ -41,7 +41,7 @@ describe('Natural Earth countries', () => {
   })
 })
 
-describe('Natural Earth lakes in Europe', () => {
+describe('Natural Earth lakes', () => {
   const lakes = toDataTable(neDataset('lakes')!, [JSON.parse(lakesWorld), JSON.parse(lakesEurope)] as NeFeatureCollection[])
   const names = lakes.rows.map((r) => r.name)
 
@@ -58,8 +58,9 @@ describe('Natural Earth lakes in Europe', () => {
     expect(como).toHaveLength(2)
   })
 
-  it('leaves out lakes outside Europe', () => {
-    expect(names).not.toContain('Victoriasee')
+  it('keeps the lakes of the whole world, as the Python code does', () => {
+    expect(names).toContain('Victoriasee')
+    expect(lakes.rows).toHaveLength(5)
   })
 
   it('starts the map on the Alpine foreland, where the whole of Europe would look empty', () => {

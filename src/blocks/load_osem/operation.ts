@@ -4,6 +4,7 @@ import {
   boxesInArea,
   phenomenonColumns,
   MAX_STATIONS,
+  SENSOR_LIMIT,
   nextPageEnd,
   stationsFor,
   timeWindow,
@@ -136,9 +137,11 @@ export const loadOsemOperation: OperationDef<LoadOsemParams> = {
   // Columns are fixed for this loader, but whether data exists is only known after asking.
   inferSchema: () => ({ columns: [], warnings: [] }),
   execute: (_input, params, ctx) => loadOsem(params, ctx),
-  // Runs in Pyodide (downloads go through the browser via open_url).
+  // Runs in Pyodide (downloads go through the browser via open_url). Picks the stations and builds
+  // the table as the app does (mapping.ts: boxesInArea, stationsFor, nextPageEnd, toDataTable).
   toCode: ({ source, phenomena, period, outdoorOnly }, { output = 'df' } = {}) => {
     const boxQuery = boxesUrl(source, outdoorOnly).slice(OSEM_API.length)
+    const area = source.kind === 'area' ? areaPreset(source.area) : undefined
     // Sensor title → column name, as in the app's table.
     const names = phenomenonColumns(phenomena)
     const columns = JSON.stringify(Object.fromEntries(phenomena.map((title, i) => [title, names[i]])))
@@ -150,23 +153,53 @@ export const loadOsemOperation: OperationDef<LoadOsemParams> = {
         `from pyodide.http import open_url\n\n` +
         `api = "${OSEM_API}"\n` +
         `bis = datetime.now(timezone.utc)\n` +
-        `von = bis - timedelta(days=${PERIODS[period].days})\n` +
-        `zeit = f"from-date={von:%Y-%m-%dT%H:%M:%SZ}&to-date={bis:%Y-%m-%dT%H:%M:%SZ}"\n\n` +
+        `von = bis - timedelta(days=${PERIODS[period].days})\n\n` +
+        `def iso(t):  # Zeitpunkt, wie die API ihn erwartet\n` +
+        `    return t.strftime("%Y-%m-%dT%H:%M:%S.") + f"{t.microsecond // 1000:03d}Z"\n\n` +
+        `def zeitpunkt(text):\n` +
+        `    return datetime.fromisoformat(text.replace("Z", "+00:00"))\n\n` +
         `boxen = json.load(open_url(api + "${boxQuery}"))\n` +
-        `spalten = ${columns}\n` +
+        (area
+          ? `# Die API liefert auch Stationen, die inzwischen woanders stehen: nur die, die jetzt im Gebiet sind\n` +
+            `w, s, o, n = ${JSON.stringify(area.bbox)}\n` +
+            `boxen = [b for b in boxen if w <= b["currentLocation"]["coordinates"][0] <= o and s <= b["currentLocation"]["coordinates"][1] <= n]\n`
+          : '') +
+        `spalten = ${columns}  # Sensor → Spalte\n` +
+        `# Stationen, die im Zeitraum gemessen haben und eine der Messgrößen haben; die zuletzt aktiven zuerst, höchstens ${MAX_STATIONS}\n` +
+        `stationen = [b for b in boxen if b.get("lastMeasurementAt") and zeitpunkt(b["lastMeasurementAt"]) >= von\n` +
+        `             and any(sensor["title"] in spalten for sensor in b.get("sensors", []))]\n` +
+        `stationen.sort(key=lambda b: zeitpunkt(b["lastMeasurementAt"]), reverse=True)\n` +
+        `stationen = stationen[:${MAX_STATIONS}]\n\n` +
         `# Luftdruck immer in hPa (ein paar Stationen melden Pa)\n` +
         `faktor = ${JSON.stringify(TO_HPA)}\n` +
-        `zeilen = []\n` +
-        `for box in boxen:\n` +
-        `    for sensor in box["sensors"]:\n` +
-        `        if sensor["title"] not in spalten:\n` +
+        `zeilen = {}  # eine Zeile pro Station und Zeitpunkt, eine Spalte pro Messgröße\n` +
+        `for box in stationen:\n` +
+        `    for titel, spalte in spalten.items():\n` +
+        `        sensor = next((x for x in box["sensors"] if x["title"] == titel), None)\n` +
+        `        if sensor is None:\n` +
         `            continue\n` +
         `        umrechnung = faktor.get((sensor.get("unit") or "").strip(), 1)\n` +
-        `        url =f"{api}/boxes/{box['_id']}/data/{sensor['_id']}?{zeit}&format=json"\n` +
-        `        for wert in json.load(open_url(url)):\n` +
-        `            zeilen.append({"time": wert["createdAt"], "station": box["name"], "messgroesse": spalten[sensor["title"]], "wert": float(wert["value"]) * umrechnung})\n\n` +
-        `# eine Zeile pro Station und Zeitpunkt, eine Spalte pro Messgröße\n` +
-        `${output} = pd.DataFrame(zeilen).pivot_table(index=["time", "station"], columns="messgroesse", values="wert").reset_index()\n` +
+        `        ende = bis\n` +
+        `        while True:  # höchstens ${SENSOR_LIMIT} Werte pro Anfrage, die neuesten zuerst\n` +
+        `            url = f"{api}/boxes/{box['_id']}/data/{sensor['_id']}?from-date={iso(von)}&to-date={iso(ende)}&format=json"\n` +
+        `            seite = json.load(open_url(url))\n` +
+        `            for wert in seite:\n` +
+        `                ort = wert.get("location") or box["currentLocation"]["coordinates"]\n` +
+        `                zeile = zeilen.setdefault((box["_id"], wert["createdAt"]), {\n` +
+        `                    "time": wert["createdAt"], **{name: None for name in spalten.values()},\n` +
+        `                    "station": box["name"], "station_id": box["_id"], "lat": ort[1], "lon": ort[0], "exposure": box.get("exposure")})\n` +
+        `                try:\n` +
+        `                    zeile[spalte] = float(f"{float(wert['value']) * umrechnung:.12g}")\n` +
+        `                except ValueError:\n` +
+        `                    zeile[spalte] = None\n` +
+        `            # Volle Seite: die nächste endet kurz vor dem ältesten Wert\n` +
+        `            if len(seite) < ${SENSOR_LIMIT}:\n` +
+        `                break\n` +
+        `            aeltester = min(zeitpunkt(wert["createdAt"]) for wert in seite)\n` +
+        `            if aeltester <= von:\n` +
+        `                break\n` +
+        `            ende = aeltester - timedelta(milliseconds=1)\n\n` +
+        `${output} = pd.DataFrame(sorted(zeilen.values(), key=lambda z: (z["time"], z["station"])))\n` +
         `print(${output})`,
     }
   },
