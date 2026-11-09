@@ -252,6 +252,20 @@
   flex: 1 1 0;
 }
 
+/* On a low screen (a laptop) the two cards don't fit next to the canvas: each
+   keeps a usable height, and the tab scrolls instead of squeezing them. */
+.python-tab {
+  overflow-y: auto;
+}
+
+.code-card {
+  min-height: 340px;
+}
+
+.output-card {
+  min-height: 280px;
+}
+
 .blockly-workspace {
   flex: 1;
   min-height: 0;
@@ -330,6 +344,10 @@
   .code-card,
   .output-card {
     min-height: 300px;
+  }
+
+  .python-tab {
+    overflow-y: visible;
   }
 
   /* The page scrolls here, so the code box grows with the code instead of

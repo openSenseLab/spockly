@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import {
   Badge,
   Box,
@@ -42,6 +43,13 @@ function App() {
   const resetWorkspace = useAppStore((state) => state.resetWorkspace)
   const { clearOutput, isBusy, output, run, status, stop } = usePythonRunner()
   useLoadRunner()
+  const outputCard = useRef<HTMLDivElement>(null)
+
+  const runCode = () => {
+    run(shownCode, pythonFiles())
+    // On a low screen the output lies below the code; without this, a run would seem to do nothing.
+    outputCard.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
 
   // The code tab follows the same block as the data tab. A selected block outside
   // any strand (dev toolbox) shows the code of the whole workspace instead.
@@ -141,7 +149,7 @@ function App() {
             </Card>
           </Tabs.Content>
 
-          <Tabs.Content value="python" className="tab-content">
+          <Tabs.Content value="python" className="tab-content python-tab">
             <Card size="3" className="code-card">
               <div className="code-card-content">
                 <Flex align="center" justify="between" gap="3" wrap="wrap">
@@ -149,7 +157,7 @@ function App() {
                   <Button
                     type="button"
                     color={isBusy ? 'red' : 'grass'}
-                    onClick={() => (isBusy ? stop() : run(shownCode, pythonFiles()))}
+                    onClick={() => (isBusy ? stop() : runCode())}
                   >
                     {runButtonLabel}
                   </Button>
@@ -165,7 +173,7 @@ function App() {
               </div>
             </Card>
 
-            <Card size="3" className="output-card">
+            <Card ref={outputCard} size="3" className="output-card">
               <div className="output-card-content">
                 <Flex align="center" justify="between" gap="3" wrap="wrap">
                   <Flex align="center" gap="2">
