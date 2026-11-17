@@ -1,0 +1,15 @@
+/** All of SPOCKLY's blocks; importing this defines them and their Python. */
+import './fields'
+import './program'
+import './osem'
+import './files'
+import './steps'
+import './views'
+
+export { generate } from './program'
+export { followRename } from './rename'
+export { refreshFieldLabels } from './fields'
+export { adviceFor, allAdvice, type Advice } from './advice'
+export { markRunState, ranAsItIs, signatures, type RanSignatures } from './runState'
+export { spocklyTheme } from './theme'
+export { toolbox } from './toolbox'
