@@ -86,11 +86,8 @@ describe('generate', () => {
     expect(code).toContain('for _, zeile in aktiv.head(10).iterrows():')
   })
 
-  it('warns at once on a step with nothing above it to work on, outside a dataset, or on an empty dataset', () => {
+  it('warns at once on a step outside a dataset, or on an empty dataset', () => {
     const warn = vi.spyOn(Blockly.Block.prototype, 'setWarningText')
-    generate(load(state(stack(dataset('x', 'x', { type: 'step_read_json' }), { type: 'view_table', fields: { DATASET: 'x' } }))))
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Hier gibt es noch nichts zu bearbeiten'))
-    warn.mockClear()
     generate(load(state({ type: 'step_read_json' })))
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('steckt in keinem „Datensatz“'))
     warn.mockClear()

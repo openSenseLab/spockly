@@ -18,8 +18,30 @@ import { toPythonName } from '../core/names'
 import { t } from '../i18n'
 
 export const DATASET = 'spockly_dataset'
-/** Connection checks: steps only inside a dataset, datasets and "zeige" blocks one under the other. */
-export const STEP = 'Schritt'
+/**
+ * What kind the data is between two steps. A step says what it takes from the
+ * block above and what it leaves for the block below; Blockly lets only
+ * fitting blocks snap together (e.g. no table before the text is translated).
+ * "start" is the top of a dataset, where only blocks that get data fit.
+ */
+export const DATA = { start: 'Anfang', text: 'Text', json: 'JSON', list: 'Liste', table: 'Tabelle' } as const
+export type DataKind = keyof typeof DATA
+const DATA_CHECKS = new Set<string>(Object.values(DATA))
+
+/** The kind a connection check stands for, or null for other checks (datasets, "zeige" blocks). */
+export const kindOf = (check: string | undefined): DataKind | null =>
+  (Object.keys(DATA) as DataKind[]).find((kind) => DATA[kind] === check) ?? null
+
+/** A step's connections: the kinds it takes from above, the kind it leaves below. */
+export const stepShape = (takes: DataKind[], gives: DataKind) => ({
+  previousStatement: takes.map((kind) => DATA[kind]),
+  nextStatement: DATA[gives],
+})
+
+/** A step (it belongs inside a dataset), not a dataset or a "zeige" block. */
+export const isStep = (block: Blockly.Block) => block.previousConnection?.getCheck()?.some((check) => DATA_CHECKS.has(check)) ?? false
+
+/** Datasets and "zeige" blocks go one under the other. */
 export const PROGRAM = 'Programm'
 
 /** Blocks that bring data (a file, a request); the other steps need data above them. */
@@ -31,7 +53,7 @@ Blockly.common.defineBlocksWithJsonArray([
     message0: t('block.dataset'),
     args0: [{ type: 'field_input', name: 'NAME', text: t('dataset.default'), spellcheck: false }],
     message1: '%1',
-    args1: [{ type: 'input_statement', name: 'STEPS', check: STEP }],
+    args1: [{ type: 'input_statement', name: 'STEPS', check: DATA.start }],
     previousStatement: PROGRAM,
     nextStatement: PROGRAM,
     style: 'dataset_blocks',
@@ -180,8 +202,8 @@ export function silentProblems(workspace: Blockly.Workspace): string[] {
   const hints: string[] = []
   const outside = workspace
     .getTopBlocks(true)
-    .filter((top) => top.isEnabled() && top.type !== DATASET && top.previousConnection?.getCheck()?.includes(STEP))
-    .flatMap((top) => top.getDescendants(true).filter((b) => b.previousConnection?.getCheck()?.includes(STEP)))
+    .filter((top) => top.isEnabled() && top.type !== DATASET && isStep(top))
+    .flatMap((top) => top.getDescendants(true).filter(isStep))
   if (outside.length) hints.push(t('hint.outside', { blocks: outside.map((b) => `„${blockText(b)}“`).join(', ') }))
   const named = new Set(
     workspace

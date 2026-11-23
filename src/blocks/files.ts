@@ -9,7 +9,7 @@ import { pythonGenerator } from 'blockly/python'
 import { formatNumber, t } from '../i18n'
 import { useAppStore } from '../store/useAppStore'
 import { addFile, decodeFile, hasFile } from './fileStore'
-import { SOURCES, STEP, variableFor } from './program'
+import { SOURCES, stepShape, variableFor } from './program'
 
 export const LOAD_FILE = 'load_file'
 SOURCES.add(LOAD_FILE)
@@ -63,8 +63,7 @@ Blockly.common.defineBlocksWithJsonArray([
     type: LOAD_FILE,
     message0: t('block.loadFile'),
     args0: [{ type: 'field_file', name: 'FILE', value: '' }],
-    previousStatement: STEP,
-    nextStatement: STEP,
+    ...stepShape(['start'], 'text'),
     style: 'file_blocks',
     tooltip: t('block.loadFile.tooltip', { general: t('toolbox.general'), own: t('toolbox.ownData') }),
   },

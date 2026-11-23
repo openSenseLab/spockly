@@ -91,14 +91,10 @@ describe('explaining errors with own data', () => {
     expect(explainError('ParserError: …', csv, { s0: text }).text).toContain('nicht als CSV lesen')
   })
 
-  it('says when JSON is no GeoJSON, and when GeoJSON wasn\'t translated yet', () => {
+  it('says when JSON is no GeoJSON', () => {
     const workspace = program({ type: 'load_file', fields: { FILE: 'a.geojson' } }, { type: 'step_read_json' }, { type: 'step_geojson_table' })
     const list: Snapshot = { art: 'json', text: '[]', anzahl: 3 }
     expect(explainError("KeyError: 'features'", workspace, { s0: text, s1: list }).text).toContain('kein GeoJSON')
-    const untranslated = program({ type: 'load_file', fields: { FILE: 'a.geojson' } }, { type: 'step_geojson_table' })
-    expect(explainError("TypeError: string indices must be integers, not 'str'", untranslated, { s0: text }).text).toContain(
-      'Übersetz ihn zuerst mit „übersetze den JSON-Text für Python“ (unter „Allgemeine Blöcke“)',
-    )
   })
 })
 

@@ -16,7 +16,7 @@ function program() {
           {
             type: 'spockly_dataset',
             fields: { NAME: 'sensoren' },
-            inputs: { STEPS: { block: { type: 'osem_table', id: 'tabelle', next: { block: { type: 'step_split_position', id: 'lage' } } } } },
+            inputs: { STEPS: { block: { type: 'osem_boxes', next: { block: { type: 'step_read_json', next: { block: { type: 'osem_table', id: 'tabelle', next: { block: { type: 'step_split_position', id: 'lage' } } } } } } } } },
           },
         ],
       },
@@ -34,7 +34,7 @@ describe('the colour column of "zeige … auf der Karte"', () => {
         blocks: {
           languageVersion: 0,
           blocks: [
-            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'step_convert_column', id: 'zahl' } } } },
+            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'osem_measurements', id: 'zahl' } } } },
             { type: 'view_map', id: 'karte', fields: { DATASET: 'messwerte', LAT: 'lat', LON: 'lon', COLOUR: colour } },
           ],
         },
@@ -123,7 +123,7 @@ describe('the columns of "zeige … als Zeitverlauf"', () => {
         blocks: {
           languageVersion: 0,
           blocks: [
-            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'step_convert_column', id: 'datum' } } } },
+            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'osem_measurements', id: 'datum' } } } },
             { type: 'view_chart', id: 'verlauf', fields: { DATASET: 'messwerte', TIME: 'createdAt', VALUE: 'value', GROUP: group } },
           ],
         },
@@ -185,7 +185,7 @@ describe('ticking columns for "zeige … beim Darüberfahren mit der Maus"', () 
         blocks: {
           languageVersion: 0,
           blocks: [
-            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'step_convert_column', id: 'zahl' } } } },
+            { type: 'spockly_dataset', fields: { NAME: 'messwerte' }, inputs: { STEPS: { block: { type: 'osem_measurements', id: 'zahl' } } } },
             { type: 'view_map', id: 'karte', y: 200, fields: { DATASET: 'messwerte', LAT: 'lat', LON: 'lon', COLOUR: '' } },
           ],
         },

@@ -11,7 +11,7 @@ import { pythonGenerator } from 'blockly/python'
 import { formatDate, formatNumber, lang, pick, t } from '../i18n'
 import './fields'
 import { AREA_PRESETS, areaPreset, CUSTOM_PERIOD, daysAgo, daysBetween, parseDay, PERIODS, rowsFor, type PeriodId } from './osem/presets'
-import { categoryNames, datasetBlocks, datasetNameOf, needs, pythonNameOf, SOURCES, STEP, stepsOf, variableFor } from './program'
+import { categoryNames, datasetBlocks, datasetNameOf, needs, pythonNameOf, SOURCES, stepShape, stepsOf, variableFor } from './program'
 import { COORDINATES_COLUMN as COORDINATES } from './steps'
 
 export const OSEM_API = 'https://api.opensensemap.org'
@@ -156,8 +156,7 @@ Blockly.common.defineBlocksWithJsonArray([
       { type: 'field_dropdown', name: 'AREA', options: AREA_PRESETS.map((a) => [pick(a.label) ?? a.id, a.id]) },
       { type: 'field_checkbox', name: 'OUTDOOR', checked: true },
     ],
-    previousStatement: STEP,
-    nextStatement: STEP,
+    ...stepShape(['start'], 'text'),
     style: 'osem_blocks',
     tooltip: t('block.osemBoxes.tooltip', categories),
   },
@@ -168,8 +167,7 @@ Blockly.common.defineBlocksWithJsonArray([
     // Filled in once openSenseMap answered: "● „Fresno Station“ misst gerade".
     message1: '%1',
     args1: [{ type: 'field_label', name: 'STATUS', text: '' }],
-    previousStatement: STEP,
-    nextStatement: STEP,
+    ...stepShape(['start'], 'text'),
     style: 'osem_blocks',
     tooltip: t('block.osemBox.tooltip', categories),
     extensions: ['osem_box_id'],
@@ -187,8 +185,7 @@ Blockly.common.defineBlocksWithJsonArray([
         ],
       },
     ],
-    previousStatement: STEP,
-    nextStatement: STEP,
+    ...stepShape(['json'], 'table'),
     style: 'osem_blocks',
     tooltip: t('block.osemTable.tooltip'),
   },
@@ -210,8 +207,7 @@ Blockly.common.defineBlocksWithJsonArray([
       { type: 'input_dummy', name: 'RANGE' },
     ],
     extensions: ['osem_custom_period'],
-    previousStatement: STEP,
-    nextStatement: STEP,
+    ...stepShape(['start'], 'table'),
     style: 'osem_blocks',
     tooltip: t('block.osemMeasurements.tooltip', {
       day: PERIODS['1d'].rows,

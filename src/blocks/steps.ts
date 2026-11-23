@@ -10,7 +10,7 @@ import { pythonGenerator } from 'blockly/python'
 
 import { t } from '../i18n'
 import './fields'
-import { needs, quoted, STEP, variableFor } from './program'
+import { type DataKind, needs, quoted, stepShape, variableFor } from './program'
 
 export const READ_JSON = 'step_read_json'
 /** CSV text → a list with one entry per line, like JSON's lists. */
@@ -30,27 +30,27 @@ export const COORDINATES_COLUMN = t('column.coordinates')
 /** Where to find the blocks of other categories, for the tooltips. */
 const categories = { general: t('toolbox.general'), own: t('toolbox.ownData'), osem: t('toolbox.osem') }
 
-const step = (type: string, message: string, tooltip: string, args: object[] = []) => ({
+/** A step: what it takes from the block above and leaves for the one below (see DATA in program.ts). */
+const step = (type: string, message: string, tooltip: string, [takes, gives]: [DataKind[], DataKind], args: object[] = []) => ({
   type,
   message0: message,
   args0: args,
-  previousStatement: STEP,
-  nextStatement: STEP,
+  ...stepShape(takes, gives),
   style: 'step_blocks',
   tooltip,
 })
 
 Blockly.common.defineBlocksWithJsonArray([
-  step(READ_JSON, t('block.readJson'), t('block.readJson.tooltip', categories)),
-  step(TRANSLATE_CSV, t('block.translateCsv'), t('block.translateCsv.tooltip', categories)),
-  step(JSON_TABLE, t('block.jsonTable'), t('block.jsonTable.tooltip', categories)),
-  step(GEOJSON_TABLE, t('block.geojsonTable'), t('block.geojsonTable.tooltip', categories)),
-  step(SPLIT_POSITION, t('block.split'), t('block.split.tooltip'), [
+  step(READ_JSON, t('block.readJson'), t('block.readJson.tooltip', categories), [['text'], 'json']),
+  step(TRANSLATE_CSV, t('block.translateCsv'), t('block.translateCsv.tooltip', categories), [['text'], 'list']),
+  step(JSON_TABLE, t('block.jsonTable'), t('block.jsonTable.tooltip', categories), [['json', 'list'], 'table']),
+  step(GEOJSON_TABLE, t('block.geojsonTable'), t('block.geojsonTable.tooltip', categories), [['json'], 'table']),
+  step(SPLIT_POSITION, t('block.split'), t('block.split.tooltip'), [['table'], 'table'], [
     { type: 'field_split_column', name: 'COLUMN', value: COORDINATES_COLUMN },
     { type: 'field_input', name: 'FIRST', text: 'lon', spellcheck: false },
     { type: 'field_input', name: 'SECOND', text: 'lat', spellcheck: false },
   ]),
-  step(CONVERT_COLUMN, t('block.convert'), t('block.convert.tooltip'), [
+  step(CONVERT_COLUMN, t('block.convert'), t('block.convert.tooltip'), [['table'], 'table'], [
     { type: 'field_column', name: 'COLUMN', value: 'value' },
     {
       type: 'field_dropdown',

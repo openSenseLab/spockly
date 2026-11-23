@@ -25,19 +25,21 @@ const table: Snapshot = { art: 'tabelle', spalten: ['sensor_id'], typen: { senso
 
 describe('explainError', () => {
   it('finds the block that failed and says the data is still text (the JSON step is missing)', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' }, { type: 'osem_table', fields: { ROWS: 'sensor' } })
+    const workspace = workspaceWith({ type: 'osem_boxes' })
+    Blockly.serialization.blocks.append({ type: 'view_table', id: 'tabelle', fields: { DATASET: 'sensoren' } }, workspace)
     const problem = explainError('Traceback …\nNotImplementedError', workspace, { s0: text })
-    expect(problem.blockId).toBe('s1')
+    expect(problem.blockId).toBe('tabelle')
     // openSenseMap answers JSON: only the block for that, and where to find it.
     expect(problem.text).toBe(
-      '„sensoren“ ist an dieser Stelle noch Text, so wie er ankam. Übersetz ihn zuerst mit „übersetze den JSON-Text für Python“ (unter „Allgemeine Blöcke“).',
+      '„sensoren“ ist noch Text, so wie er ankam, und zeigen lässt sich erst eine Tabelle. Übersetz ihn zuerst mit „übersetze den JSON-Text für Python“ (unter „Allgemeine Blöcke“): im Datensatz „sensoren“ unten dazu.',
     )
   })
 
   it('suggests the block that fits the file, with its category', () => {
-    const csv = workspaceWith({ type: 'load_file', fields: { FILE: 'messung.csv' } }, { type: 'step_json_table' })
-    expect(explainError("AttributeError: 'str' object has no attribute 'keys'", csv, { s0: text }).text).toContain(
-      'Übersetz ihn zuerst mit „übersetze den CSV-Text für Python“ (unter „Allgemeine Blöcke“).',
+    const csv = workspaceWith({ type: 'load_file', fields: { FILE: 'messung.csv' } })
+    Blockly.serialization.blocks.append({ type: 'view_table', fields: { DATASET: 'sensoren' } }, csv)
+    expect(explainError("AttributeError: 'str' object has no attribute 'columns'", csv, { s0: text }).text).toContain(
+      'Übersetz ihn zuerst mit „übersetze den CSV-Text für Python“ (unter „Allgemeine Blöcke“)',
     )
     const geojson = workspaceWith({ type: 'load_file', fields: { FILE: 'parks.geojson' } }, { type: 'step_read_json' })
     Blockly.serialization.blocks.append({ type: 'view_table', id: 'tabelle', fields: { DATASET: 'sensoren' } }, geojson)
@@ -72,7 +74,7 @@ describe('explainError', () => {
   })
 
   it('explains kinds of Python errors anywhere, and gives a tip for unknown ones', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' }, { type: 'step_convert_column', fields: { COLUMN: 'zeit', TO: 'date' } })
+    const workspace = workspaceWith({ type: 'osem_measurements' }, { type: 'step_convert_column', fields: { COLUMN: 'zeit', TO: 'date' } })
     const date = explainError('DateParseError: Unknown datetime string format, unable to parse: gestern', workspace, { s0: table })
     expect(date.text).toContain('sehen nicht wie ein Datum aus')
     const unknown = explainError('ZeroDivisionError: division by zero', workspace, { s0: table })

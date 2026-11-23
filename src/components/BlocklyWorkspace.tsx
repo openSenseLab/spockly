@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Blockly from "blockly";
 import * as BlocklyDe from "blockly/msg/de";
 import "blockly/blocks";
@@ -8,13 +8,14 @@ import {
   generate,
   adviceFor,
   markRunState,
+  misfitAfterDrop,
   ranAsItIs,
   refreshFieldLabels,
   spocklyTheme,
   toolbox,
 } from "../blocks";
 import { DEFAULT_PYTHON_CODE } from "../constants";
-import { lang } from "../i18n";
+import { lang, t } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
 import { carriedState, setActiveWorkspace } from "./blockly/carryWorkspace";
 import { quickTooltips } from "./blockly/quickTooltips";
@@ -92,6 +93,8 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
   const blocklyRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const firstVersion = useRef(workspaceVersion);
+  /** Why the last dropped blocks didn't snap to the block next to them (see blocks/fit). */
+  const [misfit, setMisfit] = useState<string | null>(null);
 
   useEffect(() => {
     if (!blocklyRef.current || workspaceRef.current) {
@@ -124,7 +127,30 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
       },
     });
 
+    let hideMisfit: ReturnType<typeof setTimeout> | undefined;
+    const showMisfit = (text: string | null) => {
+      clearTimeout(hideMisfit);
+      setMisfit(text);
+      // Long enough to read, then out of the way.
+      if (text) hideMisfit = setTimeout(() => setMisfit(null), 9000);
+    };
+
     const onWorkspaceChange = (event: Blockly.Events.Abstract) => {
+      // A drop next to a block it can't go with: say why (Blockly only refuses to snap).
+      if (event.type === Blockly.Events.BLOCK_DRAG) {
+        const drag = event as Blockly.Events.BlockDrag;
+        const block = drag.blockId ? workspace.getBlockById(drag.blockId) : null;
+        if (drag.isStart || !block) {
+          showMisfit(null);
+          return;
+        }
+        // After Blockly has drawn the dropped blocks where they are now (their connections
+        // move with the drawing), and before it bumps them away from blocks they don't fit.
+        void Blockly.renderManagement
+          .finishQueuedRenders()
+          .then(() => showMisfit(block.isDisposed() ? null : misfitAfterDrop(block)));
+        return;
+      }
       // Clicking a block shows what the data looked like after it (its Zwischenstand).
       // Deselecting keeps it: clicking into the panel to scroll takes the focus from Blockly,
       // which deselects the block, and the Zwischenstand would vanish.
@@ -170,6 +196,7 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     }
 
     return () => {
+      clearTimeout(hideMisfit);
       window.removeEventListener("resize", onResize);
       stopQuickTooltips();
       stopLabels();
@@ -189,5 +216,17 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     resetWorkspaceState(workspaceRef.current);
   }, [workspaceVersion]);
 
-  return <div className="blockly-workspace" ref={blocklyRef} />;
+  return (
+    <div className="blockly-frame">
+      <div className="blockly-workspace" ref={blocklyRef} />
+      {misfit && (
+        <div className="blockly-misfit" role="status">
+          <span>{misfit}</span>
+          <button type="button" aria-label={t("fit.close")} onClick={() => setMisfit(null)}>
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

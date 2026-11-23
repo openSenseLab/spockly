@@ -9,7 +9,7 @@ import { ranAsItIs, signatures } from './runState'
 const stack = (...blocks: object[]) =>
   blocks.reduceRight<object | undefined>((next, block) => ({ ...block, ...(next ? { next: { block: next } } : {}) }), undefined)!
 
-/** Sensors (a file, translated from CSV, a column made a number), their measurements, and a map of each. */
+/** Sensors (a file, translated from CSV, made a table, a column made a number), their measurements, and a map of each. */
 function program() {
   const workspace = new Blockly.Workspace()
   Blockly.serialization.workspaces.load(
@@ -26,6 +26,7 @@ function program() {
                   block: stack(
                     { type: 'load_file', id: 'datei', fields: { FILE: 'a.csv' } },
                     { type: 'step_translate_csv', id: 'csv' },
+                    { type: 'step_json_table', id: 'liste' },
                     { type: 'step_convert_column', id: 'zahl', fields: { COLUMN: 'wert', TO: 'number' } },
                   ),
                 },
@@ -52,7 +53,7 @@ function program() {
   return workspace
 }
 
-const ids = ['datei', 'csv', 'zahl', 'box', 'mess', 'tabelle', 'orte_zeigen']
+const ids = ['datei', 'csv', 'liste', 'zahl', 'box', 'mess', 'tabelle', 'orte_zeigen']
 const ran: Snapshot = { art: 'text', text: '', anzahl: 0 }
 const allRan = Object.fromEntries(ids.map((id) => [id, ran]))
 /** The blocks whose result from the run is still what the blocks say. */
@@ -68,14 +69,14 @@ describe('which blocks the last run covered', () => {
   it('not a changed step, nor what depends on it: the steps below, a dataset made from it, its "zeige …"', () => {
     const workspace = program()
     const then = signatures(workspace, 0)
-    workspace.getBlockById('csv')!.nextConnection!.targetBlock()!.setFieldValue('date', 'TO')
-    expect(current(workspace, then)).toEqual(['datei', 'csv', 'box', 'orte_zeigen'])
+    workspace.getBlockById('zahl')!.setFieldValue('date', 'TO')
+    expect(current(workspace, then)).toEqual(['datei', 'csv', 'liste', 'box', 'orte_zeigen'])
   })
 
   it('not the blocks after one that failed: they have no Zwischenstand', () => {
     const workspace = program()
     const { zahl: _zahl, mess: _mess, tabelle: _tabelle, ...reached } = allRan
-    expect(current(workspace, signatures(workspace, 0), reached)).toEqual(['datei', 'csv', 'box', 'orte_zeigen'])
+    expect(current(workspace, signatures(workspace, 0), reached)).toEqual(['datei', 'csv', 'liste', 'box', 'orte_zeigen'])
   })
 
   it('not a file picked again under the same name, nor what comes from it', () => {
