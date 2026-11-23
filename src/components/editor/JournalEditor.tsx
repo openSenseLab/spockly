@@ -14,7 +14,7 @@ import { ModeSwitch } from '../ModeSwitch'
 import { LabToJournalDialog } from '../../lab/LabToJournalDialog'
 import { scrollToCell } from '../../journal/scroll'
 import { Button, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tooltip } from '../ui'
-import { buttonClass, cn } from '../ui/styles'
+import { buttonClass, cn, pageWidthClass } from '../ui/styles'
 import { BlockCell } from './BlockCell'
 import { CELL_STYLES } from './cellStyles'
 import { JournalMenu } from './JournalMenu'
@@ -223,7 +223,7 @@ export function JournalEditor() {
         }
       />
 
-      <main className="mx-auto max-w-5xl px-4 pt-10 pb-32">
+      <main className={cn(pageWidthClass, 'px-4 pt-10 pb-32')}>
         <JournalHeader />
         <WorkflowStepper shared={shared} />
         <div className="mt-6">

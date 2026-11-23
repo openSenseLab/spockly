@@ -211,7 +211,7 @@
   /* Blockly fills its host; the toolbox follows the app look. */
   /* isolate: Blockly's internal z-indices (toolbox 70, …) must not reach above dialogs, menus or the sticky header. */
   .blockly-host {
-    @apply isolate size-full;
+    @apply isolate size-full rounded-xl;
   }
 
   .blocklyToolbox {
@@ -225,6 +225,33 @@
   .blocklyTreeLabel {
     @apply font-sans text-sm font-medium text-ink-700;
   }
+}
+
+/* Blockly hides scrollbars and flyouts with the SVG attribute display="none". Tailwind's
+   base styles set svg { display: block }, and CSS beats SVG attributes, so without this rule
+   the toolbox scrollbar stays visible after the flyout closes. */
+svg[display='none'] {
+  display: none;
+}
+
+/* Blockly draws dropdown menus inside the workspace. Its container clips by default, which
+   cuts off menus taller than the workspace; let them extend beyond it instead. The rounded
+   corners move from the (no longer clipping) frame to the drawing surface and the toolbox. */
+.blockly-host .injectionDiv {
+  /* Menus only need room vertically (Blockly keeps them within the width);
+     clipping sideways keeps wide toolboxes from widening the page on phones. */
+  overflow-x: clip;
+  overflow-y: visible;
+  border-radius: inherit;
+}
+
+.blockly-host .blocklySvg {
+  border-radius: inherit;
+}
+
+.blockly-host .blocklyToolbox {
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
 }
 
 /* Leaflet's own stylesheet is unlayered, so these overrides must be unlayered too. */

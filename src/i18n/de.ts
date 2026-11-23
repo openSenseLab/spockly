@@ -152,6 +152,7 @@ export const de: Messages = {
     add: 'Block hinzufügen',
     more: 'Weitere Aktionen',
     moveUp: 'Nach oben',
+    resize: 'Höhe der Arbeitsfläche ändern',
     moveDown: 'Nach unten',
     duplicate: 'Duplizieren',
     copySuffix: '(Kopie)',

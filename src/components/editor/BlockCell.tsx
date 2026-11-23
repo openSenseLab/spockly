@@ -10,6 +10,7 @@ import { InspectionPanel } from '../inspect/InspectionPanel'
 import { OutputView } from '../outputs/OutputView'
 import { Button, IconButton, Tooltip } from '../ui'
 import { cn, inputClass } from '../ui/styles'
+import { ResizeHandle } from '../ResizeHandle'
 import { CellShell } from './CellShell'
 
 type Inspection = Extract<CellOutput, { type: 'inspection' }>
@@ -72,6 +73,7 @@ export function BlockCell({ cell, index }: { cell: BlockCellType; index: number 
   const editCell = useJournalStore((state) => state.editCell)
   const setResult = useJournalStore((state) => state.setResult)
   const [showCode, setShowCode] = useState(false)
+  const [height, setHeight] = useState(cell.type === 'data' ? 215 : 420)
 
   const onWorkspaceChange = useCallback(
     (workspace: object, code: string) => {
@@ -113,13 +115,12 @@ export function BlockCell({ cell, index }: { cell: BlockCellType; index: number 
         </Tooltip>
       }
     >
-      <div
-        className={cn(
-          'resize-y overflow-hidden rounded-xl ring-1 ring-ink-200',
-          cell.type === 'data' ? 'h-[215px] min-h-36' : 'h-[420px] min-h-64',
-        )}
-      >
-        <BlocklyEditor key={language} variant={cell.type} initialState={cell.workspace} onChange={onWorkspaceChange} />
+      <div>
+        {/* relative + z-index: an open dropdown may reach past the frame and must stay above later content */}
+        <div className="relative z-10 rounded-xl ring-1 ring-ink-200 focus-within:z-20" style={{ height }}>
+          <BlocklyEditor key={language} variant={cell.type} initialState={cell.workspace} onChange={onWorkspaceChange} />
+        </div>
+        <ResizeHandle height={height} onChange={setHeight} min={cell.type === 'data' ? 140 : 260} label={t.cells.resize} />
       </div>
       {showCode && (
         <pre className="overflow-auto rounded-xl bg-ink-900 p-4 font-mono text-[13px] leading-relaxed text-ink-100">

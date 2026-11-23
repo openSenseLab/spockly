@@ -34,4 +34,7 @@ export const buttonClass = ({
 export const inputClass =
   'w-full rounded-lg bg-white px-3 py-2 text-sm text-ink-900 ring-1 ring-ink-200 shadow-xs placeholder:text-ink-400 focus:ring-2 focus:ring-brand-500 focus:outline-none'
 
+/** Page width of editor and top bar: 66 % of the viewport, at least 64rem (1024 px), at most the screen. */
+export const pageWidthClass = 'mx-auto w-[min(100%,max(66vw,64rem))]'
+
 export const cardClass = 'rounded-2xl bg-white ring-1 ring-ink-200/80 shadow-sm shadow-ink-200/50'

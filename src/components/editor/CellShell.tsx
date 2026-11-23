@@ -82,7 +82,7 @@ export function CellShell({ id, type, index, title, actions, children }: Props) 
   }
 
   return (
-    <section id={`cell-${id}`} className={cn(cardClass, 'scroll-mt-24 overflow-hidden')}>
+    <section id={`cell-${id}`} className={cn(cardClass, 'scroll-mt-24')}>
       <header className="flex items-center gap-2.5 border-b border-ink-100 px-3 py-2.5 sm:px-4">
         <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg [&>svg]:size-4', CELL_STYLES[type].tile)}>
           {type === 'data' ? <Database /> : <ChartColumn />}

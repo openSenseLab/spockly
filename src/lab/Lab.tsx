@@ -127,7 +127,7 @@ export function Lab() {
       />
 
       <main className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,1fr)]">
-        <section className={cn(cardClass, 'min-h-0 overflow-hidden max-lg:h-[70vh]')}>
+        <section className={cn(cardClass, 'relative z-10 min-h-0 max-lg:h-[70vh]')}>
           {/* key: re-create after "start over" and on language change */}
           <BlocklyEditor key={`${language}-${version}`} variant="lab" initialState={workspace} onChange={onChange} />
         </section>

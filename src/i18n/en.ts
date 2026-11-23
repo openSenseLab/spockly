@@ -149,6 +149,7 @@ export const en = {
     add: 'Add block',
     more: 'More actions',
     moveUp: 'Move up',
+    resize: 'Change the height of the workspace',
     moveDown: 'Move down',
     duplicate: 'Duplicate',
     copySuffix: '(copy)',
