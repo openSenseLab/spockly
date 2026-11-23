@@ -67,7 +67,7 @@ function MiniHistogram({ bins }: { bins: NonNullable<ColumnProfile['histogram']>
 function ColumnCard({ column, rows }: { column: ColumnProfile; rows: number }) {
   const t = useT()
   const language = useLanguageStore((state) => state.language)
-  const n = (value: unknown) => formatNumber(value, language)
+  const n = (value: unknown) => formatNumber(value, language, column.name)
   const missingShare = rows ? Math.round((column.missing / rows) * 100) : 0
 
   return (
@@ -180,6 +180,7 @@ export function InspectionPanel({ profile, solved, onSolve }: Props) {
             value={profile.spatial ? t.common.yes : t.common.no}
             hint={profile.geometryTypes.join(', ') || t.inspect.spatialHint}
           />
+          {profile.crs && <Stat label={t.inspect.crs} value={profile.crs} hint={t.inspect.crsHint} />}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-ink-500">
           {t.inspect.kindsPresent}
@@ -187,6 +188,16 @@ export function InspectionPanel({ profile, solved, onSolve }: Props) {
             <KindBadge key={kind} kind={kind} />
           ))}
         </div>
+        {profile.layers && profile.layers.length > 1 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-500">
+            {t.inspect.layersInFile}
+            {profile.layers.map((layer) => (
+              <Badge key={layer} tone="brown" className="font-mono">
+                {layer}
+              </Badge>
+            ))}
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="columns">

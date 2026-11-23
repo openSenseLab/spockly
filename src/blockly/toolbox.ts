@@ -31,6 +31,9 @@ export const buildDataToolbox = (t: Messages['toolbox']): Blockly.utils.toolbox.
     block('spk_load_example'),
     block('spk_load_file'),
     block('spk_load_url'),
+    { kind: 'label', text: t.gisHint },
+    block('spk_load_gis_file'),
+    block('spk_load_gis_url'),
     block('spk_make_spatial'),
   ],
 })
@@ -59,6 +62,8 @@ export const buildToolbox = (
       colour: COLOURS.transform,
       contents: [
         block('spk_filter'),
+        block('spk_filter_in'),
+        block('spk_rows'),
         block('spk_sort'),
         block('spk_head'),
         block('spk_group'),
@@ -78,6 +83,7 @@ export const buildToolbox = (
         { kind: 'label', text: t.spatialCreate },
         block('spk_points'),
         block('spk_to_centroids'),
+        block('spk_to_crs'),
         block('spk_centroid'),
         { kind: 'label', text: t.spatialMeasure },
         block('spk_distance'),

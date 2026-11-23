@@ -32,11 +32,32 @@ export const literal = (value: string, kind?: string) => {
   return str(text)
 }
 
-export type DataFormat = 'csv' | 'geojson' | 'json'
+export type DataFormat = 'csv' | 'geojson' | 'json' | 'gis'
+
+/**
+ * Formats read with gpd.read_file (GDAL). In the browser, zipped Shapefiles and FlatGeobuf work;
+ * GeoPackage, KML, GML and GPX are recognised so the worker can explain that they are not supported yet.
+ */
+export const GIS_EXTENSIONS = ['.zip', '.gpkg', '.kml', '.gml', '.fgb', '.gpx']
+
+export const isGisFile = (source: string) => {
+  const path = source.toLowerCase().split('?')[0]
+  return GIS_EXTENSIONS.some((extension) => path.endsWith(extension))
+}
+
+/** Local file name for a downloaded GIS file (the runtime uses the same rule to list its layers). */
+export const downloadName = (url: string) => {
+  const name = url.split(/[?#]/)[0].replace(/\/+$/, '').split('/').pop() ?? ''
+  return name.replace(/[^\w.-]+/g, '_') || 'download.zip'
+}
+
+/** What gpd.read_file opens: zip archives through GDAL's zip:// prefix. */
+export const gisPath = (fileName: string) => (fileName.toLowerCase().endsWith('.zip') ? `zip://${fileName}` : fileName)
 
 /** Guess the format of a URL or file name (APIs without an extension usually return JSON). */
 export const formatOf = (source: string, content?: string): DataFormat => {
   const lower = source.toLowerCase()
+  if (isGisFile(lower)) return 'gis'
   if (/\.geojson(\?|$)|format=geojson/.test(lower)) return 'geojson'
   if (/\.(csv|tsv|txt)(\?|$)|format=csv/.test(lower)) return 'csv'
   if (/\.json(\?|$)/.test(lower)) return content && /"FeatureCollection"/.test(content.slice(0, 2000)) ? 'geojson' : 'json'

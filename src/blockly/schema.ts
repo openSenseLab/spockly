@@ -1,6 +1,6 @@
 import type * as Blockly from 'blockly'
 
-import { useKernelStore } from '../kernel/kernel'
+import { useKernelStore, type CoordinateSystem } from '../kernel/kernel'
 import { toIdentifier } from './python'
 
 export const PIPELINE = 'spk_pipeline'
@@ -49,7 +49,7 @@ const applyStep = (columns: string[], step: Blockly.Block): string[] => {
     case 'spk_points':
       return add('geometry')
     case 'spk_centroid':
-      return add('centroid_lon', 'centroid_lat')
+      return add(...centreColumns(step))
     case 'spk_drop':
       return columns.filter((c) => c !== field('COLUMN'))
     case 'spk_rename':
@@ -115,7 +115,7 @@ const numericOutputs = (step: Blockly.Block): string[] => {
     case 'spk_grid':
       return ['count']
     case 'spk_centroid':
-      return ['centroid_lon', 'centroid_lat']
+      return centreColumns(step)
     default:
       return []
   }
@@ -153,3 +153,45 @@ export const isNumericColumn = (block: Blockly.Block | null, column: string): bo
   const field = current ? kinds(String(current.getFieldValue('DATASET') ?? ''))?.find((f) => f.name === column) : undefined
   return field ? field.kind === 'number' : undefined
 }
+
+const WGS84: CoordinateSystem = { crs: 'EPSG:4326', projected: false }
+
+/** The pipeline block and the steps before `block` (in order), or null outside a pipeline. */
+const chainBefore = (block: Blockly.Block | null) => {
+  let step = block
+  while (step && !isStep(step) && step.type !== PIPELINE) step = step.getParent()
+  if (!step) return null
+  const chain: Blockly.Block[] = []
+  let current: Blockly.Block | null = step.type === PIPELINE ? step : step.getPreviousBlock()
+  while (current && current.type !== PIPELINE) {
+    chain.unshift(current)
+    current = current.getPreviousBlock()
+  }
+  return current ? { pipeline: current, chain } : null
+}
+
+/**
+ * Coordinate system of the data at the position of `block`: the dataset's own system
+ * (reported by Python), changed by "transform coordinate system" or "create points".
+ * Undefined when not known yet (before the first run).
+ */
+export const crsAt = (block: Blockly.Block | null): CoordinateSystem | undefined => {
+  const found = chainBefore(block)
+  if (!found) return undefined
+  let system: CoordinateSystem | undefined =
+    useKernelStore.getState().crs[toIdentifier(String(found.pipeline.getFieldValue('DATASET') ?? ''))]
+  for (const step of found.chain) {
+    if (step.type === 'spk_to_crs') {
+      const crs = String(step.getFieldValue('CRS') ?? '')
+      system = { crs, projected: crs !== 'EPSG:4326' }
+    }
+    if (step.type === 'spk_points') system = WGS84
+  }
+  return system
+}
+
+/** Names of the columns "add centre coordinates" creates: x/y in a metric system, lon/lat in degrees. */
+export const centreColumns = (step: Blockly.Block): [string, string] =>
+  String(step.getFieldValue('MODE') ?? 'own') === 'own' && crsAt(step)?.projected
+    ? ['centroid_x', 'centroid_y']
+    : ['centroid_lon', 'centroid_lat']

@@ -5,6 +5,7 @@ import App from './App.tsx'
 import { setBlocklyLanguage } from './blockly/locale'
 import { installBlocklyDialogs } from './blockly/dialogs'
 import { BlocklyDialogs } from './components/BlocklyDialogs'
+import { ValuePickerDialog } from './components/ValuePickerDialog'
 import { TooltipProvider } from './components/ui'
 import { useLanguageStore } from './i18n'
 import './index.css'
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')!).render(
     <TooltipProvider delayDuration={300}>
       <App />
       <BlocklyDialogs />
+      <ValuePickerDialog />
     </TooltipProvider>
   </StrictMode>,
 )

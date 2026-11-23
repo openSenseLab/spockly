@@ -5,8 +5,9 @@ import { SAMPLES, sampleUrl } from '../journal/samples'
 import { useKernelStore } from '../kernel/kernel'
 import { CATEGORICAL, SEQUENTIAL } from '../components/outputs/palette'
 import { getEditorContext } from './context'
-import { csvOptions, formatOf, literal, str, toIdentifier } from './python'
-import { PIPELINE, columnsForBlock, isNumericColumn } from './schema'
+import { csvOptions, downloadName, formatOf, gisPath, literal, str, toIdentifier } from './python'
+import { PIPELINE, centreColumns, columnsForBlock, crsAt, isNumericColumn } from './schema'
+import { parseValues } from './valuePicker'
 
 /**
  * Every block generates plain Python: pandas, GeoPandas, Altair and folium.
@@ -50,7 +51,7 @@ const kindOf = (column: string) => {
 const isNumeric = (column: string) => kindOf(column) === 'number'
 
 pythonGenerator.addReservedWords(
-  'df,pd,gpd,np,alt,json,requests,folium,branca,xyz,Point,Polygon,box,display,m,chart,joined,nearest,points,grid,cells,size,centre,centres,xmin,ymin,xmax,ymax,r',
+  'df,pd,gpd,np,alt,json,requests,folium,branca,xyz,Point,Polygon,box,display,m,chart,joined,nearest,points,grid,cells,size,centre,centres,xmin,ymin,xmax,ymax,r,file',
 )
 
 type Generator = (block: Blockly.Block, generator: PythonGenerator) => string
@@ -66,6 +67,19 @@ const loadJson = (name: string, source: string, format: 'geojson' | 'json', from
   }
   addImports(generator, 'pd')
   return `${name}_json = ${read}\n${name} = pd.json_normalize(${name}_json)\n`
+}
+
+/** GDAL formats via gpd.read_file; files from the web are downloaded into the working folder first. */
+const loadGis = (name: string, source: string, layer: string, fromUrl: boolean, generator: PythonGenerator) => {
+  addImports(generator, 'gpd')
+  let file = source
+  let code = ''
+  if (fromUrl) {
+    addImports(generator, 'requests')
+    file = downloadName(source)
+    code += `with open(${str(file)}, "wb") as file:\n    file.write(requests.get(${str(source)}).content)\n`
+  }
+  return code + `${name} = gpd.read_file(${str(gisPath(file))}${layer ? `, layer=${str(layer)}` : ''})\n`
 }
 
 const toPoints = (name: string, lon: string, lat: string, generator: PythonGenerator) => {
@@ -88,6 +102,7 @@ const loaders: Record<string, Generator> = {
     const name = dataset(block, 'NAME')
     const url = f(block, 'URL').trim()
     const format = formatOf(url)
+    if (format === 'gis') return loadGis(name, url, '', true, generator)
     if (format !== 'csv') return loadJson(name, url, format, false, generator)
     addImports(generator, 'pd')
     return `${name} = pd.read_csv(${str(url)})\n`
@@ -97,10 +112,13 @@ const loaders: Record<string, Generator> = {
     const file = f(block, 'FILE')
     const content = getEditorContext().fileContent(file)
     const format = formatOf(file, content)
+    if (format === 'gis') return loadGis(name, file, '', false, generator)
     if (format !== 'csv') return loadJson(name, file, format, true, generator)
     addImports(generator, 'pd')
     return `${name} = pd.read_csv(${str(file)}${csvOptions(content)})\n`
   },
+  spk_load_gis_file: (block, generator) => loadGis(dataset(block, 'NAME'), f(block, 'FILE'), f(block, 'LAYER'), false, generator),
+  spk_load_gis_url: (block, generator) => loadGis(dataset(block, 'NAME'), f(block, 'URL').trim(), f(block, 'LAYER'), true, generator),
   spk_make_spatial: (block, generator) => toPoints(dataset(block), f(block, 'LON'), f(block, 'LAT'), generator),
 }
 
@@ -108,7 +126,22 @@ const loaders: Record<string, Generator> = {
 
 const OPERATORS: Record<string, string> = { eq: '==', neq: '!=', lt: '<', lte: '<=', gt: '>', gte: '>=' }
 
-const metric = 'df.to_crs(df.estimate_utm_crs())'
+/**
+ * Where to measure. Data in a metric (projected) system such as EPSG:25832 is used as it is;
+ * data in degrees (WGS 84) is projected to its UTM zone first and the result converted back.
+ */
+const measure = (block: Blockly.Block) => {
+  const projected = crsAt(block)?.projected ?? false
+  return {
+    projected,
+    /** The data in metres */
+    metric: projected ? 'df' : 'df.to_crs(df.estimate_utm_crs())',
+    /** The metric system as an expression */
+    system: projected ? 'df.crs' : 'df.estimate_utm_crs()',
+    /** Back to the data's own system after measuring in UTM */
+    back: projected ? '' : '.to_crs(df.crs)',
+  }
+}
 
 const steps: Record<string, Generator> = {
   [PIPELINE]: (block, generator) => {
@@ -127,6 +160,14 @@ const steps: Record<string, Generator> = {
     if (op === 'contains') return `df = df[${col(column)}.astype(str).str.contains(${str(f(block, 'VALUE'))}, case=False, na=False)]\n`
     return `df = df[${col(column)} ${OPERATORS[op]} ${literal(f(block, 'VALUE'), kindOf(column))}]\n`
   },
+  spk_filter_in: (block) => {
+    const values = parseValues(f(block, 'VALUES'))
+      .map((value) => (typeof value === 'boolean' ? (value ? 'True' : 'False') : typeof value === 'number' ? String(value) : str(value)))
+      .join(', ')
+    return `df = df[${f(block, 'MODE') === 'notin' ? '~' : ''}${col(f(block, 'COLUMN'))}.isin([${values}])]\n`
+  },
+  // Positions as people count them (1 = first row); iloc counts from 0 and excludes the end.
+  spk_rows: (block) => `df = df.iloc[${Math.max(0, num(block, 'FROM') - 1)}:${num(block, 'TO')}]\n`,
   spk_sort: (block) => `df = df.sort_values(${str(f(block, 'COLUMN'))}, ascending=${f(block, 'DIR') === 'asc' ? 'True' : 'False'})\n`,
   spk_head: (block) => `df = df.head(${num(block, 'N')})\n`,
   spk_group: (block) => {
@@ -158,41 +199,53 @@ const steps: Record<string, Generator> = {
     addImports(generator, 'gpd')
     return `df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(${col(f(block, 'LON'))}, ${col(f(block, 'LAT'))}), crs="EPSG:4326")\n`
   },
-  spk_to_centroids: () => `df["geometry"] = ${metric}.centroid.to_crs(df.crs)\n`,
-  spk_centroid: () => `centres = ${metric}.centroid.to_crs(df.crs)\ndf["centroid_lon"] = centres.x\ndf["centroid_lat"] = centres.y\n`,
+  // Centroid: computed in metres (UTM). Point inside: always within the shape, even for concave ones.
+  spk_to_centroids: (block) => {
+    if (f(block, 'MODE') === 'inside') return `df["geometry"] = df.representative_point()\n`
+    const { metric, back } = measure(block)
+    return `df["geometry"] = ${metric}.centroid${back}\n`
+  },
+  spk_to_crs: (block) => `df = df.to_crs(${str(f(block, 'CRS'))})\n`,
+  // Coordinates in the data's own system (x/y in metres for EPSG:25832) or as longitude/latitude.
+  spk_centroid: (block) => {
+    const { metric, back } = measure(block)
+    const [x, y] = centreColumns(block)
+    const target = f(block, 'MODE') === 'wgs84' ? '.to_crs("EPSG:4326")' : back
+    return `centres = ${metric}.centroid${target}\ndf[${str(x)}] = centres.x\ndf[${str(y)}] = centres.y\n`
+  },
   spk_near: (block, generator) => {
     addImports(generator, 'gpd', 'point')
     return (
-      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(df.estimate_utm_crs())\n` +
-      `df = df[df.to_crs(centre.crs).distance(centre.iloc[0]) <= ${num(block, 'KM')} * 1000]\n`
+      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
+      `df = df[${measure(block).projected ? 'df' : 'df.to_crs(centre.crs)'}.distance(centre.iloc[0]) <= ${num(block, 'KM')} * 1000]\n`
     )
   },
   spk_distance: (block, generator) => {
     addImports(generator, 'gpd', 'point')
     return (
-      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(df.estimate_utm_crs())\n` +
-      `df[${str(f(block, 'NAME'))}] = df.to_crs(centre.crs).distance(centre.iloc[0]) / 1000\n`
+      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
+      `df[${str(f(block, 'NAME'))}] = ${measure(block).projected ? 'df' : 'df.to_crs(centre.crs)'}.distance(centre.iloc[0]) / 1000\n`
     )
   },
-  spk_area: (block) => `df[${str(f(block, 'NAME'))}] = ${metric}.area / 1e6\n`,
-  spk_length: (block) => `df[${str(f(block, 'NAME'))}] = ${metric}.length / 1000\n`,
+  spk_area: (block) => `df[${str(f(block, 'NAME'))}] = ${measure(block).metric}.area / 1e6\n`,
+  spk_length: (block) => `df[${str(f(block, 'NAME'))}] = ${measure(block).metric}.length / 1000\n`,
   spk_nearest: (block, generator) => {
     addImports(generator, 'gpd')
     const name = str(f(block, 'NAME'))
     return (
-      `nearest = gpd.sjoin_nearest(${metric}, ${dataset(block)}.to_crs(df.estimate_utm_crs())[["geometry"]], distance_col=${name})\n` +
+      `nearest = gpd.sjoin_nearest(${measure(block).metric}, ${dataset(block)}.to_crs(${measure(block).system})[["geometry"]], distance_col=${name})\n` +
       `df[${name}] = nearest.groupby(level=0)[${name}].min() / 1000\n`
     )
   },
-  spk_inside: (block) => `df = df[${f(block, 'MODE') === 'outside' ? '~' : ''}df.within(${dataset(block)}.union_all())]\n`,
+  spk_inside: (block) => `df = df[${f(block, 'MODE') === 'outside' ? '~' : ''}df.within(${dataset(block)}.to_crs(df.crs).union_all())]\n`,
   spk_spatial_join: (block, generator) => {
     addImports(generator, 'gpd')
-    return `df = gpd.sjoin(df, ${dataset(block)}, how="left", predicate="within").drop(columns="index_right")\n`
+    return `df = gpd.sjoin(df, ${dataset(block)}.to_crs(df.crs), how="left", predicate="within").drop(columns="index_right")\n`
   },
   spk_count_within: (block, generator) => {
     addImports(generator, 'gpd')
     return (
-      `joined = gpd.sjoin(${dataset(block)}[["geometry"]], df[["geometry"]], predicate="within")\n` +
+      `joined = gpd.sjoin(${dataset(block)}[["geometry"]].to_crs(df.crs), df[["geometry"]], predicate="within")\n` +
       `df[${str(f(block, 'NAME'))}] = joined.groupby("index_right").size().reindex(df.index, fill_value=0)\n`
     )
   },
@@ -203,16 +256,16 @@ const steps: Record<string, Generator> = {
     const name = str(f(block, 'NAME') || `${agg}_${column}`)
     if (agg === 'count' || !column) {
       return (
-        `joined = gpd.sjoin(${dataset(block)}[["geometry"]], df[["geometry"]], predicate="within")\n` +
+        `joined = gpd.sjoin(${dataset(block)}[["geometry"]].to_crs(df.crs), df[["geometry"]], predicate="within")\n` +
         `df[${name}] = joined.groupby("index_right").size().reindex(df.index, fill_value=0)\n`
       )
     }
     return (
-      `joined = gpd.sjoin(${dataset(block)}[[${str(column)}, "geometry"]], df[["geometry"]], predicate="within")\n` +
+      `joined = gpd.sjoin(${dataset(block)}[[${str(column)}, "geometry"]].to_crs(df.crs), df[["geometry"]], predicate="within")\n` +
       `df[${name}] = joined.groupby("index_right")[${str(column)}].${agg}().reindex(df.index)\n`
     )
   },
-  spk_buffer: (block) => `df["geometry"] = ${metric}.buffer(${num(block, 'METRES')}).to_crs(df.crs)\n`,
+  spk_buffer: (block) => `df["geometry"] = ${measure(block).metric}.buffer(${num(block, 'METRES')})${measure(block).back}\n`,
   spk_dissolve: (block) => (f(block, 'BY') ? `df = df.dissolve(by=${str(f(block, 'BY'))}, as_index=False)\n` : `df = df.dissolve()\n`),
   spk_convex_hull: (_block, generator) => {
     addImports(generator, 'gpd')
@@ -230,13 +283,13 @@ const steps: Record<string, Generator> = {
         `]\n`
       : `cells = [box(x, y, x + size, y + size) for x in np.arange(xmin, xmax + size, size) for y in np.arange(ymin, ymax + size, size)]\n`
     return (
-      `points = ${metric}\n` +
+      `points = ${measure(block).metric}\n` +
       `xmin, ymin, xmax, ymax = points.total_bounds\n` +
       `size = ${num(block, 'KM') * 1000}\n` +
       cells +
       `grid = gpd.GeoDataFrame(geometry=cells, crs=points.crs)\n` +
       `grid["count"] = gpd.sjoin(points[["geometry"]], grid, predicate="within").groupby("index_right").size().reindex(grid.index, fill_value=0)\n` +
-      `df = grid[grid["count"] > 0].to_crs("EPSG:4326")\n`
+      `df = grid[grid["count"] > 0]${measure(block).back}\n`
     )
   },
 
@@ -358,7 +411,7 @@ const mapCode = (block: Blockly.Block, generator: PythonGenerator, layers = laye
     code += `    }\n\n\n`
 
     const tooltip = layer.label ? `,\n    tooltip=folium.GeoJsonTooltip(fields=[${str(layer.label)}])` : ''
-    code += `folium.GeoJson(\n    ${data}.to_json(default=str),\n    name=${str(layer.name)},\n    marker=folium.CircleMarker(radius=6, fill=True),\n    style_function=${prefix}_style${tooltip},\n).add_to(m)\n`
+    code += `folium.GeoJson(\n    ${data}.to_crs("EPSG:4326").to_json(default=str),\n    name=${str(layer.name)},\n    marker=folium.CircleMarker(radius=6, fill=True),\n    style_function=${prefix}_style${tooltip},\n).add_to(m)\n`
     if (numericColor) code += `${prefix}_colors.add_to(m)\n`
   })
 

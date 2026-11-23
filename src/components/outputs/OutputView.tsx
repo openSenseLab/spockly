@@ -53,7 +53,7 @@ function Single({ output }: { output: CellOutput }) {
       return (
         <div className="inline-flex flex-col rounded-2xl bg-gradient-to-br from-brand-50 to-white px-5 py-4 ring-1 ring-brand-100">
           <span className="text-sm font-medium text-ink-500">{output.label}</span>
-          <span className="mt-1 text-4xl font-bold tracking-tight text-ink-900 tabular-nums">{formatNumber(output.value, language)}</span>
+          <span className="mt-1 text-4xl font-bold tracking-tight text-ink-900 tabular-nums">{formatNumber(output.value, language, output.label, true)}</span>
         </div>
       )
     case 'text': {
@@ -65,7 +65,7 @@ function Single({ output }: { output: CellOutput }) {
           <div className="inline-flex flex-col rounded-2xl bg-gradient-to-br from-brand-50 to-white px-5 py-4 ring-1 ring-brand-100">
             <span className="text-sm font-medium text-ink-500">{figure[1]}</span>
             <span className="mt-1 text-4xl font-bold tracking-tight text-ink-900 tabular-nums">
-              {Number.isFinite(value) ? formatNumber(value, language) : figure[2]}
+              {Number.isFinite(value) ? formatNumber(value, language, figure[1], true) : figure[2]}
             </span>
           </div>
         )

@@ -54,6 +54,10 @@ export type DatasetProfile = {
   mapPreview: GeoJSON.FeatureCollection | null
   /** Only for JSON sources. */
   json?: JsonInfo | null
+  /** Coordinate reference system, e.g. "EPSG:25832" (GeoDataFrames only). */
+  crs?: string | null
+  /** All layers of the file this dataset was read from (multi-layer GIS files). */
+  layers?: string[] | null
 }
 
 export type ChartKind = 'bar' | 'line' | 'scatter' | 'histogram'
@@ -72,7 +76,12 @@ export type MapLayer = {
   totalFeatures: number
 }
 
-export type FieldInfo = { name: string; kind: ColumnKind }
+export type FieldInfo = {
+  name: string
+  kind: ColumnKind
+  /** Distinct values (small columns only), for picking several values in a filter. */
+  values?: (string | number | boolean)[]
+}
 
 export type DataSourceRef = { kind: 'example' | 'url' | 'file'; ref: string }
 

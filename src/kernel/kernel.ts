@@ -9,9 +9,15 @@ type KernelState = {
   status: KernelStatus
   /** Column info for every dataset currently held by Python; drives block dropdowns. */
   schemas: Schemas
+  /** Layers inside GIS files, by file name or URL (for the layer dropdown). */
+  layers: Record<string, string[]>
+  /** Coordinate system of every GeoDataFrame, e.g. { nrw: { crs: 'EPSG:25832', projected: true } }. */
+  crs: Record<string, CoordinateSystem>
 }
 
-export const useKernelStore = create<KernelState>(() => ({ status: 'idle', schemas: {} }))
+export type CoordinateSystem = { crs: string; projected: boolean }
+
+export const useKernelStore = create<KernelState>(() => ({ status: 'idle', schemas: {}, layers: {}, crs: {} }))
 
 export class KernelError extends Error {
   /** Learner-facing error code (mapped from the Python exception in the worker) or null for raw Python errors. */
@@ -29,12 +35,22 @@ export class KernelError extends Error {
 type Pending = { resolve: (payload: string) => void; reject: (error: Error) => void }
 
 let worker: Worker | null = null
+
+const discardWorker = (reason: string) => {
+  worker?.terminate()
+  worker = null
+  for (const request of pending.values()) request.reject(new KernelError(reason))
+  pending.clear()
+  useKernelStore.setState({ schemas: {}, crs: {} })
+}
 let nextRequestId = 1
 const pending = new Map<number, Pending>()
 
 const handleMessage = ({ data }: MessageEvent<KernelResponse>) => {
   if (data.type === 'status') {
     useKernelStore.setState({ status: data.status })
+    // After a crash Python cannot continue: answer waiting requests and start fresh next time.
+    if (data.status === 'failed') discardWorker('SPK|kernel_crashed|')
     return
   }
   const request = pending.get(data.requestId)
@@ -74,8 +90,13 @@ export const runCode = async (code: string, files: Record<string, string> = {}, 
   const result = JSON.parse(await send({ type: 'run', code, files, inspect })) as {
     outputs: CellOutput[]
     schemas: Schemas
+    crs: Record<string, CoordinateSystem>
   }
-  useKernelStore.setState({ schemas: result.schemas })
+  const layers = { ...useKernelStore.getState().layers }
+  for (const output of result.outputs) {
+    if (output.type === 'inspection' && output.profile.layers?.length) layers[output.source.ref] = output.profile.layers
+  }
+  useKernelStore.setState({ schemas: result.schemas, layers, crs: result.crs ?? {} })
   return result.outputs
 }
 
@@ -85,12 +106,12 @@ export const restartKernel = () => {
   worker = null
   for (const request of pending.values()) request.reject(new KernelError('SPK|stopped|'))
   pending.clear()
-  useKernelStore.setState({ status: 'idle', schemas: {} })
+  useKernelStore.setState({ status: 'idle', schemas: {}, crs: {} })
   warmUpKernel()
 }
 
 /** Forget all datasets (e.g. when another journal is opened) but keep Python loaded. */
 export const resetKernel = async () => {
-  useKernelStore.setState({ schemas: {} })
+  useKernelStore.setState({ schemas: {}, crs: {} })
   if (worker) await send({ type: 'reset' }).catch(() => undefined)
 }

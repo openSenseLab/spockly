@@ -55,6 +55,8 @@ const SOURCES: Record<string, { kind: InspectRequest['kind']; field: string }> =
   spk_load_example: { kind: 'example', field: 'EXAMPLE' },
   spk_load_url: { kind: 'url', field: 'URL' },
   spk_load_file: { kind: 'file', field: 'FILE' },
+  spk_load_gis_file: { kind: 'file', field: 'FILE' },
+  spk_load_gis_url: { kind: 'url', field: 'URL' },
 }
 
 /** The datasets a data block's workspace loads, so Python can profile them after running. */

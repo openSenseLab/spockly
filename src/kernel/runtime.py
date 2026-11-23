@@ -13,6 +13,8 @@ module. The runtime only provides what a notebook front end provides:
 import builtins
 import json
 import math
+import os
+import re
 import sys
 
 import numpy as np
@@ -77,7 +79,7 @@ def _geometry_label(geometry):
         return None
     if interface.get("type") == "Point":
         lon, lat = interface["coordinates"][:2]
-        return f"Point ({lon:.4f}, {lat:.4f})"
+        return f"Point ({lon}, {lat})"
     return interface.get("type")
 
 
@@ -341,10 +343,23 @@ def _profile_column(series):
     return profile
 
 
+def _wgs84(df):
+    """Maps and bounding boxes need longitude/latitude; reproject other coordinate systems."""
+    crs = getattr(df, "crs", None)
+    if crs is None or not hasattr(df, "to_crs"):
+        return df
+    try:
+        return df if crs.to_epsg() == 4326 else df.to_crs("EPSG:4326")
+    except Exception:  # noqa: BLE001 - a broken CRS should not stop the inspection
+        return df
+
+
 def _profile(name, df):
-    geometries = _geometries(df)
+    geo = _wgs84(df)
+    geometries = _geometries(geo)
     spatial = geometries is not None
     geometry_types = sorted({g["type"] for g in geometries or [] if g}) if spatial else []
+    crs = getattr(df, "crs", None)
     return {
         "name": name,
         "rows": int(len(df)),
@@ -353,10 +368,28 @@ def _profile(name, df):
         "geometryTypes": geometry_types,
         "bbox": _bbox(geometries) if spatial else None,
         "preview": _records(df, PREVIEW_ROWS),
-        "mapPreview": _to_geojson(df, MAP_PREVIEW_FEATURES) if spatial else None,
+        "mapPreview": _to_geojson(geo, MAP_PREVIEW_FEATURES) if spatial else None,
+        "crs": crs.to_string() if crs is not None else None,
     }
 
 
+def _download_name(url):
+    """Same rule as the code generator: the file name a downloaded GIS file is saved under."""
+    name = re.split(r"[?#]", url)[0].rstrip("/").split("/")[-1]
+    return re.sub(r"[^\w.-]+", "_", name) or "download.zip"
+
+
+def _layers(kind, ref):
+    """All layers of a multi-layer GIS file (zip with several Shapefiles, GeoPackage)."""
+    path = ref if kind == "file" else _download_name(ref)
+    if not path.lower().endswith((".zip", ".gpkg")) or not os.path.exists(path):
+        return None
+    try:
+        import fiona  # noqa: PLC0415 - only present when GIS files are read
+
+        return list(fiona.listlayers(f"zip://{path}" if path.lower().endswith(".zip") else path))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -436,12 +469,55 @@ def _json_info(namespace, name):
     }
 
 
+MAX_PICK_VALUES = 1000
+
+
+def _distinct_values(series):
+    """Sorted distinct values of a column, for the value picker of "is one of" (small columns only)."""
+    if _is_geometry_column(series) or pd.api.types.is_datetime64_any_dtype(series):
+        return None
+    values = series.dropna()
+    try:
+        unique = pd.unique(values)
+    except TypeError:
+        return None
+    if len(unique) == 0 or len(unique) > MAX_PICK_VALUES:
+        return None
+    cleaned = [_clean(value) for value in unique]
+    return sorted(cleaned, key=lambda value: (isinstance(value, str), value))
+
+
+def _schema_fields(df):
+    fields = []
+    for column in df.columns:
+        field = {"name": str(column), "kind": _kind(df[column])}
+        values = _distinct_values(df[column])
+        if values is not None:
+            field["values"] = values
+        fields.append(field)
+    return fields
+
+
 def schemas(namespace):
     return {
-        name: _fields(value)
+        name: _schema_fields(value)
         for name, value in namespace.items()
         if isinstance(value, pd.DataFrame) and not name.startswith("_") and name not in TEMPORARY_NAMES
     }
+
+
+def coordinate_systems(namespace):
+    """CRS of every GeoDataFrame, so the blocks can compute in it (metric) or via UTM (degrees)."""
+    systems = {}
+    for name, value in namespace.items():
+        crs = getattr(value, "crs", None)
+        if not isinstance(value, pd.DataFrame) or crs is None or name.startswith("_") or name in TEMPORARY_NAMES:
+            continue
+        try:
+            systems[name] = {"crs": crs.to_string(), "projected": bool(crs.is_projected)}
+        except Exception:  # noqa: BLE001
+            continue
+    return systems
 
 
 def begin():
@@ -460,5 +536,6 @@ def end(namespace, inspect=()):
         if isinstance(value, pd.DataFrame):
             profile = _profile(entry["name"], value)
             profile["json"] = _json_info(namespace, entry["name"])
+            profile["layers"] = _layers(entry["kind"], entry["ref"])
             outputs.append({"type": "inspection", "source": {"kind": entry["kind"], "ref": entry["ref"]}, "profile": profile})
-    return _dumps({"outputs": outputs, "schemas": schemas(namespace)})
+    return _dumps({"outputs": outputs, "schemas": schemas(namespace), "crs": coordinate_systems(namespace)})

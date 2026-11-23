@@ -73,7 +73,7 @@ export function MapOutput({ layers, basemap = 'light', height = 400 }: Props) {
         onEachFeature: (feature, featureLayer) => {
           const rows = Object.entries(feature.properties ?? {})
             .slice(0, 14)
-            .map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(formatNumber(value, language))}</td></tr>`)
+            .map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(formatNumber(value, language, key))}</td></tr>`)
             .join('')
           featureLayer.bindPopup(`<table class="map-popup">${rows}</table>`, { maxWidth: 320 })
           if (labels && feature.properties?.[labels] != null) {

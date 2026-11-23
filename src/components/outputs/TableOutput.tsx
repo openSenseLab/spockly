@@ -65,7 +65,7 @@ export function TableOutput({ columns, rows, totalRows, showKinds = true }: Prop
                   const value = row[column.name]
                   return (
                     <td key={column.name} className={typeof value === 'number' ? 'numeric' : value == null ? 'missing' : undefined}>
-                      {formatNumber(value, language)}
+                      {formatNumber(value, language, column.name)}
                     </td>
                   )
                 })}

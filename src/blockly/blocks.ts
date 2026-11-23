@@ -63,6 +63,12 @@ const identifierNames = (block: Blockly.Block, ...fields: string[]) => {
   for (const name of fields) block.getField(name)?.setValidator((value: string) => toIdentifier(value))
 }
 
+/** Long web addresses would make blocks very wide: show the start, edit the full text. */
+const shortUrl = (block: Blockly.Block) => {
+  const field = block.getField('URL')
+  if (field) field.maxDisplayLength = 32
+}
+
 const load = (json: Json): Json => ({
   previousStatement: 'load',
   nextStatement: 'load',
@@ -102,7 +108,10 @@ define(
       args0: [input('URL', 'https://'), input('NAME', 'data')],
       tooltip: t.loadUrlTip,
     }),
-  (block) => identifierNames(block, 'NAME'),
+  (block) => {
+    identifierNames(block, 'NAME')
+    shortUrl(block)
+  },
 )
 
 define(
@@ -114,6 +123,37 @@ define(
       tooltip: t.loadFileTip,
     }),
   (block) => identifierNames(block, 'NAME'),
+)
+
+define(
+  'spk_load_gis_file',
+  (t) =>
+    load({
+      message0: t.loadGisFile,
+      args0: [{ type: 'field_spk_file', name: 'FILE' }],
+      message1: t.gisLayerAs,
+      args1: [{ type: 'field_spk_layer', name: 'LAYER' }, input('NAME', 'data')],
+      colour: COLOURS.spatial,
+      tooltip: t.loadGisFileTip,
+    }),
+  (block) => identifierNames(block, 'NAME'),
+)
+
+define(
+  'spk_load_gis_url',
+  (t) =>
+    load({
+      message0: t.loadGisUrl,
+      args0: [input('URL', 'https://')],
+      message1: t.gisLayerAs,
+      args1: [{ type: 'field_spk_layer', name: 'LAYER' }, input('NAME', 'data')],
+      colour: COLOURS.spatial,
+      tooltip: t.loadGisUrlTip,
+    }),
+  (block) => {
+    identifierNames(block, 'NAME')
+    shortUrl(block)
+  },
 )
 
 define('spk_make_spatial', (t) =>
@@ -183,6 +223,29 @@ define('spk_filter', (t) =>
       input('VALUE', ''),
     ],
     tooltip: t.filterTip,
+  }),
+)
+
+define('spk_filter_in', (t) =>
+  step(COLOURS.transform, {
+    message0: t.filterIn,
+    args0: [
+      column('COLUMN'),
+      dropdown('MODE', [
+        [t.filterInModes.in, 'in'],
+        [t.filterInModes.notIn, 'notin'],
+      ]),
+      { type: 'field_spk_values', name: 'VALUES', value: '[]' },
+    ],
+    tooltip: t.filterInTip,
+  }),
+)
+
+define('spk_rows', (t) =>
+  step(COLOURS.transform, {
+    message0: t.rows,
+    args0: [number('FROM', 1, { min: 1, precision: 1 }), number('TO', 10, { min: 1, precision: 1 })],
+    tooltip: t.rowsTip,
   }),
 )
 
@@ -313,11 +376,44 @@ define('spk_count_within', (t) =>
 )
 
 define('spk_centroid', (t) =>
-  step(COLOURS.spatial, { message0: t.centroid, tooltip: t.centroidTip }),
+  step(COLOURS.spatial, {
+    message0: t.centroid,
+    args0: [
+      dropdown('MODE', [
+        [t.centroidModes.own, 'own'],
+        [t.centroidModes.wgs84, 'wgs84'],
+      ]),
+    ],
+    tooltip: t.centroidTip,
+  }),
 )
 
 define('spk_to_centroids', (t) =>
-  step(COLOURS.spatial, { message0: t.toCentroids, tooltip: t.toCentroidsTip }),
+  step(COLOURS.spatial, {
+    message0: t.toCentroids,
+    args0: [
+      dropdown('MODE', [
+        [t.centreModes.centroid, 'centroid'],
+        [t.centreModes.inside, 'inside'],
+      ]),
+    ],
+    tooltip: t.toCentroidsTip,
+  }),
+)
+
+define('spk_to_crs', (t) =>
+  step(COLOURS.spatial, {
+    message0: t.toCrs,
+    args0: [
+      dropdown('CRS', [
+        [t.crsOptions.wgs84, 'EPSG:4326'],
+        [t.crsOptions.utm32, 'EPSG:25832'],
+        [t.crsOptions.laea, 'EPSG:3035'],
+        [t.crsOptions.webMercator, 'EPSG:3857'],
+      ]),
+    ],
+    tooltip: t.toCrsTip,
+  }),
 )
 
 define('spk_length', (t) =>

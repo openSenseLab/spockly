@@ -83,6 +83,8 @@ const ensurePackages = async (pyodide: PyodideInterface, code: string) => {
       await install(FOLIUM)
     })
   }
+  // gpd.read_file (Shapefile, GeoPackage, KML, …) needs GDAL, which comes with fiona (11 MB).
+  if (code.includes('read_file(')) await installOnce('fiona', () => pyodide.loadPackage('fiona'))
   // pandas' Styler (df.style) needs jinja2 without the learner's code importing it.
   if (code.includes('.style.')) await installOnce('jinja2', () => pyodide.loadPackage('jinja2'))
   micropip.destroy()
@@ -112,6 +114,8 @@ const cleanError = (error: unknown) => {
     [/^FileNotFoundError: .*'([^']+)'/, (m) => `SPK|missing_file|${m[1]}`],
     [/(HTTPError|ConnectionError|NetworkError|URLError|Failed to fetch|status code \d+)/, () => 'SPK|fetch_failed|'],
     [/JSONDecodeError/, () => 'SPK|invalid_json|'],
+    [/(DriverError|CPLE_\w+|not recognized as a supported file format|No such file or directory: 'zip:)/, () => `SPK|gis_read_failed|${last.replace(/^[\w.]+: /, '')}`],
+    [/Layer '?([^']+)'? (not found|does not exist)|Null layer: '([^']+)'/, (m) => `SPK|missing_layer|${m[1] ?? m[3]}`],
     [/(ParserError|EmptyDataError)/, () => `SPK|parse_failed|${last.replace(/^\w+: /, '')}`],
   ]
   for (const [pattern, toCode] of rules) {
@@ -120,6 +124,24 @@ const cleanError = (error: unknown) => {
   }
   return line ? `${last} (line ${line})` : last
 }
+
+/** The request being worked on, so a crash of Python itself can still be answered. */
+let currentRequest: number | null = null
+
+/**
+ * Pyodide can fail fatally (e.g. a crash inside GDAL). Its promises then never settle,
+ * so report the crash ourselves; the app restarts Python for the next run.
+ */
+const reportCrash = (reason: unknown) => {
+  const message = reason instanceof Error ? reason.message : String(reason)
+  if (currentRequest !== null) {
+    scope.postMessage({ type: 'result', requestId: currentRequest, ok: false, error: `SPK|kernel_crashed|${message.split('\n')[0]}` })
+    currentRequest = null
+  }
+  scope.postMessage({ type: 'status', status: 'failed', message })
+}
+self.addEventListener('error', (event) => reportCrash((event as ErrorEvent).error ?? (event as ErrorEvent).message))
+self.addEventListener('unhandledrejection', (event) => reportCrash((event as PromiseRejectionEvent).reason))
 
 scope.onmessage = async ({ data }) => {
   if (data.type === 'init') {
@@ -132,6 +154,7 @@ scope.onmessage = async ({ data }) => {
   }
 
   const { requestId } = data
+  currentRequest = requestId
   try {
     const pyodide = await getPyodide()
     let payload = '{}'
@@ -141,8 +164,13 @@ scope.onmessage = async ({ data }) => {
       namespace = newNamespace(pyodide)
     } else {
       for (const [name, content] of Object.entries(data.files)) {
-        pyodide.FS.writeFile(`${HOME}/${name.replace(/[/\\]/g, '_')}`, content)
+        // Binary uploads (zip, GeoPackage) arrive as "base64:…".
+        const bytes = content.startsWith('base64:') ? Uint8Array.from(atob(content.slice(7)), (c) => c.charCodeAt(0)) : content
+        pyodide.FS.writeFile(`${HOME}/${name.replace(/[/\\]/g, '_')}`, bytes)
       }
+      // Pyodide's GDAL build crashes on GeoPackage and has no KML/GML/GPX driver: refuse early.
+      const unsupported = data.code.match(/read_file\(\s*"[^"]*\.(gpkg|kml|kmz|gml|gpx)"/i)
+      if (unsupported) throw new Error(`SPK|format_unsupported|.${unsupported[1].toLowerCase()}`)
       await ensurePackages(pyodide, data.code)
       const runtime = pyodide.pyimport('spockly_runtime') as PyProxy & {
         begin: () => void
@@ -158,6 +186,9 @@ scope.onmessage = async ({ data }) => {
     }
     scope.postMessage({ type: 'result', requestId, ok: true, payload })
   } catch (error) {
-    scope.postMessage({ type: 'result', requestId, ok: false, error: cleanError(error) })
+    const message = cleanError(error)
+    scope.postMessage({ type: 'result', requestId, ok: false, error: /fatal error|null function/i.test(message) ? `SPK|kernel_crashed|${message}` : message })
+  } finally {
+    currentRequest = null
   }
 }

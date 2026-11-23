@@ -44,14 +44,15 @@ type Inspection = Extract<CellOutput, { type: 'inspection' }>
 /** Runs the whole lab workspace from a clean Python state, like "restart and run all". */
 const runLab = async () => {
   const lab = useLabStore.getState()
-  const code = lab.code || codeFromWorkspace(lab.workspace)
+  const code = lab.workspace ? codeFromWorkspace(lab.workspace) : lab.code
+  if (code !== lab.code) useLabStore.setState({ code })
   lab.setRun({ status: 'running' })
   try {
     if (!code.trim()) throw new KernelError('SPK|no_blocks|')
     // The lab shares Python with the journal: journal results must be recomputed afterwards.
     useJournalStore.getState().invalidateFrom(0)
     await resetKernel()
-    const files = Object.fromEntries(Object.entries(lab.files).filter(([name]) => code.includes(JSON.stringify(name))))
+    const files = Object.fromEntries(Object.entries(lab.files).filter(([name]) => code.includes(name)))
     useLabStore.getState().setOutputs(await runCode(code, files, inspectRequests(lab.workspace)))
     useLabStore.getState().setRun({ status: 'done' })
   } catch (error) {

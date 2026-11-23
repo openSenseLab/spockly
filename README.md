@@ -50,6 +50,25 @@ and a scale bar.
 - **Duplicate**: the ⋯ menu of a journal block copies it, with all its blocks, right below.
 - Within a page, Blockly's copy/paste (Ctrl/Cmd+C, Ctrl/Cmd+V) also works across workspaces.
 
+### GIS files
+
+*Load GIS file* (upload) and *Load GIS file from web address* read files with
+`gpd.read_file`. In the browser this works for **zipped Shapefiles** (.zip with .shp,
+.dbf, .shx, .prj; a zip may hold several layers) and **FlatGeobuf** (.fgb); GeoJSON is
+read with `GeoDataFrame.from_features`. After the first run, the layer field lists all
+layers of the file, and the inspection shows the coordinate system (e.g. EPSG:25832).
+
+Example: the administrative boundaries of NRW,
+`https://www.opengeodata.nrw.de/produkte/geobasis/vkg/dvg/dvg2/dvg2_EPSG25832_Shape.zip`
+(layers: state `dvg2bld_nw`, districts `dvg2krs_nw`, …). The centre of the state:
+*use dataset* → *turn features into centroids* → *add centre coordinates*.
+
+Not yet supported in the browser: GeoPackage (crashes Pyodide's GDAL build), KML, GML
+and GPX (no driver). The app explains this instead of running the code. GDAL comes with
+fiona (11 MB), loaded only when a block reads a GIS file. Spatial steps that combine
+datasets convert the other dataset to the current coordinate system; maps show
+everything in WGS 84.
+
 ## Lab mode
 
 `#/lab` (the *Journal | Lab* switch in the top bar) is a plain block-based data science

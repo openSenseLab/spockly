@@ -16,14 +16,16 @@ const enqueue = <T>(task: () => Promise<T>) => {
 /** Only send the uploaded files this code actually reads. */
 const filesFor = (code: string) =>
   Object.fromEntries(
-    Object.entries(useJournalStore.getState().journal.files).filter(([name]) => code.includes(JSON.stringify(name))),
+    Object.entries(useJournalStore.getState().journal.files).filter(([name]) => code.includes(name)),
   )
 
 const execute = async (cell: BlockCell) => {
   const store = useJournalStore.getState()
   store.setRunState(cell.id, { status: 'running' })
   try {
-    const code = cell.code || codeFromWorkspace(cell.workspace)
+    // Regenerate now: the code depends on what Python reported so far (e.g. coordinate systems).
+    const code = cell.workspace ? codeFromWorkspace(cell.workspace) : cell.code
+    if (code !== cell.code) store.setResult(cell.id, { code })
     if (!code.trim()) throw new KernelError(cell.type === 'data' ? 'SPK|no_data|' : 'SPK|no_blocks|')
     const inspect = cell.type === 'data' ? inspectRequests(cell.workspace) : []
     const outputs = await runCode(code, filesFor(code), inspect)
@@ -32,6 +34,8 @@ const execute = async (cell: BlockCell) => {
     return true
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    // Python restarted after a crash: everything computed so far is gone.
+    if (message.startsWith('SPK|kernel_crashed|')) useJournalStore.getState().invalidateFrom(0)
     useJournalStore.getState().setRunState(cell.id, { status: 'error', error: message })
     return false
   }
