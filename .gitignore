@@ -26,5 +26,6 @@ dist-ssr
 # Python
 __pycache__
 
-# Journals shared via short links (server storage)
-data/
+# Journals shared via short links (server storage, project root only;
+# public/data/ holds the example datasets and must stay in the repository)
+/data/
