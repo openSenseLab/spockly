@@ -134,16 +134,18 @@ export function explainError(message: string, workspace: Blockly.Workspace, snap
   const data = before ? snapshots[before.id] : undefined
   const text =
     unknownBox(dataset, snapshots) ??
-    explainStep(failed, message, name, data) ??
+    explainStep(failed, message, name, data, source) ??
     explainKind(message, name, data, source) ??
     say('error.unknown', { problem: lastLine(message) })
   return { blockId: failed.id, text }
 }
 
 /** What we know about the step that failed: a file gone, offline, or data that isn't what the block takes. */
-function explainStep(failed: Blockly.Block, message: string, name: string, data: Snapshot | undefined): string | null {
+function explainStep(failed: Blockly.Block, message: string, name: string, data: Snapshot | undefined, source: Source): string | null {
   const translating = failed.type === READ_JSON || failed.type === TRANSLATE_CSV
   if (failed.type === LOAD_FILE && /FileNotFoundError/.test(message)) return say('error.fileMissing')
+  // The stations table is for openSenseMap's answer only: for a file, the block that fits it.
+  if (failed.type === OSEM_TABLE && source !== 'osem') return say('error.osem.notStations', { next: tableNext(source) })
   // The measurements are asked per sensor of a station: the rows they come from need both ids.
   // The missing column is in that dataset, not in the one the measurements go to.
   if (failed.type === OSEM_MEASUREMENTS && /KeyError: ['"](station_lastMeasurementAt|sensor_id|station_id)['"]/.test(message)) {

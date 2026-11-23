@@ -546,6 +546,9 @@ export const de = {
   'fit.view': '„{block}“ zeigt Daten und gehört darum nicht in einen Datensatz, sondern darunter.',
   'fit.outside': '„{block}“ gehört in einen Datensatz hinein, nicht darunter.',
   'fit.close': 'Schließen',
+  'fit.notStations': '„{block}“ passt nicht unter „{above}“: Er ist nur für Stationen der openSenseMap. Für eine Datei nimm „mache eine Tabelle aus der Liste …“ oder bei GeoJSON „mache eine Tabelle aus GeoJSON …“ (unter „{general}“).',
+  'fit.stationsNotGeojson': '„{block}“ passt nicht unter „{above}“: Hier sind Stationen der openSenseMap, kein GeoJSON. Nimm „mache eine Tabelle aus den Stationen …“ (unter „{osem}“).',
+  'error.osem.notStations': '„mache eine Tabelle aus den Stationen“ ist nur für Stationen der openSenseMap, nicht für Daten aus einer Datei. {next}.',
   'error.general': 'Python hat einen Fehler gemeldet.',
   'error.details': 'Die genaue Meldung von Python steht im Tab „Python“.',
 }

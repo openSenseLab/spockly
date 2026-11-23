@@ -6,12 +6,14 @@
 import * as Blockly from 'blockly'
 
 import { t } from '../i18n'
-import { blockText, categoryNames, DATASET, type DataKind, isStep, kindOf, PROGRAM } from './program'
+import { LOAD_FILE } from './files'
+import { OSEM_BOX, OSEM_BOXES } from './osem'
+import { blockText, categoryNames, DATA, DATASET, type DataKind, isStep, kindOf, PROGRAM } from './program'
+import { READ_JSON } from './steps'
 
 /** What the connection gives below it (a step's "next", a dataset's inside), or "program" (under a dataset or a "zeige" block). */
-function gives(connection: Blockly.Connection): DataKind | 'program' | null {
-  const check = connection.getCheck()?.[0]
-  return check === PROGRAM ? 'program' : kindOf(check)
+function gives(connection: Blockly.Connection): (DataKind | 'program')[] {
+  return (connection.getCheck() ?? []).map((check) => (check === PROGRAM ? 'program' : kindOf(check))).filter((k) => k !== null)
 }
 
 /** What a block takes from above. */
@@ -26,18 +28,47 @@ function takes(block: Blockly.Block): (DataKind | 'program')[] {
 export function whyNotFit(upper: Blockly.Connection, lower: Blockly.Block): string | null {
   const given = gives(upper)
   const taken = takes(lower)
-  if (!given || !taken.length || taken.includes(given)) return null
+  if (!given.length || !taken.length || taken.some((kind) => given.includes(kind))) return null
   const above = upper.getSourceBlock()
   const words = { block: blockText(lower), above: above.type === DATASET ? '' : blockText(above), ...categoryNames() }
+  const is = (kind: DataKind | 'program') => given.includes(kind)
   if (taken.includes('program')) return t('fit.view', words)
-  if (given === 'program') return t('fit.outside', words)
-  if (given === 'start') return t('fit.first', words)
+  if (is('program')) return t('fit.outside', words)
+  if (is('start')) return t('fit.first', words)
   if (taken.includes('start')) return t('fit.source', words)
-  if (given === 'text') return t('fit.text', words)
+  if (is('text')) return t('fit.text', words)
   if (taken.includes('text')) return t('fit.translated', words)
-  if (given === 'table') return t('fit.table', words)
-  if (given === 'list') return t('fit.csvList', words)
+  if (is('table')) return t('fit.table', words)
+  // The stations table is for openSenseMap's stations only; GeoJSON's table isn't for them.
+  if (taken.includes('stations')) return t('fit.notStations', words)
+  if (is('stations') && taken.includes('json')) return t('fit.stationsNotGeojson', words)
+  if (is('list')) return t('fit.csvList', words)
   return t('fit.notTable', words)
+}
+
+/** Where a chain's data comes from: its first step, above `block`. */
+function firstStep(block: Blockly.Block): Blockly.Block {
+  let first = block
+  for (let up = first.getPreviousBlock(); up && isStep(up); up = up.getPreviousBlock()) first = up
+  return first
+}
+
+/**
+ * What "übersetze den JSON-Text" leaves below it, by where the text came from:
+ * openSenseMap's answer is stations (for the stations table), a file plain
+ * JSON (for the list and GeoJSON tables). Without a source above, both, so a
+ * loose block can still be put together. A block below that doesn't fit any
+ * more is pushed aside by Blockly; call after every change.
+ */
+export function narrowKinds(workspace: Blockly.Workspace) {
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.type !== READ_JSON || !block.nextConnection) continue
+    const source = firstStep(block).type
+    const kinds =
+      source === OSEM_BOXES || source === OSEM_BOX ? [DATA.stations] : source === LOAD_FILE ? [DATA.json] : [DATA.json, DATA.stations]
+    const now = block.nextConnection.getCheck() ?? []
+    if (now.length !== kinds.length || kinds.some((kind) => !now.includes(kind))) block.nextConnection.setCheck(kinds)
+  }
 }
 
 /**
@@ -95,7 +126,7 @@ export function misfitAfterDrop(block: Blockly.BlockSvg): string | null {
   const bottom = tail.nextConnection?.isConnected() ? null : tail.nextConnection
   const step = isStep(block)
   /** Whether a spot under `upper` is of the dropped blocks' own kind. */
-  const own = (upper: Blockly.Connection) => (gives(upper) !== 'program') === step
+  const own = (upper: Blockly.Connection) => !gives(upper).includes('program') === step
   const spots: DropSpot[] = []
   for (const connection of [top, bottom]) {
     if (!connection) continue

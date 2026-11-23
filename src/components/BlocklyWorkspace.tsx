@@ -9,6 +9,7 @@ import {
   adviceFor,
   markRunState,
   misfitAfterDrop,
+  narrowKinds,
   ranAsItIs,
   refreshFieldLabels,
   spocklyTheme,
@@ -164,6 +165,8 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
         return;
       }
       followRename(event, workspace);
+      // E.g. "übersetze den JSON-Text" moved from openSenseMap to a file: the stations table no longer fits under it.
+      narrowKinds(workspace);
       updateDerivedState(workspace);
       // E.g. the map now shows another dataset: its colour column may be missing there.
       refreshFieldLabels(workspace);

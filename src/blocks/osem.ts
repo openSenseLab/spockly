@@ -185,7 +185,7 @@ Blockly.common.defineBlocksWithJsonArray([
         ],
       },
     ],
-    ...stepShape(['json'], 'table'),
+    ...stepShape(['stations'], 'table'),
     style: 'osem_blocks',
     tooltip: t('block.osemTable.tooltip'),
   },

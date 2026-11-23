@@ -31,7 +31,7 @@ export const COORDINATES_COLUMN = t('column.coordinates')
 const categories = { general: t('toolbox.general'), own: t('toolbox.ownData'), osem: t('toolbox.osem') }
 
 /** A step: what it takes from the block above and leaves for the one below (see DATA in program.ts). */
-const step = (type: string, message: string, tooltip: string, [takes, gives]: [DataKind[], DataKind], args: object[] = []) => ({
+const step = (type: string, message: string, tooltip: string, [takes, gives]: [DataKind[], DataKind | DataKind[]], args: object[] = []) => ({
   type,
   message0: message,
   args0: args,
@@ -41,9 +41,10 @@ const step = (type: string, message: string, tooltip: string, [takes, gives]: [D
 })
 
 Blockly.common.defineBlocksWithJsonArray([
-  step(READ_JSON, t('block.readJson'), t('block.readJson.tooltip', categories), [['text'], 'json']),
+  // JSON, or openSenseMap's stations: narrowKinds (fit.ts) says which, once it knows where the text came from.
+  step(READ_JSON, t('block.readJson'), t('block.readJson.tooltip', categories), [['text'], ['json', 'stations']]),
   step(TRANSLATE_CSV, t('block.translateCsv'), t('block.translateCsv.tooltip', categories), [['text'], 'list']),
-  step(JSON_TABLE, t('block.jsonTable'), t('block.jsonTable.tooltip', categories), [['json', 'list'], 'table']),
+  step(JSON_TABLE, t('block.jsonTable'), t('block.jsonTable.tooltip', categories), [['json', 'stations', 'list'], 'table']),
   step(GEOJSON_TABLE, t('block.geojsonTable'), t('block.geojsonTable.tooltip', categories), [['json'], 'table']),
   step(SPLIT_POSITION, t('block.split'), t('block.split.tooltip'), [['table'], 'table'], [
     { type: 'field_split_column', name: 'COLUMN', value: COORDINATES_COLUMN },

@@ -2,7 +2,7 @@
 import * as Blockly from 'blockly'
 import { describe, expect, it } from 'vitest'
 
-import { reasonForDrop, whyNotFit } from './fit'
+import { narrowKinds, reasonForDrop, whyNotFit } from './fit'
 import './index'
 
 const workspace = () => new Blockly.Workspace()
@@ -85,5 +85,53 @@ describe('which spot a drop meant', () => {
   it('takes the nearest spot in between when there is no free spot', () => {
     expect(reasonForDrop([{ distance: 30, free: false, own: true, reason: 'far' }, { distance: 10, free: false, own: true, reason: 'near' }])).toBe('near')
     expect(reasonForDrop([])).toBeNull()
+  })
+})
+
+describe('JSON from openSenseMap, or from a file', () => {
+  /** A dataset: the source, then "übersetze den JSON-Text" (id json), kinds narrowed as on the canvas. */
+  function translated(source: string) {
+    const ws = workspace()
+    Blockly.serialization.workspaces.load(
+      { blocks: { languageVersion: 0, blocks: [{ type: 'spockly_dataset', inputs: { STEPS: { block: { type: source, next: { block: { type: 'step_read_json', id: 'json' } } } } } }] } },
+      ws,
+    )
+    narrowKinds(ws)
+    return { ws, json: ws.getBlockById('json')! }
+  }
+
+  it('takes the stations table only under openSenseMap', () => {
+    const osem = translated('osem_boxes')
+    expect(snaps(osem.ws, osem.json.nextConnection!, block(osem.ws, 'osem_table'))).toBe(true)
+    const file = translated('load_file')
+    const stations = block(file.ws, 'osem_table')
+    expect(snaps(file.ws, file.json.nextConnection!, stations)).toBe(false)
+    expect(whyNotFit(file.json.nextConnection!, stations)).toContain('Er ist nur für Stationen der openSenseMap. Für eine Datei nimm „mache eine Tabelle aus der Liste …“ oder bei GeoJSON „mache eine Tabelle aus GeoJSON …“')
+  })
+
+  it('takes the GeoJSON table only under a file, the list table under both', () => {
+    const osem = translated('osem_box')
+    const geojson = block(osem.ws, 'step_geojson_table')
+    expect(snaps(osem.ws, osem.json.nextConnection!, geojson)).toBe(false)
+    expect(whyNotFit(osem.json.nextConnection!, geojson)).toContain('Hier sind Stationen der openSenseMap, kein GeoJSON')
+    expect(snaps(osem.ws, osem.json.nextConnection!, block(osem.ws, 'step_json_table'))).toBe(true)
+    const file = translated('load_file')
+    expect(snaps(file.ws, file.json.nextConnection!, block(file.ws, 'step_geojson_table'))).toBe(true)
+    expect(snaps(file.ws, file.json.nextConnection!, block(file.ws, 'step_json_table'))).toBe(true)
+  })
+
+  it('pushes the stations table aside when its JSON turns out to come from a file', () => {
+    const ws = workspace()
+    Blockly.serialization.workspaces.load(
+      {
+        blocks: {
+          languageVersion: 0,
+          blocks: [{ type: 'spockly_dataset', inputs: { STEPS: { block: { type: 'load_file', next: { block: { type: 'step_read_json', id: 'json', next: { block: { type: 'osem_table', id: 'tabelle' } } } } } } } }],
+        },
+      },
+      ws,
+    )
+    narrowKinds(ws)
+    expect(ws.getBlockById('tabelle')!.getPreviousBlock()).toBeNull()
   })
 })

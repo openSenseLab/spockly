@@ -23,8 +23,10 @@ export const DATASET = 'spockly_dataset'
  * block above and what it leaves for the block below; Blockly lets only
  * fitting blocks snap together (e.g. no table before the text is translated).
  * "start" is the top of a dataset, where only blocks that get data fit.
+ * "stations": JSON translated from openSenseMap's answer, which only the
+ * stations table and the list table take (see narrowKinds in fit.ts).
  */
-export const DATA = { start: 'Anfang', text: 'Text', json: 'JSON', list: 'Liste', table: 'Tabelle' } as const
+export const DATA = { start: 'Anfang', text: 'Text', json: 'JSON', stations: 'Stationen', list: 'Liste', table: 'Tabelle' } as const
 export type DataKind = keyof typeof DATA
 const DATA_CHECKS = new Set<string>(Object.values(DATA))
 
@@ -32,10 +34,10 @@ const DATA_CHECKS = new Set<string>(Object.values(DATA))
 export const kindOf = (check: string | undefined): DataKind | null =>
   (Object.keys(DATA) as DataKind[]).find((kind) => DATA[kind] === check) ?? null
 
-/** A step's connections: the kinds it takes from above, the kind it leaves below. */
-export const stepShape = (takes: DataKind[], gives: DataKind) => ({
+/** A step's connections: the kinds it takes from above, the kind(s) it leaves below. */
+export const stepShape = (takes: DataKind[], gives: DataKind | DataKind[]) => ({
   previousStatement: takes.map((kind) => DATA[kind]),
-  nextStatement: DATA[gives],
+  nextStatement: Array.isArray(gives) ? gives.map((kind) => DATA[kind]) : DATA[gives],
 })
 
 /** A step (it belongs inside a dataset), not a dataset or a "zeige" block. */

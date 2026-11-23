@@ -543,6 +543,9 @@ export const en: Record<keyof typeof de, string> = {
   'fit.view': '"{block}" shows data, so it doesn\'t go inside a dataset but below it.',
   'fit.outside': '"{block}" goes inside a dataset, not below it.',
   'fit.close': 'Close',
+  'fit.notStations': '"{block}" doesn\'t fit under "{above}": it is for openSenseMap stations only. For a file, use "make a table from the list …", or for GeoJSON "make a table from GeoJSON …" (under "{general}").',
+  'fit.stationsNotGeojson': '"{block}" doesn\'t fit under "{above}": these are openSenseMap stations, not GeoJSON. Use "make a table from the stations …" (under "{osem}").',
+  'error.osem.notStations': '"make a table from the stations" is for openSenseMap stations only, not for data from a file. {next}.',
   'error.general': 'Python reported an error.',
   'error.details': 'Python\'s exact message is in the "Python" tab.',
 }
