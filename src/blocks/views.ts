@@ -67,7 +67,7 @@ Blockly.common.defineBlocksWithJsonArray([
 function chosenDataset(block: Blockly.Block): { variable: string; title: string } | null {
   const title = String(block.getFieldValue('DATASET') ?? '')
   const found = datasetBlocks(block.workspace).find((d) => datasetNameOf(d) === title)
-  block.setWarningText(found ? null : t('block.noSuchDataset', { name: title }))
+  block.setWarningText(found ? null : t('block.noSuchDataset', { name: title }), 'dataset')
   return found ? { variable: pythonNameOf(found), title } : null
 }
 

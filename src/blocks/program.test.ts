@@ -89,10 +89,10 @@ describe('generate', () => {
   it('warns at once on a step outside a dataset, or on an empty dataset', () => {
     const warn = vi.spyOn(Blockly.Block.prototype, 'setWarningText')
     generate(load(state({ type: 'step_read_json' })))
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('steckt in keinem „Datensatz“'))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('steckt in keinem „Datensatz“'), 'place')
     warn.mockClear()
     generate(load(state(dataset('leer', 'leer'))))
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Dieser Datensatz ist noch leer'))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Dieser Datensatz ist noch leer'), 'empty')
     warn.mockRestore()
   })
 

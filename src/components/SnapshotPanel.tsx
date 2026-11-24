@@ -2,7 +2,7 @@ import { Box, Callout, Flex, Heading, Text } from '@radix-ui/themes'
 
 import { blockText, datasetNameOf, datasetOf } from '../blocks/program'
 import { adviceFor } from '../blocks/advice'
-import { ranAsItIs } from '../blocks/runState'
+import { unchangedSinceRun, ranAsItIs } from '../blocks/runState'
 import { formatNumber, t } from '../i18n'
 import { useAppStore } from '../store/useAppStore'
 import { getActiveWorkspace } from './blockly/carryWorkspace'
@@ -28,6 +28,13 @@ export function SnapshotPanel({ busy }: { busy: boolean }) {
   const current = !block || !lastRun || ranAsItIs(block, lastRun.signatures, snapshots, filesVersion)
   // E.g. a table of one row, from GeoJSON: why, and which block fits.
   const advice = block && current ? adviceFor(block, snapshots) : null
+  // The run failed at this block (and it is unchanged since), or stopped before reaching it.
+  const failure = useAppStore((state) => state.failure)
+  const failedBlock = failure ? (getActiveWorkspace()?.getBlockById(failure.blockId) ?? null) : null
+  const unchanged = block !== null && unchangedSinceRun(block, lastRun?.signatures ?? null, filesVersion)
+  const failedHere = unchanged && failedBlock === block
+  // A block after it, unchanged since: the run never got to it. (A new or changed block just needs a run.)
+  const stoppedBefore = unchanged && !failedHere && failedBlock !== null && !snapshot
 
   if (!block || !dataset) {
     return (
@@ -60,7 +67,23 @@ export function SnapshotPanel({ busy }: { busy: boolean }) {
           <Callout.Text>{t('snapshot.old')}</Callout.Text>
         </Callout.Root>
       )}
-      {!snapshot && !busy && (
+      {failedHere && failure && !busy && (
+        <Callout.Root color="red" size="1" role="alert">
+          <Callout.Text>
+            <Text as="span" weight="bold">
+              {t('error.onBlock')}
+            </Text>
+            <br />
+            {failure.text}
+          </Callout.Text>
+        </Callout.Root>
+      )}
+      {stoppedBefore && failedBlock && !busy && (
+        <Text as="p" size="2" color="gray">
+          {t('snapshot.stoppedBefore', { block: blockText(failedBlock) })}
+        </Text>
+      )}
+      {!snapshot && !busy && !failedHere && !stoppedBefore && (
         <Text as="p" size="2" color="gray">
           {t('snapshot.runFirst')}
         </Text>

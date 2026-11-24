@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Snapshot } from '../core/fromPython'
 import './index'
-import { ranAsItIs, signatures } from './runState'
+import { FAILED_CLASS, markFailure, ranAsItIs, signatures, unchangedSinceRun } from './runState'
 
 const stack = (...blocks: object[]) =>
   blocks.reduceRight<object | undefined>((next, block) => ({ ...block, ...(next ? { next: { block: next } } : {}) }), undefined)!
@@ -89,5 +89,43 @@ describe('which blocks the last run covered', () => {
     const then = signatures(workspace, 0)
     const added = Blockly.serialization.blocks.append({ type: 'view_table', fields: { DATASET: 'orte' } }, workspace)
     expect(ranAsItIs(added, then, { ...allRan, [added.id]: ran }, 0)).toBe(false)
+  })
+})
+
+describe('the block a run failed at', () => {
+  it('stays the failed block until it, or a step above it, changes', () => {
+    const workspace = program()
+    const then = signatures(workspace, 0)
+    const zahl = workspace.getBlockById('zahl')!
+    expect(unchangedSinceRun(zahl, then, 0)).toBe(true)
+    workspace.getBlockById('liste')!.dispose(true)
+    expect(unchangedSinceRun(zahl, then, 0)).toBe(false)
+    expect(unchangedSinceRun(zahl, null, 0)).toBe(false)
+  })
+
+  it('is drawn red, says why in its warning and on hover, and lets go once it is changed', () => {
+    // Blockly measures text on a canvas, which jsdom lacks (and says so, at length).
+    HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+    const div = document.body.appendChild(document.createElement('div'))
+    const workspace = Blockly.inject(div, {})
+    Blockly.serialization.workspaces.load(Blockly.serialization.workspaces.save(program()), workspace)
+    const then = signatures(workspace, 0)
+    const zahl = workspace.getBlockById('zahl') as Blockly.BlockSvg
+    const own = Blockly.Tooltip.getTooltipOfObject(zahl)
+    const failure = { blockId: 'zahl', text: 'Die Spalte „wert“ gibt es nicht.' }
+
+    expect(markFailure(workspace, failure, then, 0)).toBe(zahl)
+    expect(zahl.getSvgRoot().classList.contains(FAILED_CLASS)).toBe(true)
+    expect(zahl.getIcon(Blockly.icons.WarningIcon.TYPE)).toBeDefined()
+    expect(Blockly.Tooltip.getTooltipOfObject(zahl)).toBe('Hier ist der Lauf stehen geblieben:\nDie Spalte „wert“ gibt es nicht.')
+    // Marked already: not new again (the canvas opens the warning only once).
+    expect(markFailure(workspace, failure, then, 0)).toBeNull()
+
+    zahl.setFieldValue('date', 'TO')
+    markFailure(workspace, failure, then, 0)
+    expect(zahl.getSvgRoot().classList.contains(FAILED_CLASS)).toBe(false)
+    expect(zahl.getIcon(Blockly.icons.WarningIcon.TYPE)).toBeUndefined()
+    expect(Blockly.Tooltip.getTooltipOfObject(zahl)).toBe(own)
+    workspace.dispose()
   })
 })

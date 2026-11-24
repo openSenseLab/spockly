@@ -658,3 +658,16 @@
   stroke-dasharray: 6 4;
   fill-opacity: 0.55;
 }
+
+/*
+ * The block a run failed at (blocks/runState): a thick red outline and a red
+ * glow, solid and full colour even though it didn't finish. Its warning sign
+ * and its tooltip say why.
+ */
+.blocklyDraggable.spockly-failed > .blocklyPath {
+  stroke: #dc2626;
+  stroke-width: 4px;
+  stroke-dasharray: none;
+  fill-opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.6));
+}

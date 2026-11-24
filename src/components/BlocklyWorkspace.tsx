@@ -7,6 +7,7 @@ import {
   followRename,
   generate,
   adviceFor,
+  markFailure,
   markRunState,
   misfitAfterDrop,
   narrowKinds,
@@ -73,15 +74,32 @@ const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
 /** The warning id of advice after a run, apart from the blocks' own warnings. */
 const ADVICE_WARNING = "advice";
 
-/** Marks the blocks the last run didn't cover: new or changed since, or after a failed block. */
+/**
+ * Marks the blocks the last run didn't cover (new or changed since, or after a
+ * failed block), and the block it failed at.
+ */
 const markRun = (workspace: Blockly.WorkspaceSvg) => {
-  const { lastRun, snapshots, filesVersion } = useAppStore.getState();
+  const { lastRun, snapshots, filesVersion, failure } = useAppStore.getState();
   markRunState(workspace, lastRun?.signatures ?? null, snapshots, filesVersion);
+  // A new error: to the block. Its explanation opens on a click on its warning sign, or on hovering
+  // (opened by itself, the bubble would cover the blocks above).
+  const failed = markFailure(
+    workspace,
+    failure,
+    lastRun?.signatures ?? null,
+    filesVersion,
+  );
+  if (failed) workspace.centerOnBlock(failed.id);
   // Advice on a block whose result the run left as it is (e.g. a table of one row from GeoJSON).
   // Again after each change: generating the code clears the blocks' warnings.
   for (const block of workspace.getAllBlocks(false)) {
-    const current = lastRun !== null && ranAsItIs(block, lastRun.signatures, snapshots, filesVersion);
-    block.setWarningText(current ? adviceFor(block, snapshots) : null, ADVICE_WARNING);
+    const current =
+      lastRun !== null &&
+      ranAsItIs(block, lastRun.signatures, snapshots, filesVersion);
+    block.setWarningText(
+      current ? adviceFor(block, snapshots) : null,
+      ADVICE_WARNING,
+    );
   }
 };
 
@@ -140,7 +158,9 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
       // A drop next to a block it can't go with: say why (Blockly only refuses to snap).
       if (event.type === Blockly.Events.BLOCK_DRAG) {
         const drag = event as Blockly.Events.BlockDrag;
-        const block = drag.blockId ? workspace.getBlockById(drag.blockId) : null;
+        const block = drag.blockId
+          ? workspace.getBlockById(drag.blockId)
+          : null;
         if (drag.isStart || !block) {
           showMisfit(null);
           return;
@@ -149,7 +169,9 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
         // move with the drawing), and before it bumps them away from blocks they don't fit.
         void Blockly.renderManagement
           .finishQueuedRenders()
-          .then(() => showMisfit(block.isDisposed() ? null : misfitAfterDrop(block)));
+          .then(() =>
+            showMisfit(block.isDisposed() ? null : misfitAfterDrop(block)),
+          );
         return;
       }
       // Clicking a block shows what the data looked like after it (its Zwischenstand).
@@ -181,7 +203,12 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
     // A run, or a newly picked file, changes which blocks are up to date.
     const stopLabels = useAppStore.subscribe((state, before) => {
       if (state.snapshots !== before.snapshots) refreshFieldLabels(workspace);
-      if (state.snapshots !== before.snapshots || state.lastRun !== before.lastRun || state.filesVersion !== before.filesVersion)
+      if (
+        state.snapshots !== before.snapshots ||
+        state.lastRun !== before.lastRun ||
+        state.filesVersion !== before.filesVersion ||
+        state.failure !== before.failure
+      )
         markRun(workspace);
     });
     workspaceRef.current = workspace;
@@ -225,7 +252,11 @@ export function BlocklyWorkspace({ workspaceVersion }: BlocklyWorkspaceProps) {
       {misfit && (
         <div className="blockly-misfit" role="status">
           <span>{misfit}</span>
-          <button type="button" aria-label={t("fit.close")} onClick={() => setMisfit(null)}>
+          <button
+            type="button"
+            aria-label={t("fit.close")}
+            onClick={() => setMisfit(null)}
+          >
             ×
           </button>
         </div>

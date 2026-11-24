@@ -5,9 +5,10 @@
  * file it opens. The others are marked on the canvas as not run yet: new
  * blocks, changed ones, and those after the block where a run failed.
  */
-import type * as Blockly from 'blockly'
+import * as Blockly from 'blockly'
 
 import type { Snapshot } from '../core/fromPython'
+import { t } from '../i18n'
 import { LOAD_FILE } from './files'
 import { DATASET, datasetNameOf, datasetOf, lastStepOf, stepBefore } from './program'
 
@@ -79,4 +80,56 @@ export function markRunState(
     if (notRun) block.addClass(NOT_RUN_CLASS)
     else block.removeClass(NOT_RUN_CLASS)
   }
+}
+
+/** The class of the block a run failed at; App.css draws it red. */
+export const FAILED_CLASS = 'spockly-failed'
+
+/** The warning id of a run's error, apart from the blocks' own warnings. */
+export const FAILED_WARNING = 'run'
+
+/** The block's own tooltip, while hovering shows the error instead. */
+const ownTooltips = new WeakMap<Blockly.Block, Blockly.Tooltip.TipInfo>()
+
+/**
+ * Whether a block is still as it was when the last run started, whether the
+ * run reached it or not. Once the block a run failed at changes (or a step
+ * above it), the error may be gone: it is then only "not run yet", like the
+ * blocks after it.
+ */
+export function unchangedSinceRun(block: Blockly.Block, ran: RanSignatures | null, filesVersion: number): boolean {
+  return ran !== null && ran[block.id] === signatureOf(block, filesVersion)
+}
+
+/**
+ * Shows a run's error on the block it failed at: drawn red, the explanation in
+ * its warning (click the warning sign) and on hovering over the block, in
+ * place of what the block does. Returns the block newly marked, or null.
+ */
+export function markFailure(
+  workspace: Blockly.WorkspaceSvg,
+  failure: { blockId: string; text: string } | null,
+  ran: RanSignatures | null,
+  filesVersion: number,
+): Blockly.BlockSvg | null {
+  let marked: Blockly.BlockSvg | null = null
+  for (const block of workspace.getAllBlocks(false) as Blockly.BlockSvg[]) {
+    const failed = failure?.blockId === block.id && unchangedSinceRun(block, ran, filesVersion)
+    if (failed) {
+      if (!block.getSvgRoot().classList.contains(FAILED_CLASS)) marked = block
+      block.addClass(FAILED_CLASS)
+      block.setWarningText(failure.text, FAILED_WARNING)
+      if (!ownTooltips.has(block)) ownTooltips.set(block, block.tooltip)
+      block.setTooltip(`${t('error.onBlock')}\n${failure.text}`)
+    } else {
+      block.removeClass(FAILED_CLASS)
+      block.setWarningText(null, FAILED_WARNING)
+      const own = ownTooltips.get(block)
+      if (own !== undefined) {
+        block.setTooltip(own)
+        ownTooltips.delete(block)
+      }
+    }
+  }
+  return marked
 }

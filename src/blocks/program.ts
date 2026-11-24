@@ -156,7 +156,8 @@ export function variableFor(block: Blockly.Block): string | null {
     : !SOURCES.has(block.type) && !stepBefore(block)
       ? t('block.nothingBefore', categoryNames())
       : null
-  block.setWarningText(warning)
+  // With an id: without one, clearing it would clear the block's other warnings too (e.g. a run's error).
+  block.setWarningText(warning, 'place')
   return dataset ? pythonNameOf(dataset) : null
 }
 
@@ -182,7 +183,7 @@ let tracing = false
 pythonGenerator.forBlock[DATASET] = (block, generator) => {
   const name = pythonNameOf(block)
   const steps = stepsOf(block)
-  block.setWarningText(steps.length ? null : t('block.datasetEmpty', categoryNames()))
+  block.setWarningText(steps.length ? null : t('block.datasetEmpty', categoryNames()), 'empty')
   let code = `# ${t('code.dataset', { name: datasetNameOf(block) })}\n`
   for (const step of steps) {
     if (!step.isEnabled()) continue

@@ -29,9 +29,6 @@ const statusColor = (status: PythonRunStatus) =>
 
 type Tab = 'results' | 'snapshot' | 'python'
 
-/** The warning a failed run puts on its block (separate from the blocks' own warnings). */
-const RUN_WARNING = 'run'
-
 function App() {
   const generatedCode = useAppStore((state) => state.generatedCode)
   const runCode = useAppStore((state) => state.runCode)
@@ -48,13 +45,12 @@ function App() {
   const workspace = getActiveWorkspace()
   const problem = status === 'error' && error && workspace ? explainError(error, workspace, snapshots) : null
   const problemBlock = problem?.blockId ? (workspace?.getBlockById(problem.blockId) ?? null) : null
-  const problemText = problem?.text
+  // The canvas marks the block, and its Zwischenstand shows the error (see blocks/runState).
+  const problemId = problem?.blockId ?? null
+  const problemText = problem?.text ?? ''
   useEffect(() => {
-    if (!problemBlock || !problemText) return
-    problemBlock.setWarningText(problemText, RUN_WARNING)
-    workspace?.centerOnBlock(problemBlock.id)
-    return () => problemBlock.setWarningText(null, RUN_WARNING)
-  }, [problemBlock, problemText, workspace])
+    useAppStore.getState().setFailure(problemId ? { blockId: problemId, text: problemText } : null)
+  }, [problemId, problemText])
 
   // Clicking a step shows what the data looked like after it.
   useEffect(
