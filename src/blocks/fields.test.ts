@@ -16,7 +16,7 @@ function program() {
           {
             type: 'spockly_dataset',
             fields: { NAME: 'sensoren' },
-            inputs: { STEPS: { block: { type: 'osem_boxes', next: { block: { type: 'step_read_json', next: { block: { type: 'osem_table', id: 'tabelle', next: { block: { type: 'step_split_position', id: 'lage' } } } } } } } } },
+            inputs: { STEPS: { block: { type: 'osem_fetch', fields: { MODE: 'area' }, next: { block: { type: 'step_read_json', next: { block: { type: 'osem_table', id: 'tabelle', next: { block: { type: 'step_split_position', id: 'lage' } } } } } } } } },
           },
         ],
       },

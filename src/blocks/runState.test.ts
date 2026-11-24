@@ -35,7 +35,7 @@ function program() {
             {
               type: 'spockly_dataset',
               fields: { NAME: 'orte' },
-              inputs: { STEPS: { block: { type: 'osem_box', id: 'box' } } },
+              inputs: { STEPS: { block: { type: 'osem_fetch', id: 'box' } } },
             },
             {
               type: 'spockly_dataset',

@@ -56,6 +56,11 @@ def _pruefe_spalten(daten, *spalten):
         raise KeyError(f"Diese Spalte gibt es nicht: {', '.join(fehlen)}. Vorhanden: {', '.join(map(str, daten.columns))}")
 
 
+def _leer(daten):
+    """Eine Tabelle ohne Zeilen: Die App zeigt dann, dass sie leer ist (und warum), statt eines Fehlers zu fehlenden Spalten."""
+    return isinstance(daten, pd.DataFrame) and len(daten) == 0
+
+
 def zeige_tabelle(daten, titel=""):
     """Zeigt die Tabelle in der App."""
     spockly_app.zeige("tabelle", titel, _paket(daten), "{}")
@@ -76,6 +81,9 @@ def zeige_karte(daten, breite=None, laenge=None, farbe=None, titel="", form=None
     aus einer Spalte mit ganzen Formen (form: Punkt, Linie oder Fläche, wie in GeoJSON).
     info: die Spalten, die man sieht, wenn man mit der Maus über einen Ort fährt.
     """
+    if _leer(daten):
+        spockly_app.zeige("karte", titel, _paket(daten), "{}")
+        return
     if form:
         _pruefe_spalten(daten, form)
     else:
@@ -88,6 +96,9 @@ def zeige_karte(daten, breite=None, laenge=None, farbe=None, titel="", form=None
 
 def zeige_zeitverlauf(daten, zeit, wert, je=None, titel=""):
     """Zeigt, wie sich ein Wert mit der Zeit ändert – eine Linie je Gruppe."""
+    if _leer(daten):
+        spockly_app.zeige("zeitverlauf", titel, _paket(daten), "{}")
+        return
     _pruefe_spalten(daten, zeit, wert)
     je = _wenn_da(daten, je, f"darum zeigt der Zeitverlauf „{titel}“ eine Linie für alle Zeilen. Wähl bei „eine Linie je“ eine andere Spalte.")
     optionen = {"zeit": zeit, "wert": wert, "je": je}

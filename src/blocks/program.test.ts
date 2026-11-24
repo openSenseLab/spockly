@@ -24,7 +24,7 @@ const program = state(
     dataset(
       'sensoren',
       'Sensoren',
-      { type: 'osem_boxes', id: 'boxen', fields: { AREA: 'muenster-mitte', OUTDOOR: true } },
+      { type: 'osem_fetch', id: 'boxen', fields: { MODE: 'area', PRESET: 'muenster-mitte', OUTDOOR: true } },
       { type: 'step_read_json', id: 'json' },
       { type: 'osem_table', id: 'tabelle', fields: { ROWS: 'sensor' } },
       { type: 'step_split_position', id: 'lage', fields: { COLUMN: 'koordinaten', FIRST: 'lon', SECOND: 'lat' } },

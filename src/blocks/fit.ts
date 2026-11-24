@@ -7,7 +7,7 @@ import * as Blockly from 'blockly'
 
 import { t } from '../i18n'
 import { LOAD_FILE } from './files'
-import { OSEM_BOX, OSEM_BOXES } from './osem'
+import { OSEM_FETCH, OSEM_MEASUREMENTS } from './osem'
 import { blockText, categoryNames, DATA, DATASET, type DataKind, isStep, kindOf, PROGRAM } from './program'
 import { READ_JSON } from './steps'
 
@@ -35,6 +35,10 @@ export function whyNotFit(upper: Blockly.Connection, lower: Blockly.Block): stri
   if (taken.includes('program')) return t('fit.view', words)
   if (is('program')) return t('fit.outside', words)
   if (is('start')) return t('fit.first', words)
+  // The measurements make a new dataset from another one's rows: say which, and how to start one.
+  if (taken.includes('start') && lower.type === OSEM_MEASUREMENTS) {
+    return t('fit.measurements', { ...words, rows: String(lower.getFieldValue('DATASET') ?? ''), dataset: t('toolbox.dataset') })
+  }
   if (taken.includes('start')) return t('fit.source', words)
   if (is('text')) return t('fit.text', words)
   if (taken.includes('text')) return t('fit.translated', words)
@@ -65,7 +69,7 @@ export function narrowKinds(workspace: Blockly.Workspace) {
     if (block.type !== READ_JSON || !block.nextConnection) continue
     const source = firstStep(block).type
     const kinds =
-      source === OSEM_BOXES || source === OSEM_BOX ? [DATA.stations] : source === LOAD_FILE ? [DATA.json] : [DATA.json, DATA.stations]
+      source === OSEM_FETCH ? [DATA.stations] : source === LOAD_FILE ? [DATA.json] : [DATA.json, DATA.stations]
     const now = block.nextConnection.getCheck() ?? []
     if (now.length !== kinds.length || kinds.some((kind) => !now.includes(kind))) block.nextConnection.setCheck(kinds)
   }

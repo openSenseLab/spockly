@@ -1,5 +1,6 @@
 import { Box, Callout, Flex, Heading, Text } from '@radix-ui/themes'
 
+import { emptyReason, isEmpty } from '../blocks/empty'
 import { blockText, datasetNameOf, datasetOf } from '../blocks/program'
 import { adviceFor } from '../blocks/advice'
 import { unchangedSinceRun, ranAsItIs } from '../blocks/runState'
@@ -35,6 +36,8 @@ export function SnapshotPanel({ busy }: { busy: boolean }) {
   const failedHere = unchanged && failedBlock === block
   // A block after it, unchanged since: the run never got to it. (A new or changed block just needs a run.)
   const stoppedBefore = unchanged && !failedHere && failedBlock !== null && !snapshot
+  // Nothing arrived (e.g. no stations in the area): said in words, not as "text (2 characters)".
+  const empty = block && snapshot && isEmpty(snapshot) ? emptyReason(block) : null
 
   if (!block || !dataset) {
     return (
@@ -88,7 +91,22 @@ export function SnapshotPanel({ busy }: { busy: boolean }) {
           {t('snapshot.runFirst')}
         </Text>
       )}
-      {snapshot?.art === 'tabelle' && (
+      {empty && !busy && (
+        <Callout.Root color="amber" size="1">
+          <Callout.Text>
+            <Text as="span" weight="bold">
+              {t('snapshot.empty')}
+            </Text>
+            {empty !== true && (
+              <>
+                <br />
+                {empty}
+              </>
+            )}
+          </Callout.Text>
+        </Callout.Root>
+      )}
+      {snapshot?.art === 'tabelle' && !empty && (
         <>
           <Text size="2">{t('snapshot.isTable')}</Text>
           <DataPreview fill columns={snapshot.spalten} types={snapshot.typen} rows={snapshot.zeilen} total={snapshot.anzahl} />
@@ -97,7 +115,9 @@ export function SnapshotPanel({ busy }: { busy: boolean }) {
       {snapshot && snapshot.art !== 'tabelle' && (
         <>
           <Text size="2">
-            {t(`snapshot.is.${snapshot.art}`, { count: snapshot.anzahl === null ? '' : formatNumber(snapshot.anzahl) })}
+            {empty
+              ? t('snapshot.emptyArrived')
+              : t(`snapshot.is.${snapshot.art}`, { count: snapshot.anzahl === null ? '' : formatNumber(snapshot.anzahl) })}
           </Text>
           <pre className="snapshot-text">{snapshot.text}</pre>
         </>

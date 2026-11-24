@@ -1,6 +1,6 @@
 import { t } from '../i18n'
 import { LOAD_FILE } from './files'
-import { OSEM_BOX, OSEM_BOXES, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
+import { OSEM_FETCH, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
 import { DATASET } from './program'
 import { CONVERT_COLUMN, GEOJSON_TABLE, JSON_TABLE, READ_JSON, SPLIT_POSITION, TRANSLATE_CSV } from './steps'
 import { VIEW_CHART, VIEW_MAP, VIEW_SHAPES, VIEW_TABLE } from './views'
@@ -27,7 +27,7 @@ export const toolbox = {
   contents: [
     category(t('toolbox.dataset'), 'dataset_category', blocks(DATASET)),
     category(t('toolbox.osem'), 'osem_category', [
-      ...group('toolbox.group.stations', OSEM_BOXES, OSEM_BOX),
+      ...group('toolbox.group.stations', OSEM_FETCH),
       ...group('toolbox.group.table', OSEM_TABLE),
       ...group('toolbox.group.measurements', OSEM_MEASUREMENTS),
     ]),

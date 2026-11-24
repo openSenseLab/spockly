@@ -18,7 +18,7 @@ import { isGeometry } from '../core/geometry'
 import { t } from '../i18n'
 import { blocksInRunOrder, categoryNames, datasetBlocks, datasetNameOf, datasetOf, isView, lastStepOf, stepBefore, stepsOf } from './program'
 import { LOAD_FILE } from './files'
-import { OSEM_BOX, OSEM_BOXES, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
+import { OSEM_FETCH, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
 import { GEOJSON_TABLE, READ_JSON, SPLIT_POSITION, TRANSLATE_CSV } from './steps'
 import { VIEW_MAP, VIEW_SHAPES } from './views'
 
@@ -36,7 +36,7 @@ export type Source = 'osem' | 'csv' | 'geojson' | 'json' | 'unknown'
 
 export function sourceOf(dataset: Blockly.Block | null | undefined): Source {
   const first = dataset ? stepsOf(dataset)[0] : undefined
-  if (first?.type === OSEM_BOXES || first?.type === OSEM_BOX) return 'osem'
+  if (first?.type === OSEM_FETCH) return 'osem'
   if (first?.type !== LOAD_FILE) return 'unknown'
   const file = String(first.getFieldValue('FILE') ?? '').toLowerCase()
   if (/\.(csv|tsv|txt)$/.test(file)) return 'csv'
@@ -107,24 +107,12 @@ function shapeColumnOf(data: Snapshot | undefined): string | undefined {
   })
 }
 
-/**
- * The dataset starts with one openSenseMap station, but openSenseMap knows no
- * such ID: its answer is an error, which fails a step or two later.
- */
-function unknownBox(dataset: Blockly.Block | null | undefined, snapshots: Record<string, Snapshot>): string | null {
-  const first = dataset ? stepsOf(dataset)[0] : undefined
-  if (first?.type !== OSEM_BOX) return null
-  const answer = snapshots[first.id]
-  const text = answer && answer.art !== 'tabelle' ? answer.text : ''
-  return /"NotFound"/.test(text) ? say('error.osem.noBox', { id: String(first.getFieldValue('BOX') ?? '') }) : null
-}
-
 export function explainError(message: string, workspace: Blockly.Workspace, snapshots: Record<string, Snapshot>): StepProblem {
   const failed = blocksInRunOrder(workspace).find((block) => !snapshots[block.id])
   if (!failed) return { blockId: null, text: lastLine(message) || say('error.general') }
   if (isView(failed)) {
     const shown = datasetBlocks(workspace).find((d) => datasetNameOf(d) === String(failed.getFieldValue('DATASET') ?? ''))
-    return { blockId: failed.id, text: unknownBox(shown, snapshots) ?? explainView(failed, message, snapshots, sourceOf(shown)) }
+    return { blockId: failed.id, text: explainView(failed, message, snapshots, sourceOf(shown)) }
   }
 
   const dataset = datasetOf(failed)
@@ -133,7 +121,6 @@ export function explainError(message: string, workspace: Blockly.Workspace, snap
   const before = stepBefore(failed)
   const data = before ? snapshots[before.id] : undefined
   const text =
-    unknownBox(dataset, snapshots) ??
     explainStep(failed, message, name, data, source) ??
     explainKind(message, name, data, source) ??
     say('error.unknown', { problem: lastLine(message) })

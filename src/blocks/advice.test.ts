@@ -7,7 +7,7 @@ import { adviceFor, allAdvice } from './advice'
 import './index'
 
 /** A dataset "formen" with the given steps, ids s0, s1, … */
-function workspaceWith(...steps: { type: string; fields?: Record<string, unknown> }[]) {
+function workspaceWith(...steps: { type: string; fields?: Record<string, unknown>; inputs?: object; extraState?: object }[]) {
   const chain = steps.reduceRight<object | undefined>(
     (next, step, i) => ({ block: { ...step, id: `s${i}`, ...(next ? { next } : {}) } }),
     undefined,
@@ -35,13 +35,13 @@ describe('advice after a run that went through', () => {
   })
 
   it('points a single openSenseMap station to the stations table', () => {
-    const workspace = workspaceWith({ type: 'osem_box' }, { type: 'step_read_json' }, { type: 'step_json_table' })
+    const workspace = workspaceWith({ type: 'osem_fetch' }, { type: 'step_read_json' }, { type: 'step_json_table' })
     const advice = adviceFor(workspace.getBlockById('s2')!, { s0: text, s1: translated('{\n  "_id": "625c…",\n  "sensors": ['), s2: oneRow })
     expect(advice).toContain('„mache eine Tabelle aus den Stationen …“ (unter „openSenseMap“)')
   })
 
   it('points openSenseMap stations, read with the list block, to the stations block the measurements need', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' }, { type: 'step_read_json' }, { type: 'step_json_table' })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } }, { type: 'step_read_json' }, { type: 'step_json_table' })
     const advice = adviceFor(workspace.getBlockById('s2')!, { s0: text, s1: translated('[\n  {\n    "_id": "625c…"'), s2: oneRow })
     expect(advice).toContain('Das hat geklappt: eine Zeile pro Station.')
     expect(advice).toContain('„mache eine Tabelle aus den Stationen …“ (unter „openSenseMap“)')

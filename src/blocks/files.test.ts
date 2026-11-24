@@ -106,7 +106,7 @@ describe('toolbox', () => {
   const labels = (entry: Entry & { text?: string }) => (entry.contents as (Entry & { text?: string })[]).filter((e) => e.kind === 'label').map((e) => e.text)
 
   it('has one category per source with its own blocks, and one for the blocks every source uses', () => {
-    expect(types(source('openSenseMap'))).toEqual(['osem_boxes', 'osem_box', 'osem_table', 'osem_measurements'])
+    expect(types(source('openSenseMap'))).toEqual(['osem_fetch', 'osem_table', 'osem_measurements'])
     expect(types(source('Eigene Daten'))).toEqual(['load_file'])
     expect(types(source('Allgemeine Blöcke'))).toEqual([
       'step_read_json',

@@ -42,6 +42,28 @@ export const AREA_PRESETS: AreaPreset[] = [
 
 export const areaPreset = (id: string) => AREA_PRESETS.find((a) => a.id === id)
 
+/** A rectangle as openSenseMap takes it: [west, south, east, north], in degrees. */
+export type Bbox = [number, number, number, number]
+
+/** A bounding box as text, as a preset writes it into the block. */
+export const bboxText = (bbox: readonly number[]) => bbox.join(',')
+
+/**
+ * The rectangle in a bounding box pasted from a finder: four numbers, longitude
+ * first, "west,south,east,north" (bboxfinder.com, GeoJSON). Commas, spaces or
+ * semicolons between them, brackets around them are fine; east before west or
+ * north before south are swapped. Or why it isn't one: not four numbers, a
+ * value out of range, or no area at all.
+ */
+export function parseBbox(text: string): { bbox: Bbox } | { problem: 'count' | 'range' | 'flat'; count: number } {
+  const numbers = (text.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
+  if (numbers.length !== 4) return { problem: 'count', count: numbers.length }
+  const [lon1, lat1, lon2, lat2] = numbers
+  if ([lon1, lon2].some((lon) => Math.abs(lon) > 180) || [lat1, lat2].some((lat) => Math.abs(lat) > 90)) return { problem: 'range', count: 4 }
+  if (lon1 === lon2 || lat1 === lat2) return { problem: 'flat', count: 4 }
+  return { bbox: [Math.min(lon1, lon2), Math.min(lat1, lat2), Math.max(lon1, lon2), Math.max(lat1, lat2)] }
+}
+
 /**
  * The periods for fetching measurements. `rows`: for how many rows (sensors)
  * at most. A sensor sends about one value a minute, so the longer the period,

@@ -1,6 +1,9 @@
-import { Card, Flex, Heading, Text } from '@radix-ui/themes'
+import { Callout, Card, Flex, Heading, Text } from '@radix-ui/themes'
 
+import { emptyReason } from '../blocks/empty'
+import { lastStepOf } from '../blocks/program'
 import type { View } from '../core/fromPython'
+import { getActiveWorkspace } from './blockly/carryWorkspace'
 import { t } from '../i18n'
 import { DataPreview } from './DataPreview'
 import { MapPreview } from './MapPreview'
@@ -10,8 +13,40 @@ const NONE_HIDDEN: ReadonlySet<string> = new Set()
 /** Rows a "zeige als Tabelle" block shows; the table in Python stays whole. */
 const TABLE_ROWS = 100
 
+/** Why the dataset of this name came out empty (e.g. no stations in the area), or null if unknown. */
+function emptyReasonOf(name: string): string | null {
+  const workspace = getActiveWorkspace()
+  const last = workspace ? lastStepOf(workspace, name) : null
+  const reason = last ? emptyReason(last) : true
+  return reason === true ? null : reason
+}
+
 function ViewCard({ view }: { view: View }) {
   const { table, raw, kind, title, options } = view
+  // Nothing to show: said in words, with the reason, rather than an empty table or map.
+  if (raw.anzahl === 0) {
+    const reason = emptyReasonOf(title)
+    return (
+      <Card size="2">
+        <Flex direction="column" gap="3">
+          <Heading size="3">{t(`view.title.${kind}`, { name: title })}</Heading>
+          <Callout.Root color="amber" size="1">
+            <Callout.Text>
+              <Text as="span" weight="bold">
+                {t('results.empty', { name: title })}
+              </Text>
+              {reason && (
+                <>
+                  <br />
+                  {reason}
+                </>
+              )}
+            </Callout.Text>
+          </Callout.Root>
+        </Flex>
+      </Card>
+    )
+  }
   return (
     <Card size="2">
       <Flex direction="column" gap="3">

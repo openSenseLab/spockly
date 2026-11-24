@@ -14,7 +14,7 @@ const snaps = (ws: Blockly.Workspace, upper: Blockly.Connection, lower: Blockly.
 describe('which blocks fit together', () => {
   it('lets a program be built in the order the data needs: get, translate, make a table, change columns', () => {
     const ws = workspace()
-    const order = ['osem_boxes', 'step_read_json', 'osem_table', 'step_split_position', 'step_convert_column']
+    const order = ['osem_fetch', 'step_read_json', 'osem_table', 'step_split_position', 'step_convert_column']
     const blocks = order.map((type) => block(ws, type))
     const dataset = block(ws, 'spockly_dataset')
     expect(snaps(ws, dataset.getInput('STEPS')!.connection!, blocks[0])).toBe(true)
@@ -26,7 +26,7 @@ describe('which blocks fit together', () => {
 
   it('refuses what can\'t work, and says why, with the block that fits and where to find it', () => {
     const ws = workspace()
-    const osem = block(ws, 'osem_boxes')
+    const osem = block(ws, 'osem_fetch')
     const table = block(ws, 'osem_table')
     expect(snaps(ws, osem.nextConnection!, table)).toBe(false)
     expect(whyNotFit(osem.nextConnection!, table)).toContain('Dort ist es noch Text. Übersetz ihn zuerst mit „übersetze den JSON-Text …“ oder „übersetze den CSV-Text …“ (unter „Allgemeine Blöcke“)')
@@ -48,6 +48,18 @@ describe('which blocks fit together', () => {
     expect(whyNotFit(block(ws, 'step_convert_column').nextConnection!, block(ws, 'load_file'))).toContain('gehört darum ganz oben in einen Datensatz')
   })
 
+  it('sends the measurements to a dataset of their own, made from the rows they name', () => {
+    const ws = workspace()
+    const measurements = block(ws, 'osem_measurements')
+    measurements.setFieldValue('sensors', 'DATASET')
+    const split = block(ws, 'step_split_position')
+    expect(snaps(ws, split.nextConnection!, measurements)).toBe(false)
+    expect(whyNotFit(split.nextConnection!, measurements)).toBe(
+      'Dieser Block macht einen neuen Datensatz aus den Zeilen von „sensors“. Darum steht er ganz oben in einem eigenen Datensatz: Zieh einen neuen „Datensatz“-Block (unter „Datensatz“) auf die Arbeitsfläche und steck diesen Block dort ganz oben hinein.',
+    )
+    expect(snaps(ws, block(ws, 'spockly_dataset').getInput('STEPS')!.connection!, measurements)).toBe(true)
+  })
+
   it('keeps "zeige …" blocks below datasets, not inside', () => {
     const ws = workspace()
     expect(whyNotFit(block(ws, 'osem_table').nextConnection!, block(ws, 'view_map'))).toContain('gehört darum nicht in einen Datensatz, sondern darunter')
@@ -56,7 +68,7 @@ describe('which blocks fit together', () => {
 
   it('says nothing for blocks that fit', () => {
     const ws = workspace()
-    expect(whyNotFit(block(ws, 'osem_boxes').nextConnection!, block(ws, 'step_read_json'))).toBeNull()
+    expect(whyNotFit(block(ws, 'osem_fetch').nextConnection!, block(ws, 'step_read_json'))).toBeNull()
   })
 })
 
@@ -101,7 +113,7 @@ describe('JSON from openSenseMap, or from a file', () => {
   }
 
   it('takes the stations table only under openSenseMap', () => {
-    const osem = translated('osem_boxes')
+    const osem = translated('osem_fetch')
     expect(snaps(osem.ws, osem.json.nextConnection!, block(osem.ws, 'osem_table'))).toBe(true)
     const file = translated('load_file')
     const stations = block(file.ws, 'osem_table')
@@ -110,7 +122,7 @@ describe('JSON from openSenseMap, or from a file', () => {
   })
 
   it('takes the GeoJSON table only under a file, the list table under both', () => {
-    const osem = translated('osem_box')
+    const osem = translated('osem_fetch')
     const geojson = block(osem.ws, 'step_geojson_table')
     expect(snaps(osem.ws, osem.json.nextConnection!, geojson)).toBe(false)
     expect(whyNotFit(osem.json.nextConnection!, geojson)).toContain('Hier sind Stationen der openSenseMap, kein GeoJSON')

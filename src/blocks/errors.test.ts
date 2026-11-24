@@ -7,7 +7,7 @@ import { explainError } from './errors'
 import './index'
 
 /** A dataset with the given steps, ids s0, s1, … */
-function workspaceWith(...steps: { type: string; fields?: Record<string, unknown> }[]) {
+function workspaceWith(...steps: { type: string; fields?: Record<string, unknown>; inputs?: object; extraState?: object }[]) {
   const chain = steps.reduceRight<object | undefined>(
     (next, step, i) => ({ block: { ...step, id: `s${i}`, ...(next ? { next } : {}) } }),
     undefined,
@@ -25,7 +25,7 @@ const table: Snapshot = { art: 'tabelle', spalten: ['sensor_id'], typen: { senso
 
 describe('explainError', () => {
   it('finds the block that failed and says the data is still text (the JSON step is missing)', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } })
     Blockly.serialization.blocks.append({ type: 'view_table', id: 'tabelle', fields: { DATASET: 'sensoren' } }, workspace)
     const problem = explainError('Traceback …\nNotImplementedError', workspace, { s0: text })
     expect(problem.blockId).toBe('tabelle')
@@ -49,14 +49,14 @@ describe('explainError', () => {
   })
 
   it('names a missing column', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' }, { type: 'step_read_json' }, { type: 'osem_table' }, { type: 'step_convert_column', fields: { COLUMN: 'titel', TO: 'number' } })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } }, { type: 'step_read_json' }, { type: 'osem_table' }, { type: 'step_convert_column', fields: { COLUMN: 'titel', TO: 'number' } })
     const problem = explainError("Traceback …\nKeyError: 'titel'", workspace, { s0: text, s1: { art: 'json', text: '[]', anzahl: 1 }, s2: table })
     expect(problem.blockId).toBe('s3')
     expect(problem.text).toBe('In „sensoren“ gibt es hier keine Spalte „titel“. Klick auf den Block davor und schau im Zwischenstand, welche Spalten es gibt.')
   })
 
   it('finds a failed "zeige …" block and says why: JSON is no table yet (Python: \'list\' object has no attribute \'columns\')', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' }, { type: 'step_read_json' })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } }, { type: 'step_read_json' })
     Blockly.serialization.blocks.append({ type: 'view_map', id: 'karte', fields: { DATASET: 'sensoren' } }, workspace)
     const problem = explainError("Traceback …\nAttributeError: 'list' object has no attribute 'columns'", workspace, {
       s0: text,
@@ -67,7 +67,7 @@ describe('explainError', () => {
   })
 
   it('names a missing column of a "zeige …" block, with the columns there are', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } })
     Blockly.serialization.blocks.append({ type: 'view_map', id: 'karte', fields: { DATASET: 'sensoren' } }, workspace)
     const problem = explainError("KeyError: 'Diese Spalte gibt es nicht: lat. Vorhanden: name, ort'", workspace, { s0: table })
     expect(problem.text).toBe('Im Block ist die Spalte „lat“ gewählt, aber „sensoren“ hat keine Spalte mit diesem Namen. Wähl im Block eine Spalte, die es gibt: name, ort.')
@@ -84,7 +84,7 @@ describe('explainError', () => {
   })
 
   it('passes on the message of a "zeige …" block, which spockly.py already writes in German', () => {
-    const workspace = workspaceWith({ type: 'osem_boxes' })
+    const workspace = workspaceWith({ type: 'osem_fetch', fields: { MODE: 'area' } })
     const problem = explainError("Traceback …\nKeyError: 'Diese Spalte gibt es nicht: lat. Vorhanden: name'", workspace, { s0: text })
     expect(problem).toEqual({ blockId: null, text: 'Diese Spalte gibt es nicht: lat. Vorhanden: name' })
   })

@@ -6,10 +6,10 @@ import type { Snapshot } from '../core/fromPython'
 import { explainError } from './errors'
 import { boxStatus, DEFAULT_BOX } from './osem'
 import { generate } from './index'
-import { daysBetween, parseDay, rowsFor } from './osem/presets'
+import { daysBetween, parseBbox, parseDay, rowsFor } from './osem/presets'
 
 /** A dataset "station" with the given steps (ids s0, s1, …), and optionally more top-level blocks. */
-function workspaceWith(steps: { type: string; fields?: Record<string, unknown> }[], ...others: object[]) {
+function workspaceWith(steps: { type: string; fields?: Record<string, unknown>; inputs?: object; extraState?: object }[], ...others: object[]) {
   const chain = steps.reduceRight<object | undefined>(
     (next, step, i) => ({ block: { ...step, id: `s${i}`, ...(next ? { next } : {}) } }),
     undefined,
@@ -24,15 +24,84 @@ function workspaceWith(steps: { type: string; fields?: Record<string, unknown> }
 
 const ID = '625c512a18aca4001cadae87'
 
-describe('one station by its ID', () => {
-  it('fetches only that station', () => {
-    const { shown } = generate(workspaceWith([{ type: 'osem_box', fields: { BOX: ID } }]))
-    expect(shown).toContain(`station = open_url("https://api.opensensemap.org/boxes/${ID}?format=json").read()`)
+/** The openSenseMap block (id s0): by these station IDs, one row each. */
+const byIds = (...ids: string[]) => ({
+  type: 'osem_fetch',
+  extraState: { stations: ids.length },
+  fields: Object.fromEntries(ids.map((id, i) => [`BOX${i}`, id])),
+})
+/** The openSenseMap block (id s0), fetching an area. */
+const byArea = (fields: Record<string, unknown> = {}) => ({ type: 'osem_fetch', fields: { MODE: 'area', ...fields } })
+type FetchBlock = Blockly.Block & { setStations(count: number): void }
+const visible = (block: Blockly.Block) => block.inputList.filter((input) => input.isVisible()).map((input) => input.name)
+const OTHER = 'aaaaaaaaaaaaaaaaaaaaaaaa'
+
+describe('fetching stations: one or more by their ID, or an area, in one block', () => {
+  it('fetches each station by its ID, into one list, as JSON text', () => {
+    const { shown } = generate(workspaceWith([byIds(ID, OTHER)]))
+    expect(shown).toContain('station = []\n')
+    expect(shown).toContain(`for station_id in ["${ID}","${OTHER}"]:\n`)
+    expect(shown).toContain('    antwort = json.load(open_url(f"https://api.opensensemap.org/boxes/{station_id}?format=json"))\n')
+    expect(shown).toContain('        station.append(antwort)\n')
+    expect(shown).toContain('station = json.dumps(station)')
   })
 
-  it('starts with a station in Münster, so a new block works at once', () => {
-    const { shown } = generate(workspaceWith([{ type: 'osem_box' }]))
-    expect(shown).toContain(`/boxes/${DEFAULT_BOX}?format=json`)
+  it('starts with one station in Münster, so a new block works at once', () => {
+    const { shown } = generate(workspaceWith([{ type: 'osem_fetch' }]))
+    expect(shown).toContain(`["${DEFAULT_BOX}"]`)
+  })
+
+  it('fetches the stations in an area: a preset, only outdoor ones if ticked, or a rectangle typed in', () => {
+    expect(generate(workspaceWith([byArea({ PRESET: 'muenster-mitte', OUTDOOR: true })])).shown).toContain(
+      'station = open_url("https://api.opensensemap.org/boxes?bbox=7.5897085%2C51.9205942%2C7.6647924%2C51.989764&format=json&exposure=outdoor").read()',
+    )
+    // Pasted from a bounding box finder, as it gives it.
+    const own = byArea({ PRESET: 'custom', BBOX: '-105.342407,39.351290,-104.392090,39.972911', OUTDOOR: false })
+    const { shown } = generate(workspaceWith([own]))
+    expect(shown).toContain(
+      'station = open_url("https://api.opensensemap.org/boxes?bbox=-105.342407%2C39.35129%2C-104.39209%2C39.972911&format=json").read()',
+    )
+    expect(shown).not.toContain('station_id')
+  })
+
+  it('shows only the rows of the chosen way: the IDs with + and −, or the area', () => {
+    const block = workspaceWith([byIds(ID, OTHER)]).getBlockById('s0')!
+    expect(visible(block)).toEqual(['TITLE', 'ID0', 'STATUSROW0', 'ID1', 'STATUSROW1', 'BUTTONS'])
+    block.setFieldValue('area', 'MODE')
+    expect(visible(block)).toEqual(['TITLE', 'AREA', 'BBOX_ROW', 'BBOX_LINE', 'OUTDOOR_ROW'])
+  })
+
+  it('writes a chosen area\'s bounding box into the field, says what it understood, and takes a pasted one as an own area', () => {
+    const block = workspaceWith([byArea()]).getBlockById('s0')!
+    block.setFieldValue('muenster', 'PRESET')
+    expect(block.getFieldValue('BBOX')).toBe('7.4737853,51.8401448,7.7743634,52.0600251')
+    expect(block.getFieldValue('BBOX_INFO')).toBe('→ Länge 7,4738 bis 7,7744 · Breite 51,8401 bis 52,06')
+    expect(block.getFieldValue('PRESET')).toBe('muenster')
+    block.setFieldValue('-105.342407,39.351290,-104.392090,39.972911', 'BBOX')
+    expect(block.getFieldValue('PRESET')).toBe('custom')
+    expect(block.getFieldValue('BBOX_INFO')).toBe('→ Länge -105,3424 bis -104,3921 · Breite 39,3513 bis 39,9729')
+  })
+
+  it('warns about a bounding box it can\'t read, and fetches nothing', () => {
+    const warn = vi.spyOn(Blockly.Block.prototype, 'setWarningText')
+    const workspace = workspaceWith([byArea({ PRESET: 'custom', BBOX: '7.59, 51.92, 7.66' })])
+    expect(generate(workspace).shown).not.toContain('open_url(')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Hier stehen 3 Zahlen. Eine Bounding Box sind vier, Länge zuerst'), 'bbox')
+    expect(workspace.getBlockById('s0')!.getFieldValue('BBOX_INFO')).toBe('✕ nicht verstanden: siehe Warnung')
+    warn.mockRestore()
+  })
+
+  it('gets more station rows with +, fewer with −, and keeps them when saved', () => {
+    const block = workspaceWith([byIds(ID)]).getBlockById('s0') as FetchBlock
+    block.setStations(3)
+    expect(block.getField('BOX2')).not.toBeNull()
+    block.setFieldValue(OTHER, 'BOX2')
+    const saved = Blockly.serialization.blocks.save(block)!
+    expect(saved.extraState).toEqual({ stations: 3 })
+    expect(saved.fields).toMatchObject({ BOX0: ID, BOX2: OTHER })
+    block.setStations(1)
+    expect(block.getField('BOX1')).toBeNull()
+    expect(block.getFieldValue('BOX0')).toBe(ID)
   })
 
   it('says whether the station measures, and since when not', () => {
@@ -49,33 +118,53 @@ describe('one station by its ID', () => {
   })
 
   it('takes the ID out of a pasted address', () => {
-    const workspace = workspaceWith([{ type: 'osem_box' }])
-    workspace.getBlockById('s0')!.setFieldValue(`https://opensensemap.org/explore/${ID.toUpperCase()}`, 'BOX')
-    expect(workspace.getBlockById('s0')!.getFieldValue('BOX')).toBe(ID)
+    const block = workspaceWith([{ type: 'osem_fetch' }]).getBlockById('s0')!
+    block.setFieldValue(`https://opensensemap.org/explore/${ID.toUpperCase()}`, 'BOX0')
+    expect(block.getFieldValue('BOX0')).toBe(ID)
   })
 
-  it('warns and fetches nothing without a proper ID', () => {
+  it('warns at a row without a proper ID, and fetches the others', () => {
     const warn = vi.spyOn(Blockly.Block.prototype, 'setWarningText')
-    expect(generate(workspaceWith([{ type: 'osem_box', fields: { BOX: 'Fresno Station' } }])).shown).not.toContain('open_url(')
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('„Fresno Station“ ist keine ID der openSenseMap'), 'box')
+    expect(generate(workspaceWith([byIds('Fresno Station')])).shown).not.toContain('open_url(')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('„Fresno Station“ ist keine ID der openSenseMap'), 'box0')
+    expect(generate(workspaceWith([byIds(ID, '')])).shown).toContain(`["${ID}"]`)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Gib die ID einer Station ein'), 'box1')
     warn.mockRestore()
   })
 
-  it('explains an ID openSenseMap doesn\'t know, wherever the run stopped', () => {
-    const workspace = workspaceWith([{ type: 'osem_box', fields: { BOX: ID } }, { type: 'step_read_json' }, { type: 'osem_table' }])
-    const answer: Snapshot = { art: 'text', text: '{"code":"NotFound","message":"Box not found"}', anzahl: 45 }
-    const problem = explainError("KeyError: 'sensors'", workspace, { s0: answer, s1: { art: 'json', text: '{}', anzahl: 2 } })
-    expect(problem.blockId).toBe('s2')
-    expect(problem.text).toBe(
-      `Die openSenseMap kennt keine Station mit der ID „${ID}“. Prüf die ID: am besten die Adresse der Station von opensensemap.org in den Block kopieren.`,
-    )
+  it('leaves out an ID openSenseMap doesn\'t know, and says so in the results', () => {
+    const { run } = generate(workspaceWith([byIds(ID)]))
+    expect(run).toContain('    if antwort.get("code") == "NotFound":\n')
+    expect(run).toContain('hinweis(f"Die openSenseMap kennt keine Station mit der ID „{station_id}“: Sie fehlt darum in den Daten.')
+  })
+})
+
+describe('a bounding box pasted from a finder', () => {
+  it('reads it as west, south, east, north, however the numbers are separated', () => {
+    const area = { bbox: [-105.342407, 39.35129, -104.39209, 39.972911] }
+    expect(parseBbox('-105.342407,39.351290,-104.392090,39.972911')).toEqual(area)
+    expect(parseBbox('[-105.342407, 39.351290, -104.392090, 39.972911]')).toEqual(area)
+    expect(parseBbox('-105.342407 39.351290 -104.392090 39.972911')).toEqual(area)
+    expect(parseBbox('-105.342407;39.351290;-104.392090;39.972911')).toEqual(area)
+  })
+
+  it('puts the corners in order: east before west, north before south', () => {
+    expect(parseBbox('-104.39209,39.972911,-105.342407,39.35129')).toEqual({ bbox: [-105.342407, 39.35129, -104.39209, 39.972911] })
+  })
+
+  it('says why it is no area: not four numbers, a value out of range, no size', () => {
+    expect(parseBbox('7.59,51.92,7.66')).toEqual({ problem: 'count', count: 3 })
+    expect(parseBbox('')).toEqual({ problem: 'count', count: 0 })
+    // Latitude first, far from the equator: 51.9 can be a longitude, but -105.3 can't be a latitude.
+    expect(parseBbox('39.35,-105.34,39.97,-104.39')).toEqual({ problem: 'range', count: 4 })
+    expect(parseBbox('7.59,51.92,7.59,51.99')).toEqual({ problem: 'flat', count: 4 })
   })
 })
 
 describe('the period of the measurements', () => {
   const measurements = (fields: Record<string, unknown>) =>
     workspaceWith(
-      [{ type: 'osem_box', fields: { BOX: ID } }, { type: 'step_read_json' }, { type: 'osem_table' }],
+      [{ type: 'osem_fetch', fields: { BOX0: ID } }, { type: 'step_read_json' }, { type: 'osem_table' }],
       {
         type: 'spockly_dataset',
         fields: { NAME: 'messwerte' },
@@ -143,7 +232,7 @@ describe('measurements need one row per sensor', () => {
   /** The station "station" as a table of the given rows (ids s0–s2), and the measurements of each row. */
   const program = (rows: string) =>
     workspaceWith(
-      [{ type: 'osem_box', fields: { BOX: ID } }, { type: 'step_read_json' }, { type: 'osem_table', fields: { ROWS: rows } }],
+      [{ type: 'osem_fetch', fields: { BOX0: ID } }, { type: 'step_read_json' }, { type: 'osem_table', fields: { ROWS: rows } }],
       {
         type: 'spockly_dataset',
         fields: { NAME: 'messwerte' },
@@ -165,7 +254,7 @@ describe('measurements need one row per sensor', () => {
   it('warns, too, when the dataset has no stations table at all (e.g. the list block instead)', () => {
     const warn = vi.spyOn(Blockly.Block.prototype, 'setWarningText')
     generate(
-      workspaceWith([{ type: 'osem_boxes' }, { type: 'step_read_json' }, { type: 'step_json_table' }], {
+      workspaceWith([{ type: 'osem_fetch', fields: { MODE: 'area' } }, { type: 'step_read_json' }, { type: 'step_json_table' }], {
         type: 'spockly_dataset',
         fields: { NAME: 'messwerte' },
         y: 300,

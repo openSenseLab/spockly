@@ -98,15 +98,25 @@ export function lastStepOf(workspace: Blockly.Workspace, name: string): Blockly.
   return dataset ? (stepsOf(dataset).at(-1) ?? null) : null
 }
 
-/** The label of a block as students read it, e.g. "übersetze den JSON-Text für Python": its visible rows only. */
+/**
+ * The label of a block as students read it, e.g. "übersetze den JSON-Text für
+ * Python": its visible rows only, or its own short description if it has one
+ * (the openSenseMap block, whose rows are long).
+ */
 export function blockText(block: Blockly.Block): string {
-  const text = block.inputList
-    .filter((input) => input.isVisible())
-    .flatMap((input) => input.fieldRow.map((field) => field.getText()))
-    .join(' ')
+  const described = (block as Blockly.Block & { describe?: () => string }).describe?.()
+  const text = (
+    described ??
+    block.inputList
+      .filter((input) => input.isVisible())
+      // Not images (the + and − of the openSenseMap block).
+      .flatMap((input) => input.fieldRow.filter((field) => !(field instanceof Blockly.FieldImage)).map((field) => field.getText()))
+      .join(' ')
+  )
     .replace(/\s+/g, ' ')
     .trim()
-  return text.length > 70 ? `${text.slice(0, 69)}…` : text
+  // Long enough for the openSenseMap block with one station's whole ID.
+  return text.length > 80 ? `${text.slice(0, 79)}…` : text
 }
 
 /** The toolbox categories by name, for texts that say where to find a block: „(unter „Allgemeine Blöcke“)“. */
