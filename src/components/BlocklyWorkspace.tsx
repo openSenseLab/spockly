@@ -7,6 +7,7 @@ import {
   followRename,
   generate,
   adviceFor,
+  markAdvice,
   markFailure,
   markRunState,
   misfitAfterDrop,
@@ -71,8 +72,6 @@ const updateDerivedState = (workspace: Blockly.WorkspaceSvg) => {
   });
 };
 
-/** The warning id of advice after a run, apart from the blocks' own warnings. */
-const ADVICE_WARNING = "advice";
 
 /**
  * Marks the blocks the last run didn't cover (new or changed since, or after a
@@ -90,17 +89,17 @@ const markRun = (workspace: Blockly.WorkspaceSvg) => {
     filesVersion,
   );
   if (failed) workspace.centerOnBlock(failed.id);
-  // Advice on a block whose result the run left as it is (e.g. a table of one row from GeoJSON).
-  // Again after each change: generating the code clears the blocks' warnings.
+  // Advice on a block whose result the run left as it is (e.g. a table of one row from GeoJSON):
+  // drawn amber, with the advice on hover and in its warning.
+  const advice = new Map<string, string>();
   for (const block of workspace.getAllBlocks(false)) {
     const current =
       lastRun !== null &&
       ranAsItIs(block, lastRun.signatures, snapshots, filesVersion);
-    block.setWarningText(
-      current ? adviceFor(block, snapshots) : null,
-      ADVICE_WARNING,
-    );
+    const text = current ? adviceFor(block, snapshots) : null;
+    if (text) advice.set(block.id, text);
   }
+  markAdvice(workspace, advice);
 };
 
 const resetWorkspaceState = (workspace: Blockly.WorkspaceSvg) => {

@@ -2,6 +2,7 @@ import { t } from '../i18n'
 import { LOAD_FILE } from './files'
 import { OSEM_FETCH, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
 import { DATASET } from './program'
+import { LOAD_URL } from './web'
 import { CONVERT_COLUMN, GEOJSON_TABLE, JSON_TABLE, READ_JSON, SPLIT_POSITION, TRANSLATE_CSV } from './steps'
 import { VIEW_CHART, VIEW_MAP, VIEW_SHAPES, VIEW_TABLE } from './views'
 
@@ -33,6 +34,8 @@ export const toolbox = {
     ]),
     // Opening a file brings text, like openSenseMap; the same generic blocks go on from there.
     category(t('toolbox.ownData'), 'file_category', group('toolbox.group.file', LOAD_FILE)),
+    // A web address brings text too: a file from the internet instead of the computer.
+    category(t('toolbox.web'), 'web_category', group('toolbox.group.web', LOAD_URL)),
     category(t('toolbox.general'), 'step_category', [
       ...group('toolbox.group.translate', READ_JSON, TRANSLATE_CSV),
       ...group('toolbox.group.table', JSON_TABLE, GEOJSON_TABLE),

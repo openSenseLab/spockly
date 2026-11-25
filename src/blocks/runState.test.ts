@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Snapshot } from '../core/fromPython'
 import './index'
-import { FAILED_CLASS, markFailure, ranAsItIs, signatures, unchangedSinceRun } from './runState'
+import { ADVICE_CLASS, FAILED_CLASS, markAdvice, markFailure, ranAsItIs, signatures, unchangedSinceRun } from './runState'
 
 const stack = (...blocks: object[]) =>
   blocks.reduceRight<object | undefined>((next, block) => ({ ...block, ...(next ? { next: { block: next } } : {}) }), undefined)!
@@ -56,6 +56,8 @@ function program() {
 const ids = ['datei', 'csv', 'liste', 'zahl', 'box', 'mess', 'tabelle', 'orte_zeigen']
 const ran: Snapshot = { art: 'text', text: '', anzahl: 0 }
 const allRan = Object.fromEntries(ids.map((id) => [id, ran]))
+/** Tests that build a real Blockly canvas in jsdom: slow when all test files run at once. */
+const CANVAS_TIMEOUT = 20_000
 /** The blocks whose result from the run is still what the blocks say. */
 const current = (workspace: Blockly.Workspace, ranThen: Record<string, string>, snapshots = allRan, files = 0) =>
   ids.filter((id) => ranAsItIs(workspace.getBlockById(id)!, ranThen, snapshots, files))
@@ -127,5 +129,35 @@ describe('the block a run failed at', () => {
     expect(zahl.getIcon(Blockly.icons.WarningIcon.TYPE)).toBeUndefined()
     expect(Blockly.Tooltip.getTooltipOfObject(zahl)).toBe(own)
     workspace.dispose()
-  })
+  }, CANVAS_TIMEOUT)
+})
+
+describe('advice on a block that ran, but probably not as meant', () => {
+  it('is drawn amber, says why in its warning and on hover, and goes with the advice; a failed block stays red', () => {
+    HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+    const workspace = Blockly.inject(document.body.appendChild(document.createElement('div')), {})
+    Blockly.serialization.workspaces.load(Blockly.serialization.workspaces.save(program()), workspace)
+    const liste = workspace.getBlockById('liste') as Blockly.BlockSvg
+    const own = Blockly.Tooltip.getTooltipOfObject(liste)
+    const advice = new Map([['liste', 'Die Tabelle hat nur 1 Zeile: Nimm „mache eine Tabelle aus GeoJSON“.']])
+    const amber = () => liste.getSvgRoot().classList.contains(ADVICE_CLASS)
+
+    markAdvice(workspace, advice)
+    expect(amber()).toBe(true)
+    expect(liste.getIcon(Blockly.icons.WarningIcon.TYPE)).toBeDefined()
+    expect(Blockly.Tooltip.getTooltipOfObject(liste)).toBe('Das ist wohl nicht so gemeint:\nDie Tabelle hat nur 1 Zeile: Nimm „mache eine Tabelle aus GeoJSON“.')
+
+    markAdvice(workspace, new Map())
+    expect(amber()).toBe(false)
+    expect(liste.getIcon(Blockly.icons.WarningIcon.TYPE)).toBeUndefined()
+    expect(Blockly.Tooltip.getTooltipOfObject(liste)).toBe(own)
+
+    // Failed and advised at once: the error comes first.
+    markFailure(workspace, { blockId: 'liste', text: 'Fehler' }, signatures(workspace, 0), 0)
+    markAdvice(workspace, advice)
+    expect(amber()).toBe(false)
+    expect(liste.getSvgRoot().classList.contains(FAILED_CLASS)).toBe(true)
+    expect(Blockly.Tooltip.getTooltipOfObject(liste)).toBe('Hier ist der Lauf stehen geblieben:\nFehler')
+    workspace.dispose()
+  }, CANVAS_TIMEOUT)
 })

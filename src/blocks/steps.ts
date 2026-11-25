@@ -89,9 +89,10 @@ pythonGenerator.forBlock[TRANSLATE_CSV] = (block, generator) => {
 pythonGenerator.forBlock[JSON_TABLE] = (block, generator) => {
   const name = variableFor(block)
   if (!name) return ''
-  needs(generator, 'import pandas as pd')
+  needs(generator, 'import pandas as pd', 'from spockly import liste_in')
   // Each entry of the list (from JSON or CSV) becomes a row; entries inside entries become columns like "ort.name".
-  return `${name} = pd.json_normalize(${name})\n`
+  // A list inside an entry with more details, as some websites send it ({"count": …, "results": [...]}), counts too.
+  return `${name} = pd.json_normalize(liste_in(${name}))\n`
 }
 
 

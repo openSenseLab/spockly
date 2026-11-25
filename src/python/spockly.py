@@ -43,6 +43,21 @@ def in_teile(wert):
     return [_zahl_oder_text(teil.strip()) for teil in teile]
 
 
+def liste_in(daten):
+    """Die Liste in übersetzten JSON-Daten, aus der „mache eine Tabelle aus der Liste“ die Zeilen macht.
+
+    Meist sind die Daten schon eine Liste. Manche Webseiten packen die Liste in
+    einen Eintrag mit weiteren Angaben, z. B. {"count": 126, "results": [...]}:
+    dann zählt die Liste darin. GeoJSON bleibt, wie es ist – dafür gibt es
+    „mache eine Tabelle aus GeoJSON“.
+    """
+    if isinstance(daten, dict) and daten.get("type") != "FeatureCollection":
+        listen = [wert for wert in daten.values() if isinstance(wert, list) and wert and all(isinstance(eintrag, dict) for eintrag in wert)]
+        if len(listen) == 1:
+            return listen[0]
+    return daten
+
+
 def _zahl_oder_text(teil):
     try:
         return float(teil.replace(",", "."))
@@ -103,6 +118,25 @@ def zeige_zeitverlauf(daten, zeit, wert, je=None, titel=""):
     je = _wenn_da(daten, je, f"darum zeigt der Zeitverlauf „{titel}“ eine Linie für alle Zeilen. Wähl bei „eine Linie je“ eine andere Spalte.")
     optionen = {"zeit": zeit, "wert": wert, "je": je}
     spockly_app.zeige("zeitverlauf", titel, _paket(daten), json.dumps(optionen))
+
+
+def hole_text(adresse):
+    """Holt den Text von einer Webadresse, z. B. eine CSV-, JSON- oder GeoJSON-Datei.
+
+    Wie der Browser: Die Webseite muss erlauben, dass andere Seiten ihre Daten
+    laden. Sonst kommt keine Antwort, genauso wie bei einer falschen Adresse.
+    """
+    from js import XMLHttpRequest  # die Anfrage des Browsers
+
+    anfrage = XMLHttpRequest.new()
+    anfrage.open("GET", adresse, False)
+    try:
+        anfrage.send()
+    except Exception:
+        raise ConnectionError(f"Keine Antwort von {adresse}") from None
+    if anfrage.status >= 400:
+        raise ConnectionError(f"Antwort {anfrage.status} von {adresse}")
+    return str(anfrage.responseText)
 
 
 def hinweis(text):

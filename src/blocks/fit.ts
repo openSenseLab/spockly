@@ -10,6 +10,7 @@ import { LOAD_FILE } from './files'
 import { OSEM_FETCH, OSEM_MEASUREMENTS } from './osem'
 import { blockText, categoryNames, DATA, DATASET, type DataKind, isStep, kindOf, PROGRAM } from './program'
 import { READ_JSON } from './steps'
+import { LOAD_URL } from './web'
 
 /** What the connection gives below it (a step's "next", a dataset's inside), or "program" (under a dataset or a "zeige" block). */
 function gives(connection: Blockly.Connection): (DataKind | 'program')[] {
@@ -69,7 +70,7 @@ export function narrowKinds(workspace: Blockly.Workspace) {
     if (block.type !== READ_JSON || !block.nextConnection) continue
     const source = firstStep(block).type
     const kinds =
-      source === OSEM_FETCH ? [DATA.stations] : source === LOAD_FILE ? [DATA.json] : [DATA.json, DATA.stations]
+      source === OSEM_FETCH ? [DATA.stations] : source === LOAD_FILE || source === LOAD_URL ? [DATA.json] : [DATA.json, DATA.stations]
     const now = block.nextConnection.getCheck() ?? []
     if (now.length !== kinds.length || kinds.some((kind) => !now.includes(kind))) block.nextConnection.setCheck(kinds)
   }

@@ -27,8 +27,10 @@ export function adviceFor(block: Blockly.Block, snapshots: Record<string, Snapsh
   if (data?.art !== 'json') return null
   const dataset = datasetOf(block)
   const name = dataset ? datasetNameOf(dataset) : ''
-  // A list starts with "[": then each entry is a row, as meant. One object starts with "{".
-  const one = data.text.trimStart().startsWith('{')
+  // A list starts with "[": then each entry is a row, as meant. One object starts with "{", unless a list
+  // inside it became the rows (liste_in, e.g. {"count": …, "results": [...]}): then the table has more than one.
+  const table = snapshots[block.id]
+  const one = data.text.trimStart().startsWith('{') && !(table.art === 'tabelle' && table.anzahl > 1)
   // openSenseMap's stations have a block of their own, which "hole … die Messwerte" needs: a list of them works here, but say so.
   if (sourceOf(dataset) === 'osem') return say(one ? 'advice.osemOne' : 'advice.osemList', { name })
   if (!one) return null

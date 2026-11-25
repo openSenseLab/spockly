@@ -124,6 +124,7 @@ export const categoryNames = () => ({
   general: t('toolbox.general'),
   own: t('toolbox.ownData'),
   osem: t('toolbox.osem'),
+  web: t('toolbox.web'),
   views: t('toolbox.views'),
 })
 

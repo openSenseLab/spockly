@@ -124,12 +124,44 @@ export function markFailure(
     } else {
       block.removeClass(FAILED_CLASS)
       block.setWarningText(null, FAILED_WARNING)
-      const own = ownTooltips.get(block)
-      if (own !== undefined) {
-        block.setTooltip(own)
-        ownTooltips.delete(block)
-      }
+      restoreTooltip(block)
     }
   }
   return marked
+}
+
+/** The block's own tooltip again, after an error or advice was shown on hover. */
+function restoreTooltip(block: Blockly.BlockSvg) {
+  const own = ownTooltips.get(block)
+  if (own === undefined) return
+  block.setTooltip(own)
+  ownTooltips.delete(block)
+}
+
+/** The class of a block whose result ran but is probably not meant (blocks/advice); App.css draws it amber. */
+export const ADVICE_CLASS = 'spockly-advice'
+
+/** The warning id of advice after a run, apart from the blocks' own warnings. */
+export const ADVICE_WARNING = 'advice'
+
+/**
+ * Shows advice on the blocks it is for (e.g. a table of one row from
+ * GeoJSON): drawn amber, the advice in the warning (click the warning sign)
+ * and on hovering over the block. A failed block keeps its red mark instead.
+ * Call after markFailure, which gives other blocks their own tooltip back.
+ */
+export function markAdvice(workspace: Blockly.WorkspaceSvg, advice: ReadonlyMap<string, string>) {
+  for (const block of workspace.getAllBlocks(false) as Blockly.BlockSvg[]) {
+    const text = block.getSvgRoot().classList.contains(FAILED_CLASS) ? undefined : advice.get(block.id)
+    if (text) {
+      block.addClass(ADVICE_CLASS)
+      block.setWarningText(text, ADVICE_WARNING)
+      if (!ownTooltips.has(block)) ownTooltips.set(block, block.tooltip)
+      block.setTooltip(`${t('advice.onBlock')}\n${text}`)
+    } else {
+      block.removeClass(ADVICE_CLASS)
+      block.setWarningText(null, ADVICE_WARNING)
+      if (!block.getSvgRoot().classList.contains(FAILED_CLASS)) restoreTooltip(block)
+    }
+  }
 }

@@ -20,6 +20,8 @@ import { blocksInRunOrder, categoryNames, datasetBlocks, datasetNameOf, datasetO
 import { LOAD_FILE } from './files'
 import { OSEM_FETCH, OSEM_MEASUREMENTS, OSEM_TABLE } from './osem'
 import { GEOJSON_TABLE, READ_JSON, SPLIT_POSITION, TRANSLATE_CSV } from './steps'
+import { LOAD_URL } from './web'
+import { guessKind } from './web/examples'
 import { VIEW_MAP, VIEW_SHAPES } from './views'
 
 export interface StepProblem {
@@ -37,6 +39,8 @@ export type Source = 'osem' | 'csv' | 'geojson' | 'json' | 'unknown'
 export function sourceOf(dataset: Blockly.Block | null | undefined): Source {
   const first = dataset ? stepsOf(dataset)[0] : undefined
   if (first?.type === OSEM_FETCH) return 'osem'
+  // A web address: an example's known kind, or a guess from its ending ("….csv", "format=json").
+  if (first?.type === LOAD_URL) return guessKind(String(first.getFieldValue('URL') ?? '')) ?? 'unknown'
   if (first?.type !== LOAD_FILE) return 'unknown'
   const file = String(first.getFieldValue('FILE') ?? '').toLowerCase()
   if (/\.(csv|tsv|txt)$/.test(file)) return 'csv'
@@ -142,8 +146,18 @@ function explainStep(failed: Blockly.Block, message: string, name: string, data:
     const hasTable = source ? stepsOf(source).some((step) => step.type === OSEM_TABLE) : false
     return say(hasTable ? 'error.osem.needsSensors' : 'block.osemMeasurements.needsTable', { dataset })
   }
+  // A web address: no answer (offline, wrong address, or the site doesn't let other pages load its data), or an error code.
+  if (failed.type === LOAD_URL) {
+    const url = String(failed.getFieldValue('URL') ?? '')
+    const status = message.match(/Antwort (\d{3}) von/)?.[1]
+    if (status === '404') return say('error.web.notFound', { url })
+    if (status) return say('error.web.status', { url, status })
+    if (/Keine Antwort von/.test(message)) return say('error.web.noAnswer', { url })
+  }
   if (/NetworkError|Failed to fetch|XMLHttpRequest|HTTPError|OSError/.test(message)) return say('error.network')
   if (translating && data && data.art !== 'text') return say('error.notText', { name })
+  // The address (or file) holds a web page, not data: HTML starts with "<".
+  if (translating && data?.art === 'text' && /^\s*</.test(data.text)) return say('error.web.html', { name })
   if (failed.type === READ_JSON) return say('error.notJson', { name })
   if (failed.type === TRANSLATE_CSV) return say('error.notCsv', { name })
   // Translated JSON, but without "features" with shapes: a plain list, say. (Still text: explainKind says so.)

@@ -28,7 +28,7 @@ describe('own data', () => {
     const { shown } = generate(program({ type: 'load_file', fields: { FILE: name } }, { type: 'step_translate_csv' }, { type: 'step_json_table' }))
     expect(shown).toContain('messung = open("Messung_Klasse_9b.csv", encoding="utf-8").read()\n')
     expect(shown).toContain(
-      'messung = pd.read_csv(io.StringIO(messung), sep=None, engine="python", decimal=",").to_dict("records")\nmessung = pd.json_normalize(messung)',
+      'messung = pd.read_csv(io.StringIO(messung), sep=None, engine="python", decimal=",").to_dict("records")\nmessung = pd.json_normalize(liste_in(messung))',
     )
     expect(shown).toContain('import io')
     expect(pythonFiles()['Messung_Klasse_9b.csv']).toContain('12,5')
@@ -36,7 +36,7 @@ describe('own data', () => {
 
   it('reads JSON with the same step as openSenseMap, then makes a table of a list', () => {
     const { shown } = generate(program({ type: 'load_file', fields: { FILE: 'orte.json' } }, { type: 'step_read_json' }, { type: 'step_json_table' }))
-    expect(shown).toContain('messung = json.loads(messung)\nmessung = pd.json_normalize(messung)')
+    expect(shown).toContain('messung = json.loads(messung)\nmessung = pd.json_normalize(liste_in(messung))')
   })
 
   it('translates GeoJSON like any JSON, then makes a table: one row per feature, its details as columns, its whole shape in "form"', () => {

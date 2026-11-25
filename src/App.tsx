@@ -190,7 +190,13 @@ function App() {
                   ))}
                   {advice.map((a) => (
                     <Callout.Root key={a.blockId} color="amber" mb="4" role="status">
-                      <Callout.Text>{a.text}</Callout.Text>
+                      <Callout.Text>
+                        {a.text}
+                        <br />
+                        <Text as="span" size="1">
+                          {t('advice.onCanvas')}
+                        </Text>
+                      </Callout.Text>
                     </Callout.Root>
                   ))}
                   {(!problem || views.length > 0) && <ResultsPanel views={views} ran={status === 'success'} />}

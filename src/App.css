@@ -664,6 +664,18 @@
  * glow, solid and full colour even though it didn't finish. Its warning sign
  * and its tooltip say why.
  */
+/*
+ * A block whose result ran but is probably not meant (blocks/advice), e.g. a
+ * table of one row from GeoJSON: amber, like a warning, not red like an error.
+ * Its warning sign and its tooltip say why and which block fits.
+ */
+.blocklyDraggable.spockly-advice > .blocklyPath {
+  stroke: #d97706;
+  stroke-width: 4px;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 6px rgba(217, 119, 6, 0.65));
+}
+
 .blocklyDraggable.spockly-failed > .blocklyPath {
   stroke: #dc2626;
   stroke-width: 4px;
