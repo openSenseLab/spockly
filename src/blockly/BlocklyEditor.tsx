@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react'
 import { useT } from '../i18n'
 import { generateCode } from './headless'
 import { LIBRARY_CATEGORY, libraryFlyout, registerLibraryMenu } from './library'
-import { buildDataToolbox, buildToolbox } from './toolbox'
+import { DATA_CATEGORY, VALUES_CATEGORY, buildDataToolbox, buildToolbox, dataFlyout, valuesFlyout } from './toolbox'
+import { migrateWorkspace } from './migrate'
 
 registerLibraryMenu()
 
@@ -13,6 +14,8 @@ type Props = {
   onChange?: (state: object, code: string) => void
   readOnly?: boolean
   variant?: 'data' | 'analysis' | 'lab'
+  /** Access to the live workspace, e.g. to add blocks from outside (null when it is disposed). */
+  onReady?: (workspace: Blockly.WorkspaceSvg | null) => void
 }
 
 const theme = Blockly.Theme.defineTheme('spockly', {
@@ -34,14 +37,16 @@ const theme = Blockly.Theme.defineTheme('spockly', {
  * One Blockly workspace. The parent keys this component by language, so a
  * language switch re-creates the blocks with translated labels.
  */
-export function BlocklyEditor({ initialState, onChange, readOnly = false, variant = 'analysis' }: Props) {
+export function BlocklyEditor({ initialState, onChange, onReady, readOnly = false, variant = 'analysis' }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const onChangeRef = useRef(onChange)
+  const onReadyRef = useRef(onReady)
   const t = useT()
 
   useEffect(() => {
     onChangeRef.current = onChange
-  }, [onChange])
+    onReadyRef.current = onReady
+  }, [onChange, onReady])
 
   useEffect(() => {
     const host = hostRef.current
@@ -55,7 +60,7 @@ export function BlocklyEditor({ initialState, onChange, readOnly = false, varian
           : buildToolbox(t.toolbox, { withLoad: variant === 'lab' }),
       readOnly,
       theme,
-      renderer: 'zelos',
+      renderer: 'geras',
       trashcan: !readOnly,
       // Data cells hold only a few small blocks: no zoom controls, a compact scale.
       sounds: false,
@@ -72,11 +77,14 @@ export function BlocklyEditor({ initialState, onChange, readOnly = false, varian
     })
 
     workspace.registerToolboxCategoryCallback(LIBRARY_CATEGORY, libraryFlyout)
+    workspace.registerToolboxCategoryCallback(VALUES_CATEGORY, valuesFlyout)
+    workspace.registerToolboxCategoryCallback(DATA_CATEGORY, dataFlyout(false))
+    workspace.registerToolboxCategoryCallback(`${DATA_CATEGORY}_LAB`, dataFlyout(true))
 
     if (initialState) {
       Blockly.Events.disable()
       try {
-        Blockly.serialization.workspaces.load(initialState, workspace)
+        Blockly.serialization.workspaces.load(migrateWorkspace(initialState), workspace)
       } finally {
         Blockly.Events.enable()
       }
@@ -108,8 +116,10 @@ export function BlocklyEditor({ initialState, onChange, readOnly = false, varian
 
     const observer = new ResizeObserver(() => Blockly.svgResize(workspace))
     observer.observe(host)
+    onReadyRef.current?.(workspace)
 
     return () => {
+      onReadyRef.current?.(null)
       // Flush a pending save so nothing is lost when the editor re-mounts (e.g. language switch).
       if (timer !== undefined && !readOnly) emit()
       window.clearTimeout(timer)

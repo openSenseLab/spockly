@@ -1,11 +1,15 @@
+import type * as Blockly from 'blockly'
 import { Code, PenLine } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
+import { appendToLoadStack, removeSelectBlock, selectBlockState } from '../../blockly/append'
+import { selectionsInState } from '../../blockly/reference'
 import { BlocklyEditor } from '../../blockly/BlocklyEditor'
 import { useLanguageStore, useT } from '../../i18n'
 import { useJournalStore } from '../../journal/store'
 import type { BlockCell as BlockCellType, CellOutput } from '../../journal/types'
 import { DatasetHeader } from '../inspect/DatasetHeader'
+import type { SelectProps } from '../inspect/DataSelector'
 import { InspectionPanel } from '../inspect/InspectionPanel'
 import { OutputView } from '../outputs/OutputView'
 import { Button, IconButton, Tooltip } from '../ui'
@@ -15,9 +19,11 @@ import { CellShell } from './CellShell'
 
 type Inspection = Extract<CellOutput, { type: 'inspection' }>
 
-function DatasetInspection({ cell, output }: { cell: BlockCellType; output: Inspection }) {
+function DatasetInspection({ cell, output, select }: { cell: BlockCellType; output: Inspection; select?: SelectProps }) {
   const setResult = useJournalStore((state) => state.setResult)
   const { profile } = output
+  // Selections of a dataset were inspected already as part of it: no second quiz.
+  const quiz = output.source.kind !== 'extract'
   const solved = cell.solved[profile.name] ?? []
 
   const onSolve = (questionId: string) => {
@@ -28,7 +34,9 @@ function DatasetInspection({ cell, output }: { cell: BlockCellType; output: Insp
   return (
     <div className="rounded-xl bg-ink-50/70 p-3 ring-1 ring-ink-100 sm:p-4">
       <DatasetHeader output={output} />
-      <InspectionPanel profile={profile} solved={solved} onSolve={onSolve} />
+      <InspectionPanel profile={profile} solved={quiz ? solved : undefined} onSolve={quiz ? onSolve : undefined}
+        select={select}
+      />
     </div>
   )
 }
@@ -86,6 +94,23 @@ export function BlockCell({ cell, index }: { cell: BlockCellType; index: number 
     [cell.id, editCell, setResult],
   )
 
+  // Select tab: selections are "select … as …" blocks in this data block's workspace.
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
+  const onReady = useCallback((workspace: Blockly.WorkspaceSvg | null) => {
+    workspaceRef.current = workspace
+  }, [])
+  const onWorkspace = <A extends unknown[]>(
+    change: (workspace: Blockly.WorkspaceSvg, ...args: A) => { state: object; code: string },
+    ...args: A
+  ) => {
+    if (!workspaceRef.current) return
+    const next = change(workspaceRef.current, ...args)
+    onWorkspaceChange(next.state, next.code)
+  }
+  // All selections of the journal (names stay unique across data blocks).
+  const cells = useJournalStore((state) => state.journal.cells)
+  const selections = cells.flatMap((c) => (c.type === 'data' ? selectionsInState(c.workspace) : []))
+
   const inspections = cell.outputs.filter((output): output is Inspection => output.type === 'inspection')
   const others = cell.outputs.filter((output) => output.type !== 'inspection')
 
@@ -118,7 +143,7 @@ export function BlockCell({ cell, index }: { cell: BlockCellType; index: number 
       <div>
         {/* relative + z-index: an open dropdown may reach past the frame and must stay above later content */}
         <div className="relative z-10 rounded-xl ring-1 ring-ink-200 focus-within:z-20" style={{ height }}>
-          <BlocklyEditor key={language} variant={cell.type} initialState={cell.workspace} onChange={onWorkspaceChange} />
+          <BlocklyEditor key={language} variant={cell.type} initialState={cell.workspace} onChange={onWorkspaceChange} onReady={onReady} />
         </div>
         <ResizeHandle height={height} onChange={setHeight} min={cell.type === 'data' ? 140 : 260} label={t.cells.resize} />
       </div>
@@ -128,7 +153,20 @@ export function BlockCell({ cell, index }: { cell: BlockCellType; index: number 
         </pre>
       )}
       {inspections.map((output) => (
-        <DatasetInspection key={output.profile.name} cell={cell} output={output} />
+        <DatasetInspection
+          key={output.profile.name}
+          cell={cell}
+          output={output}
+          select={
+            cell.type === 'data'
+              ? {
+                  selections,
+                  add: (picked) => onWorkspace(appendToLoadStack, picked.map(selectBlockState), output.profile.name),
+                  remove: (id) => onWorkspace(removeSelectBlock, id),
+                }
+              : undefined
+          }
+        />
       ))}
       {others.length > 0 && <OutputView outputs={others} />}
       <Note cell={cell} />

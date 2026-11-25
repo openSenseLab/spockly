@@ -12,6 +12,26 @@ page through a link.
 2. **Inspect**: every dataset gets an inspection panel (overview, column types,
    missing values, distributions, preview, map) and a short guided task with
    questions about size, column types, missing values and geometry.
+   The *Select* tab picks what is actually needed: columns of any table (CSV, GIS,
+   GeoJSON), fields inside a JSON file (click a list, object or value in the structure
+   tree), or a single figure computed from a column (mean, maximum, first value, …).
+   No new dataset is created: each pick is added to the data block as a
+   `select stations › temperature as temperature` block (rename it there, delete it to remove
+   the pick; it runs no code) and appears as a named block in the analysis toolbox that reads
+   directly from the original data, e.g. `temperature` generates `stations["temperature"]`,
+   a JSON field one value per list item
+   (`pd.Series([item.get("title") for item in data_json["boxes"]])`), a single value
+   `data_json["meta"]["total"]`.
+   The *Data* category of the analysis toolbox has one block per dataset and the picked
+   columns (only those, not every column of the data); *Values* has the picked values and a
+   colour block. They plug into analysis blocks instead of dropdown menus.
+   Charts and key figures take them as external inputs (a bar chart with `time` on the x
+   axis and `temperature` on the y axis) and work inside a pipeline (then on its filtered
+   rows) or on their own. The colour gap of charts and maps takes a column (colour by
+   value) or a colour block (one fixed colour, chosen from a palette). Gaps are type-checked:
+   a column only fits column gaps, a dataset only dataset gaps, a number value only number
+   gaps; numeric columns also fit calculations and the filter's value. Option menus such as
+   operators or aggregations stay menus; typed-in numbers stay possible.
 3. **Analyse**: each analysis block holds its own Blockly workspace. A pipeline
    starts with `use dataset …`, stacks steps (filter, group, compute, spatial
    operations) and ends with outputs (table, chart, map, key figure).

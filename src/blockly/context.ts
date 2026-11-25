@@ -1,6 +1,9 @@
 import { useJournalStore } from '../journal/store'
 import type { Schemas } from '../kernel/kernel'
 import { loadedNames } from '../journal/workspaces'
+import type { Selection } from '../journal/types'
+import { selectionsInState } from './reference'
+import { valuesInState, type ValueInfo } from './values'
 
 /**
  * Where blocks get their surroundings from. The journal and the lab both use the
@@ -9,6 +12,10 @@ import { loadedNames } from '../journal/workspaces'
 export type EditorContext = {
   /** Dataset names offered by "use dataset" / "join" / "count within" dropdowns. */
   datasetNames: (schemas: Schemas) => string[]
+  /** Values taken in data blocks ("take value … as …"), with their type, for the "value" block. */
+  values: () => ValueInfo[]
+  /** Selections made in the Select tab ("select … as …" blocks in data blocks). */
+  selections: () => Selection[]
   /** Keep an uploaded file so "load file" blocks can read it when they run. */
   addFile: (name: string, content: string) => void
   /** Content of an uploaded file (to pick read_csv options in the generated code). */
@@ -24,6 +31,8 @@ export const journalContext: EditorContext = {
     Object.keys(schemas).forEach((name) => names.add(name))
     return [...names]
   },
+  values: () => useJournalStore.getState().journal.cells.flatMap((cell) => (cell.type === 'data' ? valuesInState(cell.workspace) : [])),
+  selections: () => useJournalStore.getState().journal.cells.flatMap((cell) => (cell.type === 'data' ? selectionsInState(cell.workspace) : [])),
   addFile: (name, content) => useJournalStore.getState().addFile(name, content),
   fileContent: (name) => useJournalStore.getState().journal.files[name],
 }

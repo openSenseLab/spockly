@@ -5,6 +5,7 @@ import { idbStorage } from '../journal/idbStorage'
 import { createCell, useJournalStore } from '../journal/store'
 import type { BlockCell, CellOutput, RunState } from '../journal/types'
 import { loadExample, pipelineWorkspace } from '../journal/workspaces'
+import { serializedSelection } from '../blockly/selection'
 
 type LabState = {
   workspace: object | null
@@ -81,6 +82,7 @@ type SerializedBlock = {
   x?: number
   y?: number
   fields?: Record<string, unknown>
+  inputs?: Record<string, unknown>
   next?: { block: SerializedBlock }
 }
 
@@ -94,7 +96,8 @@ export type LabTransferOptions = {
   perPipeline: boolean
 }
 
-const isLoad = (block: SerializedBlock) => block.type.startsWith('spk_load_')
+const isLoad = (block: SerializedBlock) =>
+  block.type.startsWith('spk_load_') || block.type.startsWith('spk_take_') || block.type === 'spk_select'
 
 /** The lab's top-level blocks in execution order (top to bottom, like the code generator). */
 const topBlocks = (): SerializedBlock[] => {
@@ -188,7 +191,7 @@ const cellsFromLab = ({ title, separateData, perPipeline }: LabTransferOptions):
   const used = new Map<string, number>()
   groups.forEach((group) => {
     const pipeline = group.find((b) => b.type === 'spk_pipeline')
-    const dataset = String(pipeline?.fields?.DATASET ?? '')
+    const dataset = serializedSelection(pipeline, 'DATASET')
     const base = groups.length > 1 && dataset ? `${title} – ${dataset}` : title
     // Number repeated titles, e.g. two pipelines on the same dataset.
     const count = (used.get(base) ?? 0) + 1

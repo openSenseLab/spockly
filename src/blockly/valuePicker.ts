@@ -4,6 +4,8 @@ export type PickValue = string | number | boolean
 
 export type PickRequest = {
   column: string
+  /** Dialog title; defaults to "Values of <column>". */
+  title?: string
   /** Values the column has (empty when Python has not run yet). */
   options: PickValue[]
   selected: PickValue[]

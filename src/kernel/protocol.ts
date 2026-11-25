@@ -7,7 +7,7 @@ export type KernelRequest =
   | { type: 'run'; requestId: number; code: string; files: Record<string, string>; inspect: InspectRequest[] }
   | { type: 'reset'; requestId: number }
 
-export type InspectRequest = { name: string; kind: 'example' | 'url' | 'file'; ref: string }
+export type InspectRequest = { name: string; kind: 'example' | 'url' | 'file' | 'extract'; ref: string }
 
 export type KernelStatus = 'idle' | 'loading' | 'ready' | 'failed'
 

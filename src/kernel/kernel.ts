@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { CellOutput, FieldInfo } from '../journal/types'
+import type { CellOutput, FieldInfo, JsonNode } from '../journal/types'
 import type { InspectRequest, KernelRequest, KernelResponse, KernelStatus } from './protocol'
 
 export type Schemas = Record<string, FieldInfo[]>
@@ -13,11 +13,13 @@ type KernelState = {
   layers: Record<string, string[]>
   /** Coordinate system of every GeoDataFrame, e.g. { nrw: { crs: 'EPSG:25832', projected: true } }. */
   crs: Record<string, CoordinateSystem>
+  /** Structure of JSON sources by dataset name, for the "take list / value" blocks. */
+  structures: Record<string, JsonNode>
 }
 
 export type CoordinateSystem = { crs: string; projected: boolean }
 
-export const useKernelStore = create<KernelState>(() => ({ status: 'idle', schemas: {}, layers: {}, crs: {} }))
+export const useKernelStore = create<KernelState>(() => ({ status: 'idle', schemas: {}, layers: {}, crs: {}, structures: {} }))
 
 export class KernelError extends Error {
   /** Learner-facing error code (mapped from the Python exception in the worker) or null for raw Python errors. */
@@ -41,7 +43,7 @@ const discardWorker = (reason: string) => {
   worker = null
   for (const request of pending.values()) request.reject(new KernelError(reason))
   pending.clear()
-  useKernelStore.setState({ schemas: {}, crs: {} })
+  useKernelStore.setState({ schemas: {}, crs: {}, structures: {} })
 }
 let nextRequestId = 1
 const pending = new Map<number, Pending>()
@@ -93,10 +95,13 @@ export const runCode = async (code: string, files: Record<string, string> = {}, 
     crs: Record<string, CoordinateSystem>
   }
   const layers = { ...useKernelStore.getState().layers }
+  const structures = { ...useKernelStore.getState().structures }
   for (const output of result.outputs) {
-    if (output.type === 'inspection' && output.profile.layers?.length) layers[output.source.ref] = output.profile.layers
+    if (output.type !== 'inspection') continue
+    if (output.profile.layers?.length) layers[output.source.ref] = output.profile.layers
+    if (output.profile.json) structures[output.profile.name] = output.profile.json.structure
   }
-  useKernelStore.setState({ schemas: result.schemas, layers, crs: result.crs ?? {} })
+  useKernelStore.setState({ schemas: result.schemas, layers, crs: result.crs ?? {}, structures })
   return result.outputs
 }
 
@@ -106,12 +111,12 @@ export const restartKernel = () => {
   worker = null
   for (const request of pending.values()) request.reject(new KernelError('SPK|stopped|'))
   pending.clear()
-  useKernelStore.setState({ status: 'idle', schemas: {}, crs: {} })
+  useKernelStore.setState({ status: 'idle', schemas: {}, crs: {}, structures: {} })
   warmUpKernel()
 }
 
 /** Forget all datasets (e.g. when another journal is opened) but keep Python loaded. */
 export const resetKernel = async () => {
-  useKernelStore.setState({ schemas: {}, crs: {} })
+  useKernelStore.setState({ schemas: {}, crs: {}, structures: {} })
   if (worker) await send({ type: 'reset' }).catch(() => undefined)
 }

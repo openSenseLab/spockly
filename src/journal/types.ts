@@ -83,7 +83,8 @@ export type FieldInfo = {
   values?: (string | number | boolean)[]
 }
 
-export type DataSourceRef = { kind: 'example' | 'url' | 'file'; ref: string }
+/** Where a dataset came from; 'extract': selected from another dataset (ref = its name). */
+export type DataSourceRef = { kind: 'example' | 'url' | 'file' | 'extract'; ref: string }
 
 export type CellOutput =
   | {
@@ -146,6 +147,30 @@ export type Cell = TextCell | BlockCell
 export type CellType = Cell['type']
 
 export type ShareInfo = { id: string; token: string; updatedAt: string }
+
+/**
+ * Where a selection points to in the original data (nothing is copied):
+ * - column: a column of a table, stations["temperature"]
+ * - json: values along a JSON path; inside lists one value per item (a column), else a single value
+ * - stat: one figure computed from a column, stations["pm10"].mean()
+ */
+export type SelectionRef =
+  | { kind: 'column'; dataset: string; column: string }
+  | { kind: 'json'; dataset: string; path: string[] }
+  | { kind: 'stat'; dataset: string; column: string; agg: string }
+
+/**
+ * A named selection made in the Select tab: a column ("temperature") or a single value ("total").
+ * It lives as a "select … as …" block in the data block; the analysis toolbox offers a block for it.
+ */
+export type Selection = {
+  id: string
+  name: string
+  output: 'column' | 'value'
+  ref: SelectionRef
+  /** Blockly check of the block's output: Number, String, Boolean, or NumberColumn, StringColumn, … */
+  type?: string
+}
 
 export type Journal = {
   id: string

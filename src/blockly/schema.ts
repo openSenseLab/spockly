@@ -2,6 +2,7 @@ import type * as Blockly from 'blockly'
 
 import { useKernelStore, type CoordinateSystem } from '../kernel/kernel'
 import { toIdentifier } from './python'
+import { selectionValue } from './selection'
 
 export const PIPELINE = 'spk_pipeline'
 
@@ -21,7 +22,7 @@ const datasetColumns = (name: string) =>
 
 /** Apply what a step does to the column list, without running Python. */
 const applyStep = (columns: string[], step: Blockly.Block): string[] => {
-  const field = (name: string) => String(step.getFieldValue(name) ?? '')
+  const field = (name: string) => selectionValue(step, name)
   const add = (...names: string[]) => [...columns.filter((c) => !names.includes(c)), ...names]
   switch (step.type) {
     case 'spk_compute':
@@ -76,7 +77,7 @@ export const columnsForBlock = (block: Blockly.Block | null): string[] => {
   let layer = block
   while (layer && layer.type !== 'spk_map_layer') layer = layer.getParent()
   if (layer) {
-    const dataset = String(layer.getFieldValue('DATASET') ?? '')
+    const dataset = selectionValue(layer, 'DATASET')
     if (dataset) return datasetColumns(dataset) ?? allColumns()
     block = layer.getSurroundParent()
   }
@@ -92,14 +93,14 @@ export const columnsForBlock = (block: Blockly.Block | null): string[] => {
   }
   if (!current) return allColumns()
 
-  const base = datasetColumns(String(current.getFieldValue('DATASET') ?? ''))
+  const base = datasetColumns(selectionValue(current, 'DATASET'))
   if (!base) return allColumns()
   return chain.reduce(applyStep, base).filter(Boolean)
 }
 
 /** Columns a step adds that always hold numbers (measurements, counts, statistics). */
 const numericOutputs = (step: Blockly.Block): string[] => {
-  const field = (name: string) => String(step.getFieldValue(name) ?? '')
+  const field = (name: string) => selectionValue(step, name)
   switch (step.type) {
     case 'spk_distance':
     case 'spk_area':
@@ -130,7 +131,7 @@ export const isNumericColumn = (block: Blockly.Block | null, column: string): bo
   let layer = block
   while (layer && layer.type !== 'spk_map_layer') layer = layer.getParent()
   if (layer) {
-    const dataset = String(layer.getFieldValue('DATASET') ?? '')
+    const dataset = selectionValue(layer, 'DATASET')
     if (dataset) {
       const field = kinds(dataset)?.find((f) => f.name === column)
       return field ? field.kind === 'number' : undefined
@@ -150,7 +151,7 @@ export const isNumericColumn = (block: Blockly.Block | null, column: string): bo
   for (const previous of [...chain].reverse()) {
     if (numericOutputs(previous).includes(column)) return true
   }
-  const field = current ? kinds(String(current.getFieldValue('DATASET') ?? ''))?.find((f) => f.name === column) : undefined
+  const field = current ? kinds(selectionValue(current, 'DATASET'))?.find((f) => f.name === column) : undefined
   return field ? field.kind === 'number' : undefined
 }
 
@@ -179,7 +180,7 @@ export const crsAt = (block: Blockly.Block | null): CoordinateSystem | undefined
   const found = chainBefore(block)
   if (!found) return undefined
   let system: CoordinateSystem | undefined =
-    useKernelStore.getState().crs[toIdentifier(String(found.pipeline.getFieldValue('DATASET') ?? ''))]
+    useKernelStore.getState().crs[toIdentifier(selectionValue(found.pipeline, 'DATASET'))]
   for (const step of found.chain) {
     if (step.type === 'spk_to_crs') {
       const crs = String(step.getFieldValue('CRS') ?? '')

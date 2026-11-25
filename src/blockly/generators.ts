@@ -1,12 +1,16 @@
 import type * as Blockly from 'blockly'
 import { Order, pythonGenerator, type PythonGenerator } from 'blockly/python'
 
+import { parsePath, parseSelection, pythonTable, pythonValue } from '../journal/extract'
 import { SAMPLES, sampleUrl } from '../journal/samples'
 import { useKernelStore } from '../kernel/kernel'
 import { CATEGORICAL, SEQUENTIAL } from '../components/outputs/palette'
 import { getEditorContext } from './context'
 import { csvOptions, downloadName, formatOf, gisPath, literal, str, toIdentifier } from './python'
-import { PIPELINE, centreColumns, columnsForBlock, crsAt, isNumericColumn } from './schema'
+import { PIPELINE, centreColumns, crsAt, isNumericColumn } from './schema'
+import { SELECT_BLOCK, referenceCode, referenceNeedsPandas, referenceOf } from './reference'
+import { selectionValue } from './selection'
+import { shadowValue } from './valueInputs'
 import { parseValues } from './valuePicker'
 
 /**
@@ -14,8 +18,35 @@ import { parseValues } from './valuePicker'
  * The only thing the app adds is display(), which works like in Jupyter.
  */
 
-const f = (block: Blockly.Block, name: string) => String(block.getFieldValue(name) ?? '')
-const num = (block: Blockly.Block, name: string) => Number(block.getFieldValue(name) ?? 0)
+/** A field's value, or the column / dataset name on the block in the slot of that name. */
+const f = (block: Blockly.Block, name: string) => selectionValue(block, name)
+/** The colour of a colour block in the gap `input` (e.g. "#2a78d6"), if one is plugged in. */
+const fixedColour = (block: Blockly.Block, input: string) => {
+  const target = block.getInputTargetBlock(input)
+  return target?.type === 'spk_colour' && target.isEnabled() ? String(target.getFieldValue('COLOUR') ?? '') || undefined : undefined
+}
+/** The name shown on a column / value block (used as column name in a chart's table). */
+const labelOf = (block: Blockly.Block) => String(block.getFieldValue('COLUMN') ?? block.getFieldValue('NAME') ?? '')
+
+/**
+ * A number slot (see valueInputs): the number typed into its shadow block, or the Python
+ * expression of the value block plugged into it (e.g. a value taken in a data block).
+ */
+const slot = (block: Blockly.Block, generator: PythonGenerator, name: string, order: Order = Order.NONE) => {
+  const typed = shadowValue(block, name)
+  if (typed !== undefined) {
+    const value = Number(typed) || 0
+    return { value, code: String(value) }
+  }
+  return { value: undefined, code: generator.valueToCode(block, name, order) || '0' }
+}
+
+/** Whole numbers for positions and counts: written as they are, or int(…) around an expression. */
+const whole = (block: Blockly.Block, generator: PythonGenerator, name: string, offset = 0) => {
+  const { value, code } = slot(block, generator, name, Order.FUNCTION_CALL)
+  if (value !== undefined) return String(Math.max(0, Math.round(value) + offset))
+  return offset ? `max(0, int(${code}) ${offset < 0 ? '-' : '+'} ${Math.abs(offset)})` : `int(${code})`
+}
 const col = (name: string) => `df[${str(name)}]`
 const dataset = (block: Blockly.Block, name = 'DATASET') => toIdentifier(f(block, name))
 
@@ -51,7 +82,7 @@ const kindOf = (column: string) => {
 const isNumeric = (column: string) => kindOf(column) === 'number'
 
 pythonGenerator.addReservedWords(
-  'df,pd,gpd,np,alt,json,requests,folium,branca,xyz,Point,Polygon,box,display,m,chart,joined,nearest,points,grid,cells,size,centre,centres,xmin,ymin,xmax,ymax,r,file',
+  'df,chart_data,pd,gpd,np,alt,json,requests,folium,branca,xyz,Point,Polygon,box,display,m,chart,joined,nearest,points,grid,cells,size,centre,centres,xmin,ymin,xmax,ymax,r,file,item,item2,item3,key,value',
 )
 
 type Generator = (block: Blockly.Block, generator: PythonGenerator) => string
@@ -87,6 +118,10 @@ const toPoints = (name: string, lon: string, lat: string, generator: PythonGener
   return `${name} = gpd.GeoDataFrame(${name}, geometry=gpd.points_from_xy(${name}[${str(lon)}], ${name}[${str(lat)}]), crs="EPSG:4326")\n`
 }
 
+const sameAsSource = (block: Blockly.Block) => dataset(block, 'NAME') === dataset(block)
+const sameNameComment = (block: Blockly.Block) =>
+  `# ${dataset(block, 'NAME')}: choose a name that differs from the dataset, so the dataset stays as it is\n`
+
 const loaders: Record<string, Generator> = {
   spk_load_example: (block, generator) => {
     const name = dataset(block, 'NAME')
@@ -120,6 +155,51 @@ const loaders: Record<string, Generator> = {
   spk_load_gis_file: (block, generator) => loadGis(dataset(block, 'NAME'), f(block, 'FILE'), f(block, 'LAYER'), false, generator),
   spk_load_gis_url: (block, generator) => loadGis(dataset(block, 'NAME'), f(block, 'URL').trim(), f(block, 'LAYER'), true, generator),
   spk_make_spatial: (block, generator) => toPoints(dataset(block), f(block, 'LON'), f(block, 'LAT'), generator),
+
+  // Parts of a dataset: JSON is read from <name>_json, the parsed file the load blocks keep.
+  // The source dataset is never changed; a result with the same name would replace it.
+  spk_take_table: (block, generator) => {
+    if (sameAsSource(block)) return sameNameComment(block)
+    const selection = parseSelection(f(block, 'PATH'))
+    if (!selection) return `# ${dataset(block, 'NAME')}: choose a list in the block (run the data block first)\n`
+    addImports(generator, 'pd')
+    return pythonTable(dataset(block, 'NAME'), `${dataset(block)}_json`, selection, parseValues(f(block, 'COLUMNS')).map(String))
+  },
+  spk_take_columns: (block) => {
+    if (sameAsSource(block)) return sameNameComment(block)
+    const columns = parseValues(f(block, 'COLUMNS')).map(String)
+    const selected = columns.length ? `[[${columns.map(str).join(', ')}]]` : ''
+    return `${dataset(block, 'NAME')} = ${dataset(block)}${selected}.copy()\n`
+  },
+  spk_take_value: (block) => {
+    if (sameAsSource(block)) return sameNameComment(block)
+    const path = parsePath(f(block, 'PATH'))
+    const name = dataset(block, 'NAME')
+    if (!path) return `# ${name}: choose a value in the block (run the data block first)\n`
+    return `${pythonValue(name, `${dataset(block)}_json`, path)}print(${str(`${name}:`)}, ${name})\n`
+  },
+  // A selection copies nothing: blocks of the analysis toolbox read the data directly.
+  [SELECT_BLOCK]: () => '',
+  spk_take_stat: (block) => {
+    if (sameAsSource(block)) return sameNameComment(block)
+    const name = dataset(block, 'NAME')
+    const source = dataset(block)
+    const agg = f(block, 'AGG')
+    const column = f(block, 'COLUMN')
+    if (!column && agg !== 'count') return `# ${name}: choose a column in the block (run the data block first)\n`
+    const values = `${source}[${str(column)}]`
+    const expression =
+      agg === 'count'
+        ? column
+          ? `int(${values}.count())`
+          : `len(${source})`
+        : agg === 'first'
+          ? `${values}.dropna().iloc[0]`
+          : agg === 'nunique'
+            ? `int(${values}.nunique())`
+            : `${values}.${agg}()`
+    return `${name} = ${expression}\nprint(${str(`${name}:`)}, ${name})\n`
+  },
 }
 
 // --- Pipelines: df is the data flowing through the steps ------------------------
@@ -143,8 +223,14 @@ const measure = (block: Blockly.Block) => {
   }
 }
 
+const gridSize = (block: Blockly.Block, generator: PythonGenerator) => {
+  const { value, code } = slot(block, generator, 'KM', Order.MULTIPLICATIVE)
+  return value !== undefined ? String(value * 1000) : `${code} * 1000`
+}
+
 const steps: Record<string, Generator> = {
   [PIPELINE]: (block, generator) => {
+    if (!f(block, 'DATASET')) return `# use dataset: put a dataset block into the gap\n`
     const first = block.getInputTargetBlock('STEPS')
     const body = first ? (generator.blockToCode(first) as string) : ''
     return `df = ${dataset(block)}.copy()\n${body}\n`
@@ -152,13 +238,19 @@ const steps: Record<string, Generator> = {
   spk_save: (block) => `${dataset(block, 'NAME')} = df.copy()\n`,
   spk_join: (block) =>
     `df = df.merge(${dataset(block)}.drop(columns="geometry", errors="ignore"), on=${str(f(block, 'COLUMN'))}, how="left")\n`,
-  spk_filter: (block) => {
+  spk_filter: (block, generator) => {
     const column = f(block, 'COLUMN')
     const op = f(block, 'OP')
     if (op === 'missing') return `df = df[${col(column)}.isna()]\n`
     if (op === 'notmissing') return `df = df[${col(column)}.notna()]\n`
-    if (op === 'contains') return `df = df[${col(column)}.astype(str).str.contains(${str(f(block, 'VALUE'))}, case=False, na=False)]\n`
-    return `df = df[${col(column)} ${OPERATORS[op]} ${literal(f(block, 'VALUE'), kindOf(column))}]\n`
+    // Typed into the block: written to match the column. A value block: used as it is.
+    const typed = shadowValue(block, 'VALUE')
+    const plugged = () => generator.valueToCode(block, 'VALUE', Order.RELATIONAL) || 'None'
+    if (op === 'contains') {
+      const text = typed !== undefined ? str(typed) : `str(${generator.valueToCode(block, 'VALUE', Order.NONE) || '""'})`
+      return `df = df[${col(column)}.astype(str).str.contains(${text}, case=False, na=False)]\n`
+    }
+    return `df = df[${col(column)} ${OPERATORS[op]} ${typed !== undefined ? literal(typed, kindOf(column)) : plugged()}]\n`
   },
   spk_filter_in: (block) => {
     const values = parseValues(f(block, 'VALUES'))
@@ -167,9 +259,9 @@ const steps: Record<string, Generator> = {
     return `df = df[${f(block, 'MODE') === 'notin' ? '~' : ''}${col(f(block, 'COLUMN'))}.isin([${values}])]\n`
   },
   // Positions as people count them (1 = first row); iloc counts from 0 and excludes the end.
-  spk_rows: (block) => `df = df.iloc[${Math.max(0, num(block, 'FROM') - 1)}:${num(block, 'TO')}]\n`,
+  spk_rows: (block, generator) => `df = df.iloc[${whole(block, generator, 'FROM', -1)}:${whole(block, generator, 'TO')}]\n`,
   spk_sort: (block) => `df = df.sort_values(${str(f(block, 'COLUMN'))}, ascending=${f(block, 'DIR') === 'asc' ? 'True' : 'False'})\n`,
-  spk_head: (block) => `df = df.head(${num(block, 'N')})\n`,
+  spk_head: (block, generator) => `df = df.head(${whole(block, generator, 'N')})\n`,
   spk_group: (block) => {
     const by = str(f(block, 'BY'))
     const agg = f(block, 'AGG')
@@ -189,7 +281,7 @@ const steps: Record<string, Generator> = {
       to === 'number' ? `pd.to_numeric(${col(column)}, errors="coerce")` : to === 'date' ? `pd.to_datetime(${col(column)}, errors="coerce")` : `${col(column)}.astype(str)`
     return `df[${str(column)}] = ${expression}\n`
   },
-  spk_round: (block) => `df[${str(f(block, 'COLUMN'))}] = ${col(f(block, 'COLUMN'))}.round(${num(block, 'DIGITS')})\n`,
+  spk_round: (block, generator) => `df[${str(f(block, 'COLUMN'))}] = ${col(f(block, 'COLUMN'))}.round(${whole(block, generator, 'DIGITS')})\n`,
   spk_rename: (block) => `df = df.rename(columns={${str(f(block, 'COLUMN'))}: ${str(f(block, 'NAME'))}})\n`,
   spk_drop: (block) => `df = df.drop(columns=[${str(f(block, 'COLUMN'))}])\n`,
   spk_drop_missing: (block) => `df = df.dropna(subset=[${str(f(block, 'COLUMN'))}])\n`,
@@ -216,14 +308,14 @@ const steps: Record<string, Generator> = {
   spk_near: (block, generator) => {
     addImports(generator, 'gpd', 'point')
     return (
-      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
-      `df = df[${measure(block).projected ? 'df' : 'df.to_crs(centre.crs)'}.distance(centre.iloc[0]) <= ${num(block, 'KM')} * 1000]\n`
+      `centre = gpd.GeoSeries([Point(${slot(block, generator, 'LON').code}, ${slot(block, generator, 'LAT').code})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
+      `df = df[${measure(block).projected ? 'df' : 'df.to_crs(centre.crs)'}.distance(centre.iloc[0]) <= ${slot(block, generator, 'KM', Order.MULTIPLICATIVE).code} * 1000]\n`
     )
   },
   spk_distance: (block, generator) => {
     addImports(generator, 'gpd', 'point')
     return (
-      `centre = gpd.GeoSeries([Point(${num(block, 'LON')}, ${num(block, 'LAT')})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
+      `centre = gpd.GeoSeries([Point(${slot(block, generator, 'LON').code}, ${slot(block, generator, 'LAT').code})], crs="EPSG:4326").to_crs(${measure(block).system})\n` +
       `df[${str(f(block, 'NAME'))}] = ${measure(block).projected ? 'df' : 'df.to_crs(centre.crs)'}.distance(centre.iloc[0]) / 1000\n`
     )
   },
@@ -265,7 +357,7 @@ const steps: Record<string, Generator> = {
       `df[${name}] = joined.groupby("index_right")[${str(column)}].${agg}().reindex(df.index)\n`
     )
   },
-  spk_buffer: (block) => `df["geometry"] = ${measure(block).metric}.buffer(${num(block, 'METRES')})${measure(block).back}\n`,
+  spk_buffer: (block, generator) => `df["geometry"] = ${measure(block).metric}.buffer(${slot(block, generator, 'METRES').code})${measure(block).back}\n`,
   spk_dissolve: (block) => (f(block, 'BY') ? `df = df.dissolve(by=${str(f(block, 'BY'))}, as_index=False)\n` : `df = df.dissolve()\n`),
   spk_convex_hull: (_block, generator) => {
     addImports(generator, 'gpd')
@@ -285,7 +377,7 @@ const steps: Record<string, Generator> = {
     return (
       `points = ${measure(block).metric}\n` +
       `xmin, ymin, xmax, ymax = points.total_bounds\n` +
-      `size = ${num(block, 'KM') * 1000}\n` +
+      `size = ${gridSize(block, generator)}\n` +
       cells +
       `grid = gpd.GeoDataFrame(geometry=cells, crs=points.crs)\n` +
       `grid["count"] = gpd.sjoin(points[["geometry"]], grid, predicate="within").groupby("index_right").size().reindex(grid.index, fill_value=0)\n` +
@@ -296,30 +388,54 @@ const steps: Record<string, Generator> = {
   // Outputs
   spk_show_table: (block) => (f(block, 'TITLE') ? `display(df.style.set_caption(${str(f(block, 'TITLE'))}))\n` : `display(df)\n`),
   spk_show_summary: () => `display(df.describe())\n`,
-  spk_show_stat: (block) => {
+  // Columns come in as blocks (stations["pm10"], or df["pm10"] inside a pipeline on stations).
+  spk_show_stat: (block, generator) => {
     const agg = f(block, 'AGG')
-    const column = f(block, 'COLUMN')
-    const label = f(block, 'LABEL') || `${agg} ${column}`.trim()
-    const value = agg === 'count' ? 'len(df)' : agg === 'nunique' ? `${col(column)}.nunique()` : `round(${col(column)}.${agg}(), 2)`
+    const target = block.getInputTargetBlock('COLUMN')
+    const values = target?.isEnabled() ? generator.valueToCode(block, 'COLUMN', Order.MEMBER) : ''
+    const label = f(block, 'LABEL') || `${agg} ${values ? labelOf(target!) : ''}`.trim()
+    if (!values && agg !== 'count') return `# show ${agg}: put a column block into the gap\n`
+    const value = !values ? 'len(df)' : agg === 'count' ? `${values}.count()` : agg === 'nunique' ? `${values}.nunique()` : `round(${values}.${agg}(), 2)`
     return `print(${str(`${label}:`)}, ${value})\n`
   },
   spk_show_chart: (block, generator) => {
     addImports(generator, 'alt', 'pd')
     const kind = f(block, 'KIND')
-    const x = f(block, 'X')
-    const y = f(block, 'Y')
-    const color = f(block, 'COLOR')
     const title = f(block, 'TITLE')
-    // Altair would draw a GeoDataFrame as shapes; for charts only the table matters.
-    const data = columnsForBlock(block).includes('geometry') ? 'pd.DataFrame(df.drop(columns="geometry"))' : 'df'
-    const mark = { bar: 'mark_bar()', line: 'mark_line(point=True)', scatter: 'mark_circle(size=60)', histogram: 'mark_bar()' }[kind] ?? 'mark_bar()'
+    // The chart's table is built from the column blocks plugged in: x, y and colour.
+    const used = new Set<string>()
+    const columns: Partial<Record<'X' | 'Y' | 'COLOR', { name: string; code: string }>> = {}
+    // A colour block instead of a column: one colour for all marks.
+    const fixed = fixedColour(block, 'COLOR')
+    for (const input of ['X', 'Y', 'COLOR'] as const) {
+      if (input === 'COLOR' && fixed) continue
+      const target = block.getInputTargetBlock(input)
+      const code = target?.isEnabled() ? generator.valueToCode(block, input, Order.NONE) : ''
+      if (!code) continue
+      const base = labelOf(target!) || input.toLowerCase()
+      let name = base
+      for (let n = 2; used.has(name); n++) name = `${base}_${n}`
+      used.add(name)
+      columns[input] = { name, code }
+    }
+    if (!columns.X) return `# chart: put a column block into "x axis"\n`
+    const x = columns.X.name
+    const y = columns.Y?.name ?? ''
+    const color = columns.COLOR?.name ?? ''
+    const entries = Object.values(columns).map((column) => `    ${str(column.name)}: ${column.code},\n`)
+    const data = 'chart_data'
+    const table = `chart_data = pd.DataFrame({\n${entries.join('')}})\n`
+    const options = fixed ? `color=${str(fixed)}` : ''
+    const mark =
+      { bar: `mark_bar(${options})`, line: `mark_line(point=True${options ? `, ${options}` : ''})`, scatter: `mark_circle(size=60${options ? `, ${options}` : ''})`, histogram: `mark_bar(${options})` }[kind] ??
+      `mark_bar(${options})`
     const encode = [
       kind === 'histogram' ? `x=alt.X(${str(x)}, bin=True)` : kind === 'bar' ? `x=alt.X(${str(x)}, sort=None, axis=alt.Axis(labelAngle=0))` : `x=${str(x)}`,
       kind === 'histogram' || !y ? 'y="count()"' : `y=${str(y)}`,
       ...(color ? [`color=${str(color)}`] : []),
     ]
     const properties = [...(title ? [`title=${str(title)}`] : []), 'width="container"']
-    return `chart = alt.Chart(${data}).${mark}.encode(${encode.join(', ')}).properties(${properties.join(', ')})\ndisplay(chart)\n`
+    return `${table}chart = alt.Chart(${data}).${mark}.encode(${encode.join(', ')}).properties(${properties.join(', ')})\ndisplay(chart)\n`
   },
   spk_map: (block, generator) => mapCode(block, generator),
   spk_show_map: (block, generator) =>
@@ -329,6 +445,7 @@ const steps: Record<string, Generator> = {
         name: currentName(block),
         style: 'auto',
         color: f(block, 'COLOR'),
+        fixed: fixedColour(block, 'COLOR'),
         size: '',
         label: '',
         numeric: f(block, 'COLOR') ? isNumericColumn(block, f(block, 'COLOR')) : undefined,
@@ -339,7 +456,8 @@ const steps: Record<string, Generator> = {
 
 // --- Maps: folium --------------------------------------------------------------
 
-type Layer = { source: string; name: string; style: string; color: string; size: string; label: string; numeric?: boolean }
+/** color: column to colour by; fixed: one colour for all features (colour block). */
+type Layer = { source: string; name: string; style: string; color: string; fixed?: string; size: string; label: string; numeric?: boolean }
 
 const BASEMAPS: Record<string, string> = {
   light: 'xyz.Esri.WorldGrayCanvas',
@@ -365,6 +483,7 @@ const layersOf = (block: Blockly.Block): Layer[] => {
       name: other ? toIdentifier(other) : currentName(block),
       style: f(layer, 'STYLE'),
       color,
+      fixed: fixedColour(layer, 'COLOR'),
       size: f(layer, 'SIZE'),
       label: f(layer, 'LABEL'),
       numeric: color ? isNumericColumn(layer, color) : undefined,
@@ -385,7 +504,7 @@ const mapCode = (block: Blockly.Block, generator: PythonGenerator, layers = laye
     const count = (used.get(layer.name) ?? 0) + 1
     used.set(layer.name, count)
     const prefix = toIdentifier(count > 1 ? `${layer.name}_${count}` : layer.name)
-    const fallback = CATEGORICAL[index % CATEGORICAL.length]
+    const fallback = layer.fixed ?? CATEGORICAL[index % CATEGORICAL.length]
     const asPoints = layer.style === 'points' || layer.style === 'bubbles'
     const data = asPoints ? `${layer.source}.assign(geometry=${layer.source}.representative_point())` : layer.source
     const numericColor = !!layer.color && (layer.numeric ?? isNumeric(layer.color))
@@ -424,6 +543,25 @@ for (const [type, generator] of Object.entries({ ...loaders, ...steps })) {
   pythonGenerator.forBlock[type] = generator as (typeof pythonGenerator.forBlock)[string]
 }
 
-pythonGenerator.forBlock.spk_column = (block) => [col(f(block, 'COLUMN')), Order.MEMBER]
+/** Dataset of the pipeline a block sits in (its columns are read from df there). */
+const pipelineDataset = (block: Blockly.Block) => {
+  const root = block.getRootBlock()
+  return root.type === PIPELINE ? dataset(root) : undefined
+}
+
+/** Column / value blocks: direct access into the original data, e.g. stations["temperature"]. */
+const referenceBlock = (block: Blockly.Block, generator: PythonGenerator, nameField: string, fallback: () => string): [string, Order] => {
+  const { ref } = referenceOf(block)
+  if (!ref) return [fallback(), Order.MEMBER]
+  if (referenceNeedsPandas(ref)) addImports(generator, 'pd')
+  return [referenceCode(ref, f(block, nameField), pipelineDataset(block)), Order.FUNCTION_CALL]
+}
+
+pythonGenerator.forBlock.spk_column = (block, generator) =>
+  referenceBlock(block, generator as PythonGenerator, 'COLUMN', () => col(f(block, 'COLUMN')))
+pythonGenerator.forBlock.spk_colour = (block) => [str(f(block, 'COLOUR')), Order.ATOMIC]
+pythonGenerator.forBlock.spk_dataset = (block) => [dataset(block, 'NAME'), Order.ATOMIC]
+pythonGenerator.forBlock.spk_value = (block, generator) =>
+  referenceBlock(block, generator as PythonGenerator, 'NAME', () => toIdentifier(f(block, 'NAME') || 'value'))
 
 export { pythonGenerator }

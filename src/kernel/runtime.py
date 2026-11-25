@@ -381,6 +381,8 @@ def _download_name(url):
 
 def _layers(kind, ref):
     """All layers of a multi-layer GIS file (zip with several Shapefiles, GeoPackage)."""
+    if kind not in ("file", "url"):
+        return None
     path = ref if kind == "file" else _download_name(ref)
     if not path.lower().endswith((".zip", ".gpkg")) or not os.path.exists(path):
         return None

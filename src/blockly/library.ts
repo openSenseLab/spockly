@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { getMessages } from '../i18n'
 import { idbStorage } from '../journal/idbStorage'
 import { newId } from '../utils/id'
+import { migrateWorkspace } from './migrate'
 
 /**
  * "My blocks": block groups a learner saved for reuse. They live in the browser,
@@ -72,7 +73,7 @@ export const libraryFlyout = (): Blockly.utils.toolbox.FlyoutItemInfoArray => {
   if (!snippets.length) return [{ kind: 'label', text: t.empty }]
   return snippets.flatMap((snippet) => [
     { kind: 'label', text: snippet.name },
-    { kind: 'block', ...snippet.state } as Blockly.utils.toolbox.BlockInfo,
+    { kind: 'block', ...migrateWorkspace(snippet.state) } as Blockly.utils.toolbox.BlockInfo,
   ])
 }
 

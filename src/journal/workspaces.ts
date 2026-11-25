@@ -22,7 +22,12 @@ const workspace = (top: object[]) => ({ blocks: { languageVersion: 0, blocks: to
 export const pipelineWorkspace = (dataset: string, steps: BlockState[]) => {
   const stepChain = chain(steps)
   return workspace([
-    { type: 'spk_pipeline', x: 24, y: 24, fields: { DATASET: dataset }, inputs: stepChain ? { STEPS: stepChain } : {} },
+    {
+      type: 'spk_pipeline',
+      x: 24,
+      y: 24,
+      inputs: { DATASET: { block: { type: 'spk_dataset', fields: { NAME: dataset } } }, ...(stepChain ? { STEPS: stepChain } : {}) },
+    },
   ])
 }
 
@@ -34,16 +39,17 @@ export const loadExample = (example: string, name = example): BlockState => ({
   fields: { EXAMPLE: example, NAME: name },
 })
 
-/** Every dataset name created by load blocks in a serialized workspace. */
-export const loadedNames = (state: unknown): string[] => {
+/** Blocks in data cells that create a dataset from a part of another one. */
+const TAKE_DATASET = ['spk_take_table', 'spk_take_columns']
+
+/** NAME fields of all blocks matching `test` in a serialized workspace. */
+const namesOf = (state: unknown, test: (type: string) => boolean): string[] => {
   const names: string[] = []
   const visit = (node: unknown) => {
     if (Array.isArray(node)) node.forEach(visit)
     else if (node && typeof node === 'object') {
       const record = node as { type?: unknown; fields?: { NAME?: unknown } }
-      if (typeof record.type === 'string' && record.type.startsWith('spk_load_') && record.fields?.NAME) {
-        names.push(String(record.fields.NAME))
-      }
+      if (typeof record.type === 'string' && test(record.type) && record.fields?.NAME) names.push(String(record.fields.NAME))
       Object.values(node).forEach(visit)
     }
   }
@@ -51,12 +57,17 @@ export const loadedNames = (state: unknown): string[] => {
   return names
 }
 
+/** Every dataset name created by load (and "take") blocks in a serialized workspace. */
+export const loadedNames = (state: unknown) => namesOf(state, (type) => type.startsWith('spk_load_') || TAKE_DATASET.includes(type))
+
 const SOURCES: Record<string, { kind: InspectRequest['kind']; field: string }> = {
   spk_load_example: { kind: 'example', field: 'EXAMPLE' },
   spk_load_url: { kind: 'url', field: 'URL' },
   spk_load_file: { kind: 'file', field: 'FILE' },
   spk_load_gis_file: { kind: 'file', field: 'FILE' },
   spk_load_gis_url: { kind: 'url', field: 'URL' },
+  spk_take_table: { kind: 'extract', field: 'DATASET' },
+  spk_take_columns: { kind: 'extract', field: 'DATASET' },
 }
 
 /** The datasets a data block's workspace loads, so Python can profile them after running. */

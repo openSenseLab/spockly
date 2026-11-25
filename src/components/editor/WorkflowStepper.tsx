@@ -17,7 +17,8 @@ const workflowProgress = (cells: Cell[], shared: boolean): Record<Step, boolean>
   const inspections = cells.flatMap((cell) =>
     cell.type === 'data'
       ? cell.outputs
-          .filter((output): output is Inspection => output.type === 'inspection')
+          // Selections ("take" blocks) have no inspection task of their own.
+          .filter((output): output is Inspection => output.type === 'inspection' && output.source.kind !== 'extract')
           .map((output) => ({ profile: output.profile, solved: cell.solved[output.profile.name] ?? [] }))
       : [],
   )

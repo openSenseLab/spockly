@@ -1,5 +1,9 @@
 import { BookPlus, ChartColumn, Code, EllipsisVertical, FlaskConical, Play, Puzzle, RefreshCw, RotateCcw, Square } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import type * as Blockly from 'blockly'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { appendToLoadStack, removeSelectBlock, selectBlockState } from '../blockly/append'
+import { selectionsInState } from '../blockly/reference'
 
 import { BlocklyEditor } from '../blockly/BlocklyEditor'
 import { installEditorContext } from '../blockly/context'
@@ -69,10 +73,31 @@ export function Lab() {
   useEffect(() => {
     warmUpKernel()
     // In the lab, dropdowns offer the datasets of this workspace and uploads stay in the lab.
-    return installEditorContext({ datasetNames: () => [], addFile, fileContent: (name) => useLabStore.getState().files[name] })
+    return installEditorContext({
+      datasetNames: () => [],
+      values: () => [],
+      selections: () => selectionsInState(useLabStore.getState().workspace),
+      addFile,
+      fileContent: (name) => useLabStore.getState().files[name],
+    })
   }, [addFile])
 
   const onChange = useCallback((state: object, nextCode: string) => setWorkspace(state, nextCode), [setWorkspace])
+
+  // Select tab: selections are "select … as …" blocks below the load blocks.
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
+  const onReady = useCallback((ws: Blockly.WorkspaceSvg | null) => {
+    workspaceRef.current = ws
+  }, [])
+  const onWorkspace = <A extends unknown[]>(
+    change: (ws: Blockly.WorkspaceSvg, ...args: A) => { state: object; code: string },
+    ...args: A
+  ) => {
+    if (!workspaceRef.current) return
+    const next = change(workspaceRef.current, ...args)
+    setWorkspace(next.state, next.code)
+  }
+  const selections = selectionsInState(workspace)
 
   const inspections = outputs.filter((output): output is Inspection => output.type === 'inspection')
   const others = outputs.filter((output) => output.type !== 'inspection')
@@ -129,7 +154,7 @@ export function Lab() {
       <main className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,1fr)]">
         <section className={cn(cardClass, 'relative z-10 min-h-0 max-lg:h-[70vh]')}>
           {/* key: re-create after "start over" and on language change */}
-          <BlocklyEditor key={`${language}-${version}`} variant="lab" initialState={workspace} onChange={onChange} />
+          <BlocklyEditor key={`${language}-${version}`} variant="lab" initialState={workspace} onChange={onChange} onReady={onReady} />
         </section>
 
         <aside className={cn(cardClass, 'flex min-h-0 flex-col overflow-hidden')}>
@@ -165,7 +190,11 @@ export function Lab() {
                 {inspections.map((output) => (
                   <div key={output.profile.name} className="rounded-xl bg-ink-50/70 p-3 ring-1 ring-ink-100">
                     <DatasetHeader output={output} />
-                    <InspectionPanel profile={output.profile} />
+                    <InspectionPanel profile={output.profile} select={{
+                        selections,
+                        add: (picked) => onWorkspace(appendToLoadStack, picked.map(selectBlockState), output.profile.name),
+                        remove: (id) => onWorkspace(removeSelectBlock, id),
+                      }} />
                   </div>
                 ))}
                 {others.length > 0 && <OutputView outputs={others} />}

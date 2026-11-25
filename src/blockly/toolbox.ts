@@ -1,26 +1,65 @@
 import * as Blockly from 'blockly'
 
-import type { Messages } from '../i18n'
+import { getMessages, type Messages } from '../i18n'
 import { COLOURS } from './blocks'
+import { knownDatasets, knownValues } from './fields'
 import { LIBRARY_CATEGORY } from './library'
 import { PIPELINE } from './schema'
+import type { Selection } from '../journal/types'
+import { getEditorContext } from './context'
+import { COLUMN_BLOCK, datasetBlock } from './selection'
 
 const block = (type: string, extra: Record<string, unknown> = {}) => ({ kind: 'block', type, ...extra })
 
-/** spk_compute with a ready-made "column × 1" expression to show how values plug in. */
+/** spk_compute with a ready-made "… × 1" calculation: a column block goes into the gap. */
 const computeExample = {
   inputs: {
     VALUE: {
       block: {
         type: 'math_arithmetic',
         fields: { OP: 'MULTIPLY' },
-        inputs: {
-          A: { block: { type: 'spk_column' } },
-          B: { shadow: { type: 'math_number', fields: { NUM: 1 } } },
-        },
+        inputs: { B: { shadow: { type: 'math_number', fields: { NUM: 1 } } } },
       },
     },
   },
+}
+
+const label = (text: string) => ({ kind: 'label', text })
+
+export const DATA_CATEGORY = 'SPK_DATA'
+
+/** Load blocks for the lab, which has no separate data cells. */
+const LAB_LOADS = ['spk_load_example', 'spk_load_file', 'spk_load_url', 'spk_load_gis_file', 'spk_load_gis_url']
+
+/**
+ * The "Data" category, built each time it opens: one block per dataset, the blocks that work
+ * with a dataset ("use dataset" comes with the first dataset already in its gap), then the
+ * selections and columns.
+ */
+export const dataFlyout =
+  (withLoad: boolean) =>
+  (workspace: Blockly.WorkspaceSvg): Blockly.utils.toolbox.FlyoutItemInfoArray => {
+    const t = getMessages().toolbox
+    const names = knownDatasets(workspace)
+    return [
+      ...(withLoad ? [...LAB_LOADS.map((type) => block(type)), { kind: 'sep', gap: 24 }] : []),
+      label(t.datasets),
+      ...(names.length ? names.map((name) => ({ kind: 'block', ...datasetBlock(name) })) : [label(t.datasetsNone)]),
+      label(t.steps),
+      block(PIPELINE, names[0] ? { inputs: { DATASET: { block: datasetBlock(names[0]) } } } : {}),
+      block('spk_save'),
+      block('spk_join'),
+      ...columnItems(),
+    ]
+  }
+
+/** The columns picked in the Select tab of a dataset (not every column: only what was chosen). */
+const columnItems = (): Blockly.utils.toolbox.FlyoutItemInfoArray => {
+  const t = getMessages().toolbox
+  const selected = getEditorContext()
+    .selections()
+    .filter((selection) => selection.output === 'column')
+  return [label(t.columnsSelected), ...(selected.length ? selected.map(selectionBlock) : [label(t.columnsNone)])]
 }
 
 /** Data cells only load data: a small always-open flyout instead of categories. */
@@ -35,8 +74,45 @@ export const buildDataToolbox = (t: Messages['toolbox']): Blockly.utils.toolbox.
     block('spk_load_gis_file'),
     block('spk_load_gis_url'),
     block('spk_make_spatial'),
+    // Parts of the data are picked in the Select tab of the inspection: they become column /
+    // value blocks of the analysis toolbox, so no "take" blocks here.
   ],
 })
+
+/** A column / value block made in the Select tab, pointing into its dataset. */
+const selectionBlock = (selection: Selection) => ({
+  kind: 'block',
+  type: selection.output === 'column' ? COLUMN_BLOCK : 'spk_value',
+  fields: selection.output === 'column' ? { COLUMN: selection.name } : { NAME: selection.name },
+  extraState: { ref: selection.ref, ...(selection.type ? { type: selection.type } : {}) },
+})
+
+export const VALUES_CATEGORY = 'SPK_VALUES'
+
+/**
+ * The "Values" category, built each time it opens: one ready block per value taken in a
+ * data block (typed, so it only fits matching slots), then numbers, text and calculations.
+ */
+export const valuesFlyout = (workspace: Blockly.WorkspaceSvg): Blockly.utils.toolbox.FlyoutItemInfoArray => {
+  const t = getMessages().toolbox
+  const selected = getEditorContext()
+    .selections()
+    .filter((selection) => selection.output === 'value')
+  // Values of older journals, taken with "take value" blocks in a data block.
+  const taken = knownValues(workspace).filter((value) => !selected.some((selection) => selection.name === value.name))
+  return [
+    { kind: 'label', text: t.valuesYours },
+    ...selected.map(selectionBlock),
+    ...taken.map((value) => block('spk_value', { fields: { NAME: value.name } })),
+    ...(selected.length || taken.length ? [] : [{ kind: 'label', text: t.valuesNone }]),
+    { kind: 'label', text: t.valuesGeneral },
+    block('spk_colour'),
+    block('math_number'),
+    block('math_arithmetic'),
+    block('math_single'),
+    block('text'),
+  ]
+}
 
 /** Analysis toolbox; the lab also gets the load blocks, since it has no separate data cells. */
 export const buildToolbox = (
@@ -45,17 +121,8 @@ export const buildToolbox = (
 ): Blockly.utils.toolbox.ToolboxDefinition => ({
   kind: 'categoryToolbox',
   contents: [
-    {
-      kind: 'category',
-      name: t.data,
-      colour: COLOURS.data,
-      contents: [
-        ...(withLoad ? [block('spk_load_example'), block('spk_load_file'), block('spk_load_url'), { kind: 'sep', gap: 24 }] : []),
-        block(PIPELINE),
-        block('spk_save'),
-        block('spk_join'),
-      ],
-    },
+    // The lab's data category also holds the load blocks (see dataFlyout).
+    { kind: 'category', name: t.data, colour: COLOURS.data, custom: withLoad ? `${DATA_CATEGORY}_LAB` : DATA_CATEGORY },
     {
       kind: 'category',
       name: t.transform,
@@ -112,6 +179,7 @@ export const buildToolbox = (
         block('spk_show_table'),
         block('spk_show_summary'),
         block('spk_show_chart'),
+        block('spk_colour'),
         block('spk_map', { inputs: { LAYERS: { block: { type: 'spk_map_layer' } } } }),
         block('spk_map_layer'),
         block('spk_show_map'),
@@ -122,13 +190,7 @@ export const buildToolbox = (
       kind: 'category',
       name: t.values,
       colour: COLOURS.value,
-      contents: [
-        block('spk_column'),
-        block('math_number'),
-        block('math_arithmetic'),
-        block('math_single'),
-        block('text'),
-      ],
+      custom: VALUES_CATEGORY,
     },
     { kind: 'sep' },
     {

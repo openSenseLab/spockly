@@ -1,14 +1,16 @@
-import { Braces, Columns3, LayoutGrid, ListChecks, Map as MapIcon, Table2 } from 'lucide-react'
+import { Braces, Columns3, LayoutGrid, ListChecks, Map as MapIcon, SquareMousePointer, Table2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { format, useLanguageStore, useT } from '../../i18n'
 import type { ColumnKind, ColumnProfile, DatasetProfile } from '../../journal/types'
+
 import { singleLayer } from '../outputs/mapLayers'
 import { MapOutput } from '../outputs/MapOutput'
 import { formatNumber } from '../outputs/palette'
 import { TableOutput } from '../outputs/TableOutput'
 import { Badge, HoverCard, Tabs, TabsContent, TabsList, TabsTrigger, type Tone } from '../ui'
 import { cardClass, cn } from '../ui/styles'
+import { DataSelector, type SelectProps } from './DataSelector'
 import { InspectionQuiz } from './InspectionQuiz'
 import { JsonStructure } from './JsonStructure'
 
@@ -126,9 +128,11 @@ type Props = {
   profile: DatasetProfile
   solved?: string[]
   onSolve?: (questionId: string) => void
+  /** Named column / value blocks of the journal (or lab); enables the Select tab (editor only). */
+  select?: SelectProps
 }
 
-export function InspectionPanel({ profile, solved, onSolve }: Props) {
+export function InspectionPanel({ profile, solved, onSolve, select }: Props) {
   const t = useT()
   const language = useLanguageStore((state) => state.language)
   const missingCells = profile.columns.reduce((sum, column) => sum + column.missing, 0)
@@ -160,6 +164,11 @@ export function InspectionPanel({ profile, solved, onSolve }: Props) {
         {profile.mapPreview && (
           <TabsTrigger value="map">
             <MapIcon /> {t.inspect.tabs.map}
+          </TabsTrigger>
+        )}
+        {select && (
+          <TabsTrigger value="select">
+            <SquareMousePointer /> {t.inspect.tabs.select}
           </TabsTrigger>
         )}
       </TabsList>
@@ -221,6 +230,12 @@ export function InspectionPanel({ profile, solved, onSolve }: Props) {
       {profile.mapPreview && (
         <TabsContent value="map">
           <MapOutput layers={[singleLayer(profile.mapPreview)]} height={320} />
+        </TabsContent>
+      )}
+
+      {select && (
+        <TabsContent value="select">
+          <DataSelector profile={profile} {...select} />
         </TabsContent>
       )}
     </Tabs>

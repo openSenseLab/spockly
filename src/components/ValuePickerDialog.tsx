@@ -115,7 +115,7 @@ export function ValuePickerDialog() {
   const close = () => useValuePicker.setState({ request: null })
   if (!request) return null
   return (
-    <Dialog open onOpenChange={(open) => !open && close()} title={format(t.picker.title, { column: request.column || '…' })}>
+    <Dialog open onOpenChange={(open) => !open && close()} title={request.title ?? format(t.picker.title, { column: request.column || '…' })}>
       <PickerBody request={request} close={close} />
     </Dialog>
   )
