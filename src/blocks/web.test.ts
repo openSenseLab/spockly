@@ -78,6 +78,20 @@ describe('data from a web address', () => {
     expect(sourceOf(program().getBlockById('web')!.getSurroundParent())).toBe('geojson')
   })
 
+  it('says on hover which blocks come next: for GeoJSON, JSON and CSV; only what it does when the kind is unknown', () => {
+    const workspace = program()
+    const block = workspace.getBlockById('web')!
+    const tip = () => Blockly.Tooltip.getTooltipOfObject(block)
+    expect(tip()).toContain('Danach: „übersetze den JSON-Text für Python“, dann „mache eine Tabelle aus GeoJSON: 1 Zeile pro Form“ (beide unter „Allgemeine Blöcke“).')
+    expect(tip()).toContain('Quelle: U.S. Geological Survey (USGS)')
+    block.setFieldValue(CRANES, 'URL')
+    expect(tip()).toContain('dann „mache eine Tabelle aus der Liste: 1 Zeile pro Eintrag“')
+    block.setFieldValue('https://example.org/messwerte.csv', 'URL')
+    expect(tip()).toContain('Danach: „übersetze den CSV-Text für Python“, dann „mache eine Tabelle aus der Liste: 1 Zeile pro Eintrag“')
+    block.setFieldValue('https://example.org/daten', 'URL')
+    expect(tip()).toContain('Danach: „übersetze den …-Text“')
+  })
+
   it('makes rows of a list inside an object, like GBIF\'s "results", without advice to use a list', () => {
     const workspace = program({ EXAMPLE: 'kraniche_muenster' }, { type: 'step_read_json' }, { type: 'step_json_table' })
     expect(generate(workspace).shown).toContain('welt = pd.json_normalize(liste_in(welt))')

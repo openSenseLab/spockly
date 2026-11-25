@@ -12,7 +12,7 @@ import { pythonGenerator } from 'blockly/python'
 
 import { pick, t } from '../i18n'
 import { categoryNames, needs, SOURCES, stepShape, variableFor } from './program'
-import { exampleForUrl, isWebAddress, WEB_EXAMPLES, webExample } from './web/examples'
+import { exampleForUrl, guessKind, isWebAddress, WEB_EXAMPLES, webExample, type WebKind } from './web/examples'
 
 export const LOAD_URL = 'load_url'
 SOURCES.add(LOAD_URL)
@@ -32,6 +32,14 @@ function sourceLine(url: string): string {
   } catch {
     return ''
   }
+}
+
+/** The two blocks that make a table of what arrives, by its kind; '' if the kind is unknown. */
+export function nextSteps(kind: WebKind | null): string {
+  if (!kind) return ''
+  const [first, second] =
+    kind === 'csv' ? ['block.translateCsv', 'block.jsonTable'] : ['block.readJson', kind === 'geojson' ? 'block.geojsonTable' : 'block.jsonTable']
+  return t('block.loadUrl.next', { first: t(first), second: t(second), general: categoryNames().general })
 }
 
 Blockly.Blocks[LOAD_URL] = {
@@ -77,10 +85,13 @@ Blockly.Blocks[LOAD_URL] = {
       return t('block.loadUrl').replace('%1', example ? (pick(example.label) ?? example.id) : url)
     }
 
-    // What the chosen example contains; for an own address, what the block does.
+    // What the chosen example contains and which blocks come next; for an own address, what the block does.
     this.setTooltip(() => {
-      const example = exampleForUrl(String(this.getFieldValue('URL') ?? ''))
-      return example ? `${pick(example.about)}\n${t('block.loadUrl.source', { source: example.source })}` : t('block.loadUrl.tooltip', categoryNames())
+      const url = String(this.getFieldValue('URL') ?? '')
+      const example = exampleForUrl(url)
+      const next = nextSteps(guessKind(url))
+      if (example) return [pick(example.about), next, t('block.loadUrl.source', { source: example.source })].filter(Boolean).join('\n')
+      return next ? `${t('block.loadUrl.tooltip', categoryNames()).split('\n')[0]}\n${next}` : t('block.loadUrl.tooltip', categoryNames())
     })
   },
 }

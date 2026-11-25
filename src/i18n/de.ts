@@ -336,6 +336,7 @@ export const de = {
   'error.web.html': 'In „{name}“ steht eine Webseite (HTML), keine Daten: Die Adresse führt zu einer Seite zum Anschauen. Such auf der Seite einen Link zum Herunterladen (CSV, JSON oder GeoJSON) und nimm dessen Adresse.',
   'block.loadUrl.address': 'Webadresse: %1',
   'block.loadUrl.tooltip': 'Holt eine CSV-, JSON- oder GeoJSON-Datei aus dem Internet. Sie kommt als Text an.\nDanach: „übersetze den …-Text“ (unter „{general}“).',
+  'block.loadUrl.next': 'Danach: „{first}“, dann „{second}“ (beide unter „{general}“).',
   'file.none': 'noch keine gewählt',
   'url.format.unknown': 'noch nicht geprüft',
   'file.dialog.title': 'Eigene Datei laden',

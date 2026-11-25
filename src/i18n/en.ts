@@ -333,6 +333,7 @@ export const en: Record<keyof typeof de, string> = {
   'error.web.html': '"{name}" holds a web page (HTML), not data: the address leads to a page for looking at. Look on that page for a download link (CSV, JSON or GeoJSON) and use its address.',
   'block.loadUrl.address': 'web address: %1',
   'block.loadUrl.tooltip': 'Fetches a CSV, JSON or GeoJSON file from the internet. It arrives as text.\nThen: "translate the … text" (under "{general}").',
+  'block.loadUrl.next': 'Then: "{first}", then "{second}" (both under "{general}").',
   'file.none': 'none chosen yet',
   'url.format.unknown': 'not checked yet',
   'file.dialog.title': 'Load your own file',
